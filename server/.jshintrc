@@ -1,0 +1,12 @@
+{
+  "globals": {
+    "node": true
+  },
+  "esversion": 6,
+  "camelcase": true,
+  "eqeqeq": true,
+  "indent": 2,
+  "latedef": true,
+  "maxlen": 100,
+  "unused": true
+}
