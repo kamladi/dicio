@@ -1,5 +1,5 @@
 var db = require('./db');
-var serialPort = require('./serialport');
+var gateway = require('./gateway');
 var app = require('./app');
 
 // Connect to database
@@ -15,7 +15,7 @@ if (process.argv.length >= 3) {
 }
 
 // Start serial port handler
-serialPort.start(port);
+gateway.start(port);
 
 // Start web server
 app.listen(3000, () => {
