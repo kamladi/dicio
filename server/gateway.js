@@ -12,6 +12,7 @@ const OUTLET_ACTION_MESSAGE = 1;
 // Globals
 var serialPort = null;
 var hasStarted = false;
+var seqNum = 1;
 
 // Parse and handle data packet.
 // TODO:
@@ -20,7 +21,7 @@ var hasStarted = false;
 // 			execute any actions is applicable
 function handleData(data) {
   console.log("RX: ", data);
-	
+
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
 	var components = data.split(':');
@@ -30,21 +31,21 @@ function handleData(data) {
 	}
 	var macAddress = components[0],
 	    msgId = components[2],
-	    data = components[3];
+	    payload = components[3];
 	return Outlet.findOne({mac_address: macAddress}).exec()
 	  .then( outlet => {
 	    if (!outlet) {
 	      throw new Error(`Outlet does not exist for MAC Address: ${macAddress}`);
 	    }
-	    if (msgId != OUTLET_SENSOR_MESSAGE) {
+	    if (msgId !== OUTLET_SENSOR_MESSAGE) {
 	      throw new Error(`Invalid Message ID: ${msgId}`);
 	    }
-	    
+
 	    // Parse sensor data, convert to ints
-	    var sensorValues = data.split(',').map(value => parseInt(value));
-	    
+	    var sensorValues = payload.split(',').map(value => parseInt(value));
+
 	    // We're expecting five values: status, temp, humidity, light, and power.
-	    if (sensorValues.length != 5) {
+	    if (sensorValues.length !== 5) {
 	      throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
 	    }
 	    var status = sensorValues[0],
@@ -52,7 +53,7 @@ function handleData(data) {
 	        cur_humidity = sensorValues[2],
 	        cur_light = sensorValues[3],
 	        cur_power = sensorValues[4];
-	    
+
 	    // Update outlet object with new properties, and save.
 	    outlet.status = status;
 	    outlet.cur_temperature = cur_temperature;
@@ -67,6 +68,7 @@ function handleData(data) {
  * Given an outlet's mac address and an action ('ON'/'OFF'),
  * Send a message to the gateway to be propagated to that outlet.
  * Returns a promise which will be fulfilled when the packet is sent.
+ * Packet format: "mac_addr:seq_num:msg_id:payload"
  */
 exports.sendAction = function sendAction(outletMacAddress, action) {
   return new Promise( (resolve, reject) => {
@@ -75,9 +77,9 @@ exports.sendAction = function sendAction(outletMacAddress, action) {
     } else if (action !== 'ON' || action !== 'OFF') {
       reject(new Error(`Invalid action: ${action}. Must be "ON" or "OFF"`));
     } else {
-      // Convert action string t enum value
+      // Convert action string to enum value
       action = (action === 'ON') ? 1 : 0;
-      var packet = `${outletMacAddress}:${action}`;
+      var packet = `${outletMacAddress}:${seqNum}:${OUTLET_ACTION_MESSAGE}:${action}`;
       serialPort.write(packet, (err) => {
         if (err) {
           reject(err);
@@ -87,7 +89,7 @@ exports.sendAction = function sendAction(outletMacAddress, action) {
       });
     }
   });
-}
+};
 
 exports.start = function start(port) {
 	if (!port) {
