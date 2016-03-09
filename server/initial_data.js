@@ -3,6 +3,7 @@ var Event = require('./models/Event');
 var outlets = [
 	{
 		name: 'Outlet 1',
+		mac_address: '1',
 		status: 'ON',
 		cur_temperature: 1024,
 		cur_humidity: 1024,
@@ -11,6 +12,7 @@ var outlets = [
 	},
 	{
 		name: 'Outlet 2',
+		mac_address: '2',
 		status: 'ON',
 		cur_temperature: 256,
 		cur_humidity: 256,
@@ -19,6 +21,7 @@ var outlets = [
 	},
 	{
 		name: 'Outlet 3',
+		mac_address: '3',
 		status: 'OFF',
 		cur_temperature: 10,
 		cur_humidity: 10,
