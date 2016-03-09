@@ -91,6 +91,10 @@ exports.sendAction = function sendAction(outletMacAddress, action) {
   });
 };
 
+exports.isConnected = function isConnected() {
+	return hasStarted;
+}
+
 exports.start = function start(port) {
 	if (!port) {
 		port = SERIAL_PORT;
@@ -111,6 +115,7 @@ exports.start = function start(port) {
 	});
 
 	serialPort.on('error', (err) => {
+		hasStarted = false;
 		console.error('Serial Port Error: ', err);
 	});
 };
