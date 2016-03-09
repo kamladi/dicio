@@ -39,19 +39,22 @@ var events = [
 exports.init = () => {
 	// query all outlets
 	return Outlet.find({}).exec()
-		.then( outlets => {
-			if (outlets.length === 0) {
+		.then( result => {
+			if (result.length === 0) {
 				// add sample data if there aren't any outlets in the database
-				return Outlet.insertMany(outlets)
-					.then( outlets => {
-						outlets.forEach( (outlet, i) => {
+				outlets.forEach( (outletData, i) => {
+					var o = new Outlet(outletData);
+					o.save()
+						.then((savedOutlet) => {
+							// add a sample event which links to the newly created outlet
 							var newEvent = new Event(events[i]);
-							newEvent.input_outlet_id = outlet._id;
-							newEvent.output_outlet_id = outlet._id;
-							newEvent.save();
-						});
-					});
+							newEvent.input_outlet_id = savedOutlet._id;
+							newEvent.output_outlet_id = savedOutlet._id;
+							return newEvent.save();
+						}).catch(console.error);
+				});
 			}
-	});
+		})
+		.catch(console.error);
 };
 
