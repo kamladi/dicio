@@ -30,6 +30,7 @@ app.get('/outlets/', outletsCtrl.getOutlets);
 app.get('/outlets/clear', outletsCtrl.clearOutlets);
 app.get('/outlets/:id/:action(on|off)', outletsCtrl.sendOutletAction);
 app.get('/outlets/:id', outletsCtrl.getOutletDetails);
+app.post('/outlets/:id', outletsCtrl.updateOutlet);
 app.get('/events/', eventsCtrl.getEvents);
 app.post('/events/', eventsCtrl.createEvent);
 app.get('/events/clear', eventsCtrl.clearEvents);

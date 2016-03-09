@@ -7,7 +7,7 @@ var BadRequestError = utils.BadRequestError;
  * Returns a list of all event names and id's
  */
 exports.getEvents = (req, res) => {
-	return Event.find({}, 'name')
+	return Event.find({})
 		.then( events => {
 			return res.json(events);
 		});
