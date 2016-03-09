@@ -37,14 +37,21 @@ var events = [
 ];
 
 exports.init = () => {
-	return Outlet.insertMany(outlets)
+	// query all outlets
+	return Outlet.find({}).exec()
 		.then( outlets => {
-			outlets.forEach( (outlet, i) => {
-				var newEvent = new Event(events[i]);
-				newEvent.input_outlet_id = outlet._id;
-				newEvent.output_outlet_id = outlet._id;
-				newEvent.save();
-			});
-		});
+			if (outlets.length === 0) {
+				// add sample data if there aren't any outlets in the database
+				return Outlet.insertMany(outlets)
+					.then( outlets => {
+						outlets.forEach( (outlet, i) => {
+							var newEvent = new Event(events[i]);
+							newEvent.input_outlet_id = outlet._id;
+							newEvent.output_outlet_id = outlet._id;
+							newEvent.save();
+						});
+					});
+			}
+	});
 };
 

@@ -2,6 +2,7 @@ var Outlet = require('../models/Outlet');
 var ObjectId = require('mongoose').Types.ObjectId;
 var utils = require('../lib/utils');
 var BadRequestError = utils.BadRequestError;
+var Gateway = require('../gateway');
 
 /*
  * Returns a list of all outlet names and id's
@@ -40,3 +41,18 @@ exports.clearOutlets = (req, res) => {
 			return res.send('outlets reset');
 		});
 };
+
+exports.sendOutletAction = (req, res, next) => {
+	req.checkParams('id', 'Invalid Outlet ID').notEmpty().isObjectId();
+	var id = new ObjectId(req.params.id);
+	return Outlet.findById(id).exec()
+		.then( outlet => {
+			if (!outlet) {
+				throw new BadRequestError(`Cannot find outlet with id ${id}`);
+			}
+			var action = (req.params.action === 'on') ? 'ON' : 'OFF';
+			Gateway.sendAction(outlet.mac_address, action);
+			return res.json(outlet);
+		})
+		.catch(next);
+}

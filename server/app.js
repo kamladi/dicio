@@ -28,6 +28,7 @@ app.use(expressValidator({
 // Application Routes
 app.get('/outlets/', outletsCtrl.getOutlets);
 app.get('/outlets/clear', outletsCtrl.clearOutlets);
+app.get('/outlets/:id/:action(on|off)', outletsCtrl.sendOutletAction);
 app.get('/outlets/:id', outletsCtrl.getOutletDetails);
 app.get('/events/', eventsCtrl.getEvents);
 app.post('/events/', eventsCtrl.createEvent);
