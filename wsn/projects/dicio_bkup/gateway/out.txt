@@ -1,0 +1,1151 @@
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_cpu.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.d; \
+	[ -s ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.d ] || rm -f ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.d; \
+	[ -s ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.d ] || rm -f ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.d; \
+	[ -s ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.d ] || rm -f ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_status.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_status.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega128rfa1/nrk_status.d; \
+	[ -s ../../../src/kernel/hal/atmega128rfa1/nrk_status.d ] || rm -f ../../../src/kernel/hal/atmega128rfa1/nrk_status.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_timer.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega128rfa1/nrk_timer.d; \
+	[ -s ../../../src/kernel/hal/atmega128rfa1/nrk_timer.d ] || rm -f ../../../src/kernel/hal/atmega128rfa1/nrk_timer.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_sw_wdt.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_sw_wdt.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_sw_wdt.d; \
+	[ -s ../../../src/kernel/source/nrk_sw_wdt.d ] || rm -f ../../../src/kernel/source/nrk_sw_wdt.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_reserve.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_reserve.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_reserve.d; \
+	[ -s ../../../src/kernel/source/nrk_reserve.d ] || rm -f ../../../src/kernel/source/nrk_reserve.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_driver.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_driver.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_driver.d; \
+	[ -s ../../../src/kernel/source/nrk_driver.d ] || rm -f ../../../src/kernel/source/nrk_driver.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_scheduler.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_scheduler.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_scheduler.d; \
+	[ -s ../../../src/kernel/source/nrk_scheduler.d ] || rm -f ../../../src/kernel/source/nrk_scheduler.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_idle_task.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_idle_task.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_idle_task.d; \
+	[ -s ../../../src/kernel/source/nrk_idle_task.d ] || rm -f ../../../src/kernel/source/nrk_idle_task.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_time.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_time.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_time.d; \
+	[ -s ../../../src/kernel/source/nrk_time.d ] || rm -f ../../../src/kernel/source/nrk_time.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_task.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_task.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_task.d; \
+	[ -s ../../../src/kernel/source/nrk_task.d ] || rm -f ../../../src/kernel/source/nrk_task.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_events.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_events.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_events.d; \
+	[ -s ../../../src/kernel/source/nrk_events.d ] || rm -f ../../../src/kernel/source/nrk_events.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_stack_check.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_stack_check.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_stack_check.d; \
+	[ -s ../../../src/kernel/source/nrk_stack_check.d ] || rm -f ../../../src/kernel/source/nrk_stack_check.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_error.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_error.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_error.d; \
+	[ -s ../../../src/kernel/source/nrk_error.d ] || rm -f ../../../src/kernel/source/nrk_error.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_stats.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_stats.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk_stats.d; \
+	[ -s ../../../src/kernel/source/nrk_stats.d ] || rm -f ../../../src/kernel/source/nrk_stats.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/source/nrk.d; \
+	[ -s ../../../src/kernel/source/nrk.d ] || rm -f ../../../src/kernel/source/nrk.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/nrk_eeprom.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/nrk_eeprom.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/platform/firefly3/source/nrk_eeprom.d; \
+	[ -s ../../../src/platform/firefly3/source/nrk_eeprom.d ] || rm -f ../../../src/platform/firefly3/source/nrk_eeprom.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/hal_wait.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/hal_wait.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/platform/firefly3/source/hal_wait.d; \
+	[ -s ../../../src/platform/firefly3/source/hal_wait.d ] || rm -f ../../../src/platform/firefly3/source/hal_wait.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/ulib.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/ulib.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/platform/firefly3/source/ulib.d; \
+	[ -s ../../../src/platform/firefly3/source/ulib.d ] || rm -f ../../../src/platform/firefly3/source/ulib.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/radio/rf231_soc/source/basic_rf.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/radio/rf231_soc/source/basic_rf.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/radio/rf231_soc/source/basic_rf.d; \
+	[ -s ../../../src/radio/rf231_soc/source/basic_rf.d ] || rm -f ../../../src/radio/rf231_soc/source/basic_rf.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/sequence_pool.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/sequence_pool.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../projects/lab3/utility/sequence_pool.d; \
+	[ -s ../../../projects/lab3/utility/sequence_pool.d ] || rm -f ../../../projects/lab3/utility/sequence_pool.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/parser.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/parser.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../projects/lab3/utility/parser.d; \
+	[ -s ../../../projects/lab3/utility/parser.d ] || rm -f ../../../projects/lab3/utility/parser.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/neighbors.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/neighbors.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../projects/lab3/utility/neighbors.d; \
+	[ -s ../../../projects/lab3/utility/neighbors.d ] || rm -f ../../../projects/lab3/utility/neighbors.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/light_pool.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/light_pool.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../projects/lab3/utility/light_pool.d; \
+	[ -s ../../../projects/lab3/utility/light_pool.d ] || rm -f ../../../projects/lab3/utility/light_pool.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/assembler.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/assembler.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../projects/lab3/utility/assembler.d; \
+	[ -s ../../../projects/lab3/utility/assembler.d ] || rm -f ../../../projects/lab3/utility/assembler.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/net/bmac/rf231_soc/bmac.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/net/bmac/rf231_soc/bmac.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/net/bmac/rf231_soc/bmac.d; \
+	[ -s ../../../src/net/bmac/rf231_soc/bmac.d ] || rm -f ../../../src/net/bmac/rf231_soc/bmac.d
+set -e; avr-gcc -g -MM -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=main.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB main.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > main.d; \
+	[ -s main.d ] || rm -f main.d
+
+
+-------- begin --------
+avr-gcc (GCC) 4.9.1
+Copyright (C) 2014 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Compiling: main.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=main.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB main.c -o main.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+main.c: In function ‘rx_node_task’:
+main.c:145:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
+       parse_msg(&rx_packet, &net_rx_buf, len);
+       ^
+In file included from main.c:25:0:
+../../../projects/lab3/utility/parser.h:16:6: note: expected ‘char *’ but argument is of type ‘uint8_t (*)[116]’
+ void parse_msg(packet *parsed_packet, char *src, uint8_t len);
+      ^
+main.c:146:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
+       local_buf = bmac_rx_pkt_get(&len, &rssi);
+                   ^
+In file included from main.c:19:0:
+../../../src/net/bmac/bmac.h:119:10: note: expected ‘int8_t *’ but argument is of type ‘uint8_t *’
+ uint8_t *bmac_rx_pkt_get(uint8_t *len, int8_t *rssi);
+          ^
+
+Compiling: ../../../src/net/bmac/rf231_soc/bmac.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/net/bmac/rf231_soc/bmac.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/net/bmac/rf231_soc/bmac.c -o ../../../src/net/bmac/rf231_soc/bmac.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/net/bmac/rf231_soc/bmac.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/net/bmac/rf231_soc/bmac.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/net/bmac/rf231_soc/bmac.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/net/bmac/rf231_soc/bmac.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘bmac_encryption_set_ctr_counter’:
+../../../src/net/bmac/rf231_soc/bmac.c:83:3: warning: implicit declaration of function ‘rf_security_set_ctr_counter’ [-Wimplicit-function-declaration]
+   rf_security_set_ctr_counter (counter);
+   ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘bmac_rx_pkt_is_encrypted’:
+../../../src/net/bmac/rf231_soc/bmac.c:154:3: warning: implicit declaration of function ‘rf_security_last_pkt_status’ [-Wimplicit-function-declaration]
+   return rf_security_last_pkt_status ();
+   ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘bmac_encryption_set_key’:
+../../../src/net/bmac/rf231_soc/bmac.c:161:3: warning: implicit declaration of function ‘rf_security_set_key’ [-Wimplicit-function-declaration]
+   rf_security_set_key (key);
+   ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘bmac_set_cca_thresh’:
+../../../src/net/bmac/rf231_soc/bmac.c:193:3: warning: implicit declaration of function ‘rf_set_cca_thresh’ [-Wimplicit-function-declaration]
+   rf_set_cca_thresh (thresh);
+   ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘bmac_nw_task’:
+../../../src/net/bmac/rf231_soc/bmac.c:393:11: warning: variable ‘backoff’ set but not used [-Wunused-but-set-variable]
+   uint8_t backoff;
+           ^
+../../../src/net/bmac/rf231_soc/bmac.c:392:10: warning: variable ‘e’ set but not used [-Wunused-but-set-variable]
+   int8_t e;
+          ^
+../../../src/net/bmac/rf231_soc/bmac.c:391:13: warning: unused variable ‘i’ [-Wunused-variable]
+   int8_t v, i;
+             ^
+../../../src/net/bmac/rf231_soc/bmac.c: In function ‘_bmac_rx’:
+../../../src/net/bmac/rf231_soc/bmac.c:502:11: warning: variable ‘cnt’ set but not used [-Wunused-but-set-variable]
+   uint8_t cnt;
+           ^
+
+Compiling: ../../../projects/lab3/utility/assembler.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/assembler.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/assembler.c -o ../../../projects/lab3/utility/assembler.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../projects/lab3/utility/assembler.c: In function ‘assemble_packet’:
+../../../projects/lab3/utility/assembler.c:17:13: warning: pointer targets in passing argument 1 of ‘sprintf’ differ in signedness [-Wpointer-sign]
+             sprintf (tx_buf, "[%d][%d][%d][%d][%d]", tx->type, tx->source_id, tx->seq_num, 
+             ^
+In file included from ../../../src/platform/include/ulib.h:34:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+/opt/local/avr/include/stdio.h:669:12: note: expected ‘char *’ but argument is of type ‘uint8_t *’
+ extern int sprintf(char *__s, const char *__fmt, ...);
+            ^
+../../../projects/lab3/utility/assembler.c:24:11: warning: pointer targets in passing argument 1 of ‘sprintf’ differ in signedness [-Wpointer-sign]
+           sprintf (tx_buf, "[%d][%d][%d][%d][%d][%d,%d,%d]", tx->type, tx->source_id, tx->seq_num, 
+           ^
+In file included from ../../../src/platform/include/ulib.h:34:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+/opt/local/avr/include/stdio.h:669:12: note: expected ‘char *’ but argument is of type ‘uint8_t *’
+ extern int sprintf(char *__s, const char *__fmt, ...);
+            ^
+../../../projects/lab3/utility/assembler.c:31:11: warning: pointer targets in passing argument 1 of ‘sprintf’ differ in signedness [-Wpointer-sign]
+           sprintf (tx_buf, "[%d][%d][%d][%d][%d][%d]", tx->type, tx->source_id, tx->seq_num, 
+           ^
+In file included from ../../../src/platform/include/ulib.h:34:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/assembler.h:12,
+                 from ../../../projects/lab3/utility/assembler.c:9:
+/opt/local/avr/include/stdio.h:669:12: note: expected ‘char *’ but argument is of type ‘uint8_t *’
+ extern int sprintf(char *__s, const char *__fmt, ...);
+            ^
+../../../projects/lab3/utility/assembler.c:13:5: warning: enumeration value ‘MSG_NO_MESSAGE’ not handled in switch [-Wswitch]
+     switch(tx->type)
+     ^
+
+Compiling: ../../../projects/lab3/utility/light_pool.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/light_pool.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/light_pool.c -o ../../../projects/lab3/utility/light_pool.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/light_pool.h:12,
+                 from ../../../projects/lab3/utility/light_pool.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/light_pool.h:12,
+                 from ../../../projects/lab3/utility/light_pool.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/light_pool.h:12,
+                 from ../../../projects/lab3/utility/light_pool.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/light_pool.h:12,
+                 from ../../../projects/lab3/utility/light_pool.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../projects/lab3/utility/neighbors.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/neighbors.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/neighbors.c -o ../../../projects/lab3/utility/neighbors.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/neighbors.h:12,
+                 from ../../../projects/lab3/utility/neighbors.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/neighbors.h:12,
+                 from ../../../projects/lab3/utility/neighbors.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/neighbors.h:12,
+                 from ../../../projects/lab3/utility/neighbors.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/neighbors.h:12,
+                 from ../../../projects/lab3/utility/neighbors.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../projects/lab3/utility/neighbors.c:87:1: warning: "/*" within comment [-Wcomment]
+ /**
+ ^
+
+Compiling: ../../../projects/lab3/utility/parser.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/parser.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/parser.c -o ../../../projects/lab3/utility/parser.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/parser.h:13,
+                 from ../../../projects/lab3/utility/parser.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/parser.h:13,
+                 from ../../../projects/lab3/utility/parser.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/parser.h:13,
+                 from ../../../projects/lab3/utility/parser.c:9:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/parser.h:13,
+                 from ../../../projects/lab3/utility/parser.c:9:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../projects/lab3/utility/parser.c: In function ‘print_packet’:
+../../../projects/lab3/utility/parser.c:17:5: warning: enumeration value ‘MSG_NO_MESSAGE’ not handled in switch [-Wswitch]
+     switch(p->type)
+     ^
+../../../projects/lab3/utility/parser.c: In function ‘parse_msg’:
+../../../projects/lab3/utility/parser.c:86:13: warning: variable ‘item_length’ set but not used [-Wunused-but-set-variable]
+     uint8_t item_length = 0;
+             ^
+
+Compiling: ../../../projects/lab3/utility/sequence_pool.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../projects/lab3/utility/sequence_pool.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../projects/lab3/utility/sequence_pool.c -o ../../../projects/lab3/utility/sequence_pool.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/sequence_pool.h:12,
+                 from ../../../projects/lab3/utility/sequence_pool.c:8:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/sequence_pool.h:12,
+                 from ../../../projects/lab3/utility/sequence_pool.c:8:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/sequence_pool.h:12,
+                 from ../../../projects/lab3/utility/sequence_pool.c:8:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../projects/lab3/utility/type_defs.h:13,
+                 from ../../../projects/lab3/utility/sequence_pool.h:12,
+                 from ../../../projects/lab3/utility/sequence_pool.c:8:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/radio/rf231_soc/source/basic_rf.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/radio/rf231_soc/source/basic_rf.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/radio/rf231_soc/source/basic_rf.c -o ../../../src/radio/rf231_soc/source/basic_rf.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk_events.h:31,
+                 from ../../../src/radio/rf231_soc/include/basic_rf.h:70,
+                 from ../../../src/radio/rf231_soc/source/basic_rf.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/radio/rf231_soc/source/basic_rf.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk_events.h:31,
+                 from ../../../src/radio/rf231_soc/include/basic_rf.h:70,
+                 from ../../../src/radio/rf231_soc/source/basic_rf.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/radio/rf231_soc/source/basic_rf.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘rx_start_callback’:
+../../../src/radio/rf231_soc/source/basic_rf.c:216:2: warning: function return types not compatible due to ‘volatile’
+  rx_start_func = func;
+  ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘rx_end_callback’:
+../../../src/radio/rf231_soc/source/basic_rf.c:220:2: warning: function return types not compatible due to ‘volatile’
+  rx_end_func = func;
+  ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘rf_tx_packet_repeat’:
+../../../src/radio/rf231_soc/source/basic_rf.c:418:61: warning: initialization discards ‘volatile’ qualifier from pointer target type
+  uint8_t trx_status, trx_error, *data_start, *frame_start = &TRXFBST;
+                                                             ^
+../../../src/radio/rf231_soc/source/basic_rf.c:424:37: warning: initialization from incompatible pointer type
+  ieee_mac_frame_header_t *machead = frame_start + 1;
+                                     ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘rf_rx_packet_nonblock’:
+../../../src/radio/rf231_soc/source/basic_rf.c:574:25: warning: initialization discards ‘volatile’ qualifier from pointer target type
+  uint8_t *frame_start = &TRXFBST;
+                         ^
+../../../src/radio/rf231_soc/source/basic_rf.c:584:37: warning: initialization from incompatible pointer type
+  ieee_mac_frame_header_t *machead = frame_start;
+                                     ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘__vector_60’:
+../../../src/radio/rf231_soc/source/basic_rf.c:621:25: warning: initialization discards ‘volatile’ qualifier from pointer target type
+  uint8_t i, *byte_ptr = &TRXFBST;
+                         ^
+../../../src/radio/rf231_soc/source/basic_rf.c:644:3: warning: function with qualified void return type called
+   rx_end_func();
+   ^
+../../../src/radio/rf231_soc/source/basic_rf.c:621:14: warning: unused variable ‘byte_ptr’ [-Wunused-variable]
+  uint8_t i, *byte_ptr = &TRXFBST;
+              ^
+../../../src/radio/rf231_soc/source/basic_rf.c: In function ‘__vector_59’:
+../../../src/radio/rf231_soc/source/basic_rf.c:696:3: warning: function with qualified void return type called
+   rx_start_func();
+   ^
+
+Compiling: ../../../src/platform/firefly3/source/ulib.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/ulib.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/ulib.c -o ../../../src/platform/firefly3/source/ulib.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/platform/firefly3/source/ulib.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/platform/firefly3/source/ulib.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/platform/firefly3/source/ulib.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/platform/firefly3/source/ulib.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/platform/firefly3/source/ulib.c: In function ‘__vector_25’:
+../../../src/platform/firefly3/source/ulib.c:58:1: warning: implicit declaration of function ‘nrk_int_disable’ [-Wimplicit-function-declaration]
+ nrk_int_disable();
+ ^
+../../../src/platform/firefly3/source/ulib.c:73:1: warning: implicit declaration of function ‘nrk_int_enable’ [-Wimplicit-function-declaration]
+ nrk_int_enable();
+ ^
+../../../src/platform/firefly3/source/ulib.c:57:9: warning: unused variable ‘sig’ [-Wunused-variable]
+ uint8_t sig;
+         ^
+../../../src/platform/firefly3/source/ulib.c: In function ‘getc0’:
+../../../src/platform/firefly3/source/ulib.c:82:3: warning: ‘v’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+ if(v==NRK_ERROR ) nrk_kprintf(PSTR("uart rx sig failed\r\n" ));
+   ^
+
+Compiling: ../../../src/platform/firefly3/source/hal_wait.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/hal_wait.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/hal_wait.c -o ../../../src/platform/firefly3/source/hal_wait.o
+
+Compiling: ../../../src/platform/firefly3/source/nrk_eeprom.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/platform/firefly3/source/nrk_eeprom.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/platform/firefly3/source/nrk_eeprom.c -o ../../../src/platform/firefly3/source/nrk_eeprom.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/platform/firefly3/source/nrk_eeprom.c:3:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from /opt/local/avr/include/avr/eeprom.h:38,
+                 from ../../../src/platform/firefly3/source/nrk_eeprom.c:2:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/platform/firefly3/source/nrk_eeprom.c:3:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from /opt/local/avr/include/avr/eeprom.h:38,
+                 from ../../../src/platform/firefly3/source/nrk_eeprom.c:2:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/platform/firefly3/source/nrk_eeprom.c: In function ‘nrk_eeprom_write_byte’:
+../../../src/platform/firefly3/source/nrk_eeprom.c:15:1: warning: control reaches end of non-void function [-Wreturn-type]
+ }
+ ^
+
+Compiling: ../../../src/kernel/source/nrk.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk.c -o ../../../src/kernel/source/nrk.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/include/nrk_includes.h:34,
+                 from ../../../src/kernel/source/nrk.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/include/nrk_includes.h:34,
+                 from ../../../src/kernel/source/nrk.c:29:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/include/nrk_includes.h:34,
+                 from ../../../src/kernel/source/nrk.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/include/nrk_includes.h:34,
+                 from ../../../src/kernel/source/nrk.c:29:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/source/nrk_stats.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_stats.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_stats.c -o ../../../src/kernel/source/nrk_stats.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stats.c:1:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stats.c:1:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stats.c:1:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stats.c:1:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/source/nrk_error.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_error.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_error.c -o ../../../src/kernel/source/nrk_error.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/source/nrk_error.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_error.h:30,
+                 from ../../../src/kernel/source/nrk_error.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/source/nrk_error.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_error.h:30,
+                 from ../../../src/kernel/source/nrk_error.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/kernel/source/nrk_error.c: In function ‘nrk_error_print’:
+../../../src/kernel/source/nrk_error.c:161:16: warning: unused variable ‘i’ [-Wunused-variable]
+     int8_t t=0,i=0;
+                ^
+
+Compiling: ../../../src/kernel/source/nrk_stack_check.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_stack_check.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_stack_check.c -o ../../../src/kernel/source/nrk_stack_check.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stack_check.c:27:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stack_check.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stack_check.c:27:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_stack_check.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/source/nrk_events.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_events.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_events.c -o ../../../src/kernel/source/nrk_events.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_events.c:27:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_events.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_events.c:27:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_events.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/kernel/source/nrk_events.c: In function ‘nrk_sem_delete’:
+../../../src/kernel/source/nrk_events.c:278:9: warning: unused variable ‘task_ID’ [-Wunused-variable]
+  int8_t task_ID;
+         ^
+
+Compiling: ../../../src/kernel/source/nrk_task.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_task.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_task.c -o ../../../src/kernel/source/nrk_task.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_task.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_task.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_task.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_task.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/kernel/source/nrk_task.c: In function ‘nrk_activate_task’:
+../../../src/kernel/source/nrk_task.c:230:13: warning: variable ‘rtype’ set but not used [-Wunused-but-set-variable]
+     uint8_t rtype;
+             ^
+
+Compiling: ../../../src/kernel/source/nrk_time.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_time.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_time.c -o ../../../src/kernel/source/nrk_time.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_time.c:40:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_time.c:40:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_time.c:40:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_time.c:40:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/source/nrk_idle_task.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_idle_task.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_idle_task.c -o ../../../src/kernel/source/nrk_idle_task.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_idle_task.c:26:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_idle_task.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_idle_task.c:26:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_idle_task.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/source/nrk_scheduler.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_scheduler.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_scheduler.c -o ../../../src/kernel/source/nrk_scheduler.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_scheduler.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_scheduler.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_scheduler.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_scheduler.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/kernel/source/nrk_scheduler.c: In function ‘_nrk_scheduler’:
+../../../src/kernel/source/nrk_scheduler.c:60:5: warning: implicit declaration of function ‘_nrk_precision_os_timer_reset’ [-Wimplicit-function-declaration]
+     _nrk_precision_os_timer_reset();
+     ^
+
+Compiling: ../../../src/kernel/source/nrk_driver.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_driver.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_driver.c -o ../../../src/kernel/source/nrk_driver.o
+
+Compiling: ../../../src/kernel/source/nrk_reserve.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_reserve.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_reserve.c -o ../../../src/kernel/source/nrk_reserve.o
+
+Compiling: ../../../src/kernel/source/nrk_sw_wdt.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/source/nrk_sw_wdt.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/source/nrk_sw_wdt.c -o ../../../src/kernel/source/nrk_sw_wdt.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_sw_wdt.c:26:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_sw_wdt.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_sw_wdt.c:26:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/source/nrk_sw_wdt.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_timer.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c -o ../../../src/kernel/hal/atmega128rfa1/nrk_timer.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c: In function ‘_nrk_setup_timer’:
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:92:3: warning: implicit declaration of function ‘_nrk_precision_os_timer_reset’ [-Wimplicit-function-declaration]
+   _nrk_precision_os_timer_reset();
+   ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:94:3: warning: implicit declaration of function ‘_nrk_precision_os_timer_start’ [-Wimplicit-function-declaration]
+   _nrk_precision_os_timer_start();
+   ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c: At top level:
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:103:6: warning: conflicting types for ‘_nrk_precision_os_timer_start’
+ void _nrk_precision_os_timer_start()
+      ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:94:3: note: previous implicit declaration of ‘_nrk_precision_os_timer_start’ was here
+   _nrk_precision_os_timer_start();
+   ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:111:6: warning: conflicting types for ‘_nrk_precision_os_timer_reset’
+ void _nrk_precision_os_timer_reset()
+      ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:92:3: note: previous implicit declaration of ‘_nrk_precision_os_timer_reset’ was here
+   _nrk_precision_os_timer_reset();
+   ^
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c: In function ‘__vector_13’:
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:314:33: warning: backslash and newline separated by space
+    "in      r0, __SREG__  \n\t" \ 
+ ^
+In file included from ../../../src/platform/firefly3/include/include.h:78:0,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:26:
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c: In function ‘SIG_OUTPUT_COMPARE1A’:
+../../../src/kernel/hal/atmega128rfa1/nrk_timer.c:375:8: warning: ‘SIG_OUTPUT_COMPARE1A’ appears to be a misspelled signal handler
+ SIGNAL(SIG_OUTPUT_COMPARE1A) {
+        ^
+
+Compiling: ../../../src/kernel/hal/atmega128rfa1/nrk_status.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_status.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_status.c -o ../../../src/kernel/hal/atmega128rfa1/nrk_status.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_status.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_status.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_status.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_status.c:27:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c -o ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c -o ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_error.h:31,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c:28:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.c:26:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Compiling: ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/nrk_cpu.lst -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c -o ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c:29:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.c:28:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+
+Assembling: ../../../src/kernel/hal/atmega128rfa1/atmel_hw_specific.S
+avr-gcc -g -c -mmcu=atmega128rfa1 -I. -x assembler-with-cpp -Wa,-adhlns=../../../src/kernel/hal/atmega128rfa1/atmel_hw_specific.lst,-gstabs  ../../../src/kernel/hal/atmega128rfa1/atmel_hw_specific.S -o ../../../src/kernel/hal/atmega128rfa1/atmel_hw_specific.o
+
+Linking: main.elf
+avr-gcc -g -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=main.o -I../../../src/net/bmac -I../../../projects/lab3/utility -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB main.o ../../../src/net/bmac/rf231_soc/bmac.o ../../../projects/lab3/utility/assembler.o ../../../projects/lab3/utility/light_pool.o ../../../projects/lab3/utility/neighbors.o ../../../projects/lab3/utility/parser.o ../../../projects/lab3/utility/sequence_pool.o ../../../src/radio/rf231_soc/source/basic_rf.o ../../../src/platform/firefly3/source/ulib.o ../../../src/platform/firefly3/source/hal_wait.o ../../../src/platform/firefly3/source/nrk_eeprom.o ../../../src/kernel/source/nrk.o ../../../src/kernel/source/nrk_stats.o ../../../src/kernel/source/nrk_error.o ../../../src/kernel/source/nrk_stack_check.o ../../../src/kernel/source/nrk_events.o ../../../src/kernel/source/nrk_task.o ../../../src/kernel/source/nrk_time.o ../../../src/kernel/source/nrk_idle_task.o ../../../src/kernel/source/nrk_scheduler.o ../../../src/kernel/source/nrk_driver.o ../../../src/kernel/source/nrk_reserve.o ../../../src/kernel/source/nrk_sw_wdt.o ../../../src/kernel/hal/atmega128rfa1/nrk_timer.o ../../../src/kernel/hal/atmega128rfa1/nrk_status.o ../../../src/kernel/hal/atmega128rfa1/nrk_ext_int.o ../../../src/kernel/hal/atmega128rfa1/nrk_watchdog.o ../../../src/kernel/hal/atmega128rfa1/nrk_cpu.o ../../../src/kernel/hal/atmega128rfa1/atmel_hw_specific.o  --output main.elf -Wl,-Map=main.map,--cref -Wl,-u,vfprintf -lprintf_min -lm
+
+Creating load file for Flash: main.hex
+avr-objcopy -O ihex -R .eeprom main.elf main.hex
+
+Creating load file for EEPROM: main.eep
+avr-objcopy -j .eeprom --set-section-flags=.eeprom="alloc,load" \
+	--change-section-lma .eeprom=0 -O ihex main.elf main.eep
+avr-objcopy: --change-section-lma .eeprom=0x0000000000000000 never used
+
+Creating Extended Listing: main.lss
+avr-objdump -h -S main.elf > main.lss
+
+Creating Symbol Table: main.sym
+avr-nm -n main.elf > main.sym
+
+Size after:
+main.elf  :
+section           size      addr
+.data              616   8389120
+.text            25864         0
+.bss              2220   8389736
+.stab            84084         0
+.stabstr         40458         0
+.comment            17         0
+.debug_info       4448         0
+.debug_abbrev     4210         0
+.debug_line         29         0
+.debug_str        1758         0
+Total           1637
+
+
+
+Errors: none
+Platform: firefly3
+
+
+
+
+-------- end --------

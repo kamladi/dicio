@@ -1,0 +1,1130 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 349               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 350               	.LC0:
+ 351 0000 5258 3A20 		.string	"RX: %s\r\n"
+ 351      2573 0D0A 
+ 351      00
+ 352               		.text
+ 355               	.global	receive_message
+ 357               	receive_message:
+ 358               		.stabd	46,0,0
+   1:main.c        **** /**
+   2:main.c        ****  * 18-748 Wireless Sensor Networks
+   3:main.c        ****  * Spring 2016
+   4:main.c        ****  * Lab 3: Multi-Hop Communication
+   5:main.c        ****  * main.c (node)
+   6:main.c        ****  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+   7:main.c        ****  */
+   8:main.c        **** 
+   9:main.c        **** /*** INCLUDE STATEMENTS ***/
+  10:main.c        **** // standard nrk
+  11:main.c        **** #include <nrk.h>
+  12:main.c        **** #include <include.h>
+  13:main.c        **** #include <ulib.h>
+  14:main.c        **** #include <stdio.h>
+  15:main.c        **** #include <stdlib.h>
+  16:main.c        **** #include <avr/sleep.h>
+  17:main.c        **** #include <hal.h>
+  18:main.c        **** #include <bmac.h>
+  19:main.c        **** #include <nrk_error.h>
+  20:main.c        **** #include <nrk_driver_list.h>
+  21:main.c        **** #include <nrk_driver.h>
+  22:main.c        **** #include <ff_basic_sensor.h>
+  23:main.c        **** // this package
+  24:main.c        **** #include <assembler.h>
+  25:main.c        **** #include <light_pool.h>
+  26:main.c        **** #include <neighbors.h>
+  27:main.c        **** #include <parser.h>
+  28:main.c        **** #include <sample_sensor.h>
+  29:main.c        **** #include <sequence_pool.h>
+  30:main.c        **** 
+  31:main.c        **** /*** DEFINE STATMENTS **/
+  32:main.c        **** #define MAC_ADDR  0x0007
+  33:main.c        **** 
+  34:main.c        **** // declare node's neighbor table
+  35:main.c        **** neighbor_table_t local_neighbor_table;
+  36:main.c        **** uint8_t neighbor_count; // count of items in neighbor table
+  37:main.c        **** uint16_t local_seq_count;
+  38:main.c        **** sequence_pool_t seq_pool;
+  39:main.c        **** 
+  40:main.c        **** /* The duration of the task might be shorter than sample periods.
+  41:main.c        ****   Therefore the start times need to persist through several task periods.
+  42:main.c        **** -> Add logic to get start time for a new period.
+  43:main.c        **** */
+  44:main.c        **** nrk_time_t sensor_time_limit;
+  45:main.c        **** nrk_time_t neighbor_time_limit;
+  46:main.c        **** 
+  47:main.c        **** 
+  48:main.c        **** /*** TASKS **/
+  49:main.c        **** nrk_task_type HOP_TASK;
+  50:main.c        **** NRK_STK hop_task_stack[NRK_APP_STACKSIZE];
+  51:main.c        **** void hop_task (void);
+  52:main.c        **** 
+  53:main.c        **** void nrk_create_taskset ();
+  54:main.c        **** 
+  55:main.c        **** /*** BUFFER INSTANTIATION ***/
+  56:main.c        **** uint8_t hop_buf[RF_MAX_PAYLOAD_SIZE];
+  57:main.c        **** uint8_t rx_buf[RF_MAX_PAYLOAD_SIZE];
+  58:main.c        **** uint8_t tx_buf[RF_MAX_PAYLOAD_SIZE];
+  59:main.c        **** uint8_t cmd[RF_MAX_PAYLOAD_SIZE];
+  60:main.c        **** 
+  61:main.c        **** /*** GLOBAL VARIABLES **/
+  62:main.c        **** uint16_t light_baseline;
+  63:main.c        **** 
+  64:main.c        **** void nrk_register_drivers();
+  65:main.c        **** 
+  66:main.c        **** int main ()
+  67:main.c        **** {
+  68:main.c        ****   nrk_setup_ports ();
+  69:main.c        ****   nrk_setup_uart (UART_BAUDRATE_115K2);
+  70:main.c        **** 
+  71:main.c        ****   nrk_init ();
+  72:main.c        **** 
+  73:main.c        ****   nrk_led_clr (0);
+  74:main.c        ****   nrk_led_clr (1);
+  75:main.c        ****   nrk_led_clr (2);
+  76:main.c        ****   nrk_led_clr (3);
+  77:main.c        **** 
+  78:main.c        ****   nrk_time_set (0, 0);
+  79:main.c        **** 
+  80:main.c        ****   bmac_task_config ();
+  81:main.c        **** 
+  82:main.c        ****   nrk_register_drivers();
+  83:main.c        ****   nrk_create_taskset ();
+  84:main.c        ****   nrk_start ();
+  85:main.c        **** 
+  86:main.c        ****   return 0;
+  87:main.c        **** }
+  88:main.c        **** 
+  89:main.c        **** /**
+  90:main.c        ****  * receive_message - receive a message and return the type of message received
+  91:main.c        ****  * FORMAT [msg_type][id][seq_num][hop_num][neighbor][sens_value]
+  92:main.c        ****  * @returns message_type for node to act on
+  93:main.c        ****  */
+  94:main.c        **** 
+  95:main.c        **** void receive_message(packet *new_packet)
+  96:main.c        **** {
+ 360               	.LM0:
+ 361               	.LFBB1:
+ 362 0000 EF92      		push r14
+ 363 0002 FF92      		push r15
+ 364 0004 0F93      		push r16
+ 365 0006 1F93      		push r17
+ 366 0008 CF93      		push r28
+ 367 000a DF93      		push r29
+ 368 000c 00D0      		rcall .
+ 369 000e CDB7      		in r28,__SP_L__
+ 370 0010 DEB7      		in r29,__SP_H__
+ 371               	/* prologue: function */
+ 372               	/* frame size = 2 */
+ 373               	/* stack size = 8 */
+ 374               	.L__stack_usage = 8
+ 375 0012 8C01      		movw r16,r24
+  97:main.c        ****   // local variable declarations
+  98:main.c        ****   uint8_t *rx_cpy;
+  99:main.c        ****   uint16_t node_id;
+ 100:main.c        ****   int8_t rssi;
+ 101:main.c        ****   uint8_t len = 0;
+ 377               	.LM1:
+ 378 0014 1982      		std Y+1,__zero_reg__
+ 102:main.c        **** 
+ 103:main.c        ****   msg_type return_message;
+ 104:main.c        **** 
+ 105:main.c        ****   node_id = 0;
+ 106:main.c        **** 
+ 107:main.c        ****   // Get the RX packet -> if not ready then return as such
+ 108:main.c        ****   nrk_led_set (ORANGE_LED);
+ 380               	.LM2:
+ 381 0016 82E0      		ldi r24,lo8(2)
+ 382 0018 90E0      		ldi r25,0
+ 383 001a 0E94 0000 		call nrk_led_set
+ 109:main.c        ****   if(bmac_rx_pkt_ready()) 
+ 385               	.LM3:
+ 386 001e 0E94 0000 		call bmac_rx_pkt_ready
+ 387 0022 8823      		tst r24
+ 388 0024 01F4      		brne .+2
+ 389 0026 00C0      		rjmp .L1
+ 110:main.c        ****   {
+ 111:main.c        ****     // get packet and store in rx_cpy
+ 112:main.c        ****     rx_cpy = bmac_rx_pkt_get(&len, &rssi);
+ 391               	.LM4:
+ 392 0028 BE01      		movw r22,r28
+ 393 002a 6E5F      		subi r22,-2
+ 394 002c 7F4F      		sbci r23,-1
+ 395 002e CE01      		movw r24,r28
+ 396 0030 0196      		adiw r24,1
+ 397 0032 0E94 0000 		call bmac_rx_pkt_get
+ 398 0036 7C01      		movw r14,r24
+ 113:main.c        ****     printf("RX: %s\r\n", rx_cpy);
+ 400               	.LM5:
+ 401 0038 FF92      		push r15
+ 402 003a 8F93      		push r24
+ 403 003c 80E0      		ldi r24,lo8(.LC0)
+ 404 003e 90E0      		ldi r25,hi8(.LC0)
+ 405 0040 9F93      		push r25
+ 406 0042 8F93      		push r24
+ 407 0044 0E94 0000 		call printf
+ 114:main.c        ****   
+ 115:main.c        ****     parse_msg(new_packet, rx_cpy, len);
+ 409               	.LM6:
+ 410 0048 4981      		ldd r20,Y+1
+ 411 004a B701      		movw r22,r14
+ 412 004c C801      		movw r24,r16
+ 413 004e 0E94 0000 		call parse_msg
+ 116:main.c        ****   
+ 117:main.c        ****     print_packet(new_packet);
+ 415               	.LM7:
+ 416 0052 C801      		movw r24,r16
+ 417 0054 0E94 0000 		call print_packet
+ 118:main.c        ****     if(new_packet->type == MSG_GATEWAY)
+ 419               	.LM8:
+ 420 0058 0F90      		pop __tmp_reg__
+ 421 005a 0F90      		pop __tmp_reg__
+ 422 005c 0F90      		pop __tmp_reg__
+ 423 005e 0F90      		pop __tmp_reg__
+ 424 0060 F801      		movw r30,r16
+ 425 0062 8081      		ld r24,Z
+ 426 0064 8330      		cpi r24,lo8(3)
+ 427 0066 01F4      		brne .L3
+ 119:main.c        ****     {
+ 120:main.c        ****       // update new timer parameters
+ 121:main.c        ****       sensor_time_limit.secs = new_packet->sensor_sample_rate;
+ 429               	.LM9:
+ 430 0068 8485      		ldd r24,Z+12
+ 431 006a 9585      		ldd r25,Z+13
+ 432 006c A0E0      		ldi r26,0
+ 433 006e B0E0      		ldi r27,0
+ 434 0070 8093 0000 		sts sensor_time_limit,r24
+ 435 0074 9093 0000 		sts sensor_time_limit+1,r25
+ 436 0078 A093 0000 		sts sensor_time_limit+2,r26
+ 437 007c B093 0000 		sts sensor_time_limit+3,r27
+ 122:main.c        ****       neighbor_time_limit.secs = new_packet->neighbor_update_rate;
+ 439               	.LM10:
+ 440 0080 8685      		ldd r24,Z+14
+ 441 0082 9785      		ldd r25,Z+15
+ 442 0084 A0E0      		ldi r26,0
+ 443 0086 B0E0      		ldi r27,0
+ 444 0088 8093 0000 		sts neighbor_time_limit,r24
+ 445 008c 9093 0000 		sts neighbor_time_limit+1,r25
+ 446 0090 A093 0000 		sts neighbor_time_limit+2,r26
+ 447 0094 B093 0000 		sts neighbor_time_limit+3,r27
+ 448               	.L3:
+ 123:main.c        ****     }
+ 124:main.c        ****   
+ 125:main.c        ****     // check to see if packet is from the originator (hop = 0), if so.. add him to your table he's 
+ 126:main.c        ****     if(new_packet->num_hops == 0)
+ 450               	.LM11:
+ 451 0098 F801      		movw r30,r16
+ 452 009a 8481      		ldd r24,Z+4
+ 453 009c 8111      		cpse r24,__zero_reg__
+ 454 009e 00C0      		rjmp .L4
+ 455               	.LBB2:
+ 127:main.c        ****       {
+ 128:main.c        ****       print_neighbor_table(&local_neighbor_table);
+ 457               	.LM12:
+ 458 00a0 80E0      		ldi r24,lo8(local_neighbor_table)
+ 459 00a2 90E0      		ldi r25,hi8(local_neighbor_table)
+ 460 00a4 0E94 0000 		call print_neighbor_table
+ 129:main.c        ****       // now check to see if the source_id of packet is in local neighbor table
+ 130:main.c        ****       int8_t source_node_in_neighbor_table = in_neighbor_table(&local_neighbor_table, new_packet->s
+ 462               	.LM13:
+ 463 00a8 F801      		movw r30,r16
+ 464 00aa 6181      		ldd r22,Z+1
+ 465 00ac 80E0      		ldi r24,lo8(local_neighbor_table)
+ 466 00ae 90E0      		ldi r25,hi8(local_neighbor_table)
+ 467 00b0 0E94 0000 		call in_neighbor_table
+ 131:main.c        ****       
+ 132:main.c        ****       if(source_node_in_neighbor_table == -1)
+ 469               	.LM14:
+ 470 00b4 8F3F      		cpi r24,lo8(-1)
+ 471 00b6 01F4      		brne .L5
+ 472               	.LBB3:
+ 133:main.c        ****       {
+ 134:main.c        ****         // source node for this packet has not been seen before,
+ 135:main.c        ****         // add to local neighbor table.
+ 136:main.c        ****         neighbor_t new_neighbor;
+ 137:main.c        ****         new_neighbor.id = new_packet->source_id;
+ 474               	.LM15:
+ 475 00b8 F801      		movw r30,r16
+ 476 00ba 6181      		ldd r22,Z+1
+ 138:main.c        ****         add_neighbor(&local_neighbor_table, new_neighbor);
+ 478               	.LM16:
+ 479 00bc 80E0      		ldi r24,lo8(local_neighbor_table)
+ 480 00be 90E0      		ldi r25,hi8(local_neighbor_table)
+ 481 00c0 0E94 0000 		call add_neighbor
+ 482               	.L5:
+ 483               	.LBE3:
+ 139:main.c        ****       }
+ 140:main.c        ****       
+ 141:main.c        ****       print_neighbor_table(&local_neighbor_table);
+ 485               	.LM17:
+ 486 00c4 80E0      		ldi r24,lo8(local_neighbor_table)
+ 487 00c6 90E0      		ldi r25,hi8(local_neighbor_table)
+ 488 00c8 0E94 0000 		call print_neighbor_table
+ 142:main.c        ****   
+ 143:main.c        ****       nrk_led_clr(ORANGE_LED);
+ 490               	.LM18:
+ 491 00cc 82E0      		ldi r24,lo8(2)
+ 492 00ce 90E0      		ldi r25,0
+ 493 00d0 0E94 0000 		call nrk_led_clr
+ 144:main.c        ****       // Release the RX buffer so future packets can arrive
+ 145:main.c        ****       memset(rx_cpy, 0, sizeof(rx_cpy));
+ 495               	.LM19:
+ 496 00d4 F701      		movw r30,r14
+ 497 00d6 1182      		std Z+1,__zero_reg__
+ 498 00d8 1082      		st Z,__zero_reg__
+ 499               	.L4:
+ 500               	.LBE2:
+ 146:main.c        ****     }
+ 147:main.c        ****     bmac_rx_pkt_release ();
+ 502               	.LM20:
+ 503 00da 0E94 0000 		call bmac_rx_pkt_release
+ 504               	.L1:
+ 505               	/* epilogue start */
+ 148:main.c        ****   }
+ 149:main.c        ****   return;
+ 150:main.c        **** }
+ 507               	.LM21:
+ 508 00de 0F90      		pop __tmp_reg__
+ 509 00e0 0F90      		pop __tmp_reg__
+ 510 00e2 DF91      		pop r29
+ 511 00e4 CF91      		pop r28
+ 512 00e6 1F91      		pop r17
+ 513 00e8 0F91      		pop r16
+ 514 00ea FF90      		pop r15
+ 515 00ec EF90      		pop r14
+ 516 00ee 0895      		ret
+ 526               	.Lscope1:
+ 528               		.stabd	78,0,0
+ 529               		.section	.rodata.str1.1
+ 530               	.LC1:
+ 531 0009 5B25 645D 		.string	"[%d][%d][%d][%d][%d]"
+ 531      5B25 645D 
+ 531      5B25 645D 
+ 531      5B25 645D 
+ 531      5B25 645D 
+ 532               	.LC2:
+ 533 001e 5B25 645D 		.string	"[%d][%d][%d][%d][%d][%d,%d,%d]"
+ 533      5B25 645D 
+ 533      5B25 645D 
+ 533      5B25 645D 
+ 533      5B25 645D 
+ 534               		.text
+ 536               	.global	hop_task
+ 538               	hop_task:
+ 539               		.stabd	46,0,0
+ 151:main.c        **** 
+ 152:main.c        **** 
+ 153:main.c        **** /*****************************        hop_task function loop               ************************
+ 154:main.c        ****        *
+ 155:main.c        **** ***************************************************************************************************
+ 156:main.c        **** 
+ 157:main.c        **** 
+ 158:main.c        **** uint16_t light;
+ 159:main.c        **** void hop_task ()
+ 160:main.c        **** {
+ 541               	.LM22:
+ 542               	.LFBB2:
+ 543 00f0 CF93      		push r28
+ 544 00f2 DF93      		push r29
+ 545 00f4 CDB7      		in r28,__SP_L__
+ 546 00f6 DEB7      		in r29,__SP_H__
+ 547 00f8 E897      		sbiw r28,56
+ 548 00fa 0FB6      		in __tmp_reg__,__SREG__
+ 549 00fc F894      		cli
+ 550 00fe DEBF      		out __SP_H__,r29
+ 551 0100 0FBE      		out __SREG__,__tmp_reg__
+ 552 0102 CDBF      		out __SP_L__,r28
+ 553               	/* prologue: function */
+ 554               	/* frame size = 56 */
+ 555               	/* stack size = 58 */
+ 556               	.L__stack_usage = 58
+ 161:main.c        ****   // local variable instantiation
+ 162:main.c        ****   int8_t val;
+ 163:main.c        ****   msg_type received;
+ 164:main.c        ****   // new packet is the packet received (parsed into type packet)
+ 165:main.c        ****   packet new_packet;
+ 166:main.c        ****   uint8_t new_node = NONE;
+ 167:main.c        ****   int8_t in_seq_pool;
+ 168:main.c        ****   uint16_t local_seq_num;
+ 169:main.c        **** 
+ 170:main.c        ****   // init bmac on channel 13
+ 171:main.c        ****   bmac_init (13);
+ 558               	.LM23:
+ 559 0104 8DE0      		ldi r24,lo8(13)
+ 560 0106 0E94 0000 		call bmac_init
+ 172:main.c        **** 
+ 173:main.c        ****   // This sets the next RX buffer.
+ 174:main.c        ****   // This can be called at anytime before releasing the packet
+ 175:main.c        ****   // if you wish to do a zero-copy buffer switch
+ 176:main.c        ****   bmac_rx_pkt_set_buffer(rx_buf, RF_MAX_PAYLOAD_SIZE);
+ 562               	.LM24:
+ 563 010a 64E7      		ldi r22,lo8(116)
+ 564 010c 80E0      		ldi r24,lo8(rx_buf)
+ 565 010e 90E0      		ldi r25,hi8(rx_buf)
+ 566 0110 0E94 0000 		call bmac_rx_pkt_set_buffer
+ 177:main.c        **** 
+ 178:main.c        ****     //Timer management
+ 179:main.c        ****   nrk_time_t neighbor_start_time, current_time;
+ 180:main.c        ****   nrk_time_t sensor_start_time;
+ 181:main.c        **** 
+ 182:main.c        ****   sensor_time_limit.secs = 10;
+ 568               	.LM25:
+ 569 0114 8AE0      		ldi r24,lo8(10)
+ 570 0116 90E0      		ldi r25,0
+ 571 0118 A0E0      		ldi r26,0
+ 572 011a B0E0      		ldi r27,0
+ 573 011c 8093 0000 		sts sensor_time_limit,r24
+ 574 0120 9093 0000 		sts sensor_time_limit+1,r25
+ 575 0124 A093 0000 		sts sensor_time_limit+2,r26
+ 576 0128 B093 0000 		sts sensor_time_limit+3,r27
+ 183:main.c        ****   neighbor_time_limit.secs = 15;
+ 578               	.LM26:
+ 579 012c 8FE0      		ldi r24,lo8(15)
+ 580 012e 90E0      		ldi r25,0
+ 581 0130 A0E0      		ldi r26,0
+ 582 0132 B0E0      		ldi r27,0
+ 583 0134 8093 0000 		sts neighbor_time_limit,r24
+ 584 0138 9093 0000 		sts neighbor_time_limit+1,r25
+ 585 013c A093 0000 		sts neighbor_time_limit+2,r26
+ 586 0140 B093 0000 		sts neighbor_time_limit+3,r27
+ 166:main.c        ****   int8_t in_seq_pool;
+ 588               	.LM27:
+ 589 0144 312C      		mov r3,__zero_reg__
+ 590               	.LBB4:
+ 184:main.c        **** 
+ 185:main.c        ****   //init_neighbor_table(&local_neighbor_table);
+ 186:main.c        ****   while(1)
+ 187:main.c        ****   {
+ 188:main.c        ****    /*******************************     Section to handle received message         ****************
+ 189:main.c        ****     *
+ 190:main.c        ****     ***********************************************************************************************
+ 191:main.c        ****     receive_message(&new_packet);
+ 192:main.c        ****     
+ 193:main.c        ****     // check to our sequence pool to see if we have already received this packet
+ 194:main.c        ****     in_seq_pool = in_sequence_pool(&seq_pool, new_packet.source_id);
+ 195:main.c        ****     if((in_seq_pool == -1) && (new_packet.source_id != MAC_ADDR)) {
+ 196:main.c        ****       add_to_sequence_pool(&seq_pool, new_packet.source_id, new_packet.seq_num);
+ 197:main.c        ****       new_node = NODE_FOUND;
+ 198:main.c        ****     }
+ 199:main.c        ****     
+ 200:main.c        ****     local_seq_num = get_sequence_number(&seq_pool, new_packet.source_id);
+ 201:main.c        ****     if((new_packet.source_id != MAC_ADDR) && (new_packet.source_id != GATEWAY_ID) &&
+ 202:main.c        ****         ((new_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND))) {
+ 203:main.c        ****       
+ 204:main.c        ****       // update the sequence pool
+ 205:main.c        ****       update_sequence_pool(&seq_pool, new_packet.source_id, new_packet.seq_num);
+ 206:main.c        ****       new_node = NONE;
+ 207:main.c        **** 
+ 208:main.c        ****       // increase the hop counter and forward the packet
+ 209:main.c        ****       new_packet.num_hops += 1;      // now forward the packet!
+ 210:main.c        ****       assemble_packet(&tx_buf,&new_packet);
+ 211:main.c        ****       val=bmac_tx_pkt(tx_buf, strlen(tx_buf)+1);      
+ 212:main.c        ****     }
+ 213:main.c        **** 
+ 214:main.c        ****    /*************************** Section to check intervals and send local values  *****************
+ 215:main.c        ****          *
+ 216:main.c        ****   *************************************************************************************************
+ 217:main.c        ****     // get the current tick time for comparison
+ 218:main.c        ****     nrk_time_get(&current_time);
+ 219:main.c        **** 
+ 220:main.c        ****     nrk_status_t status;
+ 221:main.c        ****     nrk_time_t delta_sensor;
+ 222:main.c        ****     nrk_time_t delta_neighbor;
+ 223:main.c        ****     status = nrk_time_sub (&delta_sensor,current_time, sensor_start_time);
+ 224:main.c        ****     uint16_t difference_s = delta_sensor.secs;
+ 225:main.c        ****     if(delta_sensor.secs >= sensor_time_limit.secs)
+ 226:main.c        ****     {
+ 227:main.c        ****       light = sample_light();
+ 228:main.c        **** 
+ 229:main.c        ****       // now send the value
+ 230:main.c        ****       sprintf (tx_buf, "[%d][%d][%d][%d][%d]", MSG_NODE_SENSOR_VALUE, MAC_ADDR, local_seq_count, 0,
+ 592               	.LM28:
+ 593 0146 87E0      		ldi r24,lo8(7)
+ 594 0148 282E      		mov r2,r24
+ 595 014a 90E0      		ldi r25,lo8(.LC1)
+ 596 014c 692E      		mov r6,r25
+ 597 014e 90E0      		ldi r25,hi8(.LC1)
+ 598 0150 792E      		mov r7,r25
+ 231:main.c        ****       val=bmac_tx_pkt(tx_buf, strlen(tx_buf)+1);
+ 232:main.c        **** 
+ 233:main.c        ****       local_seq_count ++;
+ 234:main.c        ****       nrk_time_get(&sensor_start_time);
+ 235:main.c        ****     }
+ 236:main.c        **** 
+ 237:main.c        ****     nrk_time_get(&current_time);
+ 238:main.c        ****     status = nrk_time_sub (&delta_neighbor,current_time, neighbor_start_time);
+ 239:main.c        ****     uint16_t difference_n = delta_neighbor.secs;
+ 240:main.c        ****     //printf("current time %d \r\n", current_time.secs);
+ 241:main.c        ****     if(delta_neighbor.secs >= neighbor_time_limit.secs)
+ 242:main.c        ****     {
+ 243:main.c        ****       // send neighbortable
+ 244:main.c        ****       sprintf (tx_buf, "[%d][%d][%d][%d][%d][%d,%d,%d]", MSG_NODE_NEIGHBORS, MAC_ADDR, local_seq_co
+ 600               	.LM29:
+ 601 0152 20E0      		ldi r18,lo8(.LC2)
+ 602 0154 422E      		mov r4,r18
+ 603 0156 20E0      		ldi r18,hi8(.LC2)
+ 604 0158 522E      		mov r5,r18
+ 605               	.L16:
+ 191:main.c        ****     
+ 607               	.LM30:
+ 608 015a CE01      		movw r24,r28
+ 609 015c 0196      		adiw r24,1
+ 610 015e 0E94 0000 		call receive_message
+ 194:main.c        ****     if((in_seq_pool == -1) && (new_packet.source_id != MAC_ADDR)) {
+ 612               	.LM31:
+ 613 0162 6A81      		ldd r22,Y+2
+ 614 0164 80E0      		ldi r24,lo8(seq_pool)
+ 615 0166 90E0      		ldi r25,hi8(seq_pool)
+ 616 0168 0E94 0000 		call in_sequence_pool
+ 195:main.c        ****       add_to_sequence_pool(&seq_pool, new_packet.source_id, new_packet.seq_num);
+ 618               	.LM32:
+ 619 016c 8F3F      		cpi r24,lo8(-1)
+ 620 016e 01F4      		brne .L11
+ 195:main.c        ****       add_to_sequence_pool(&seq_pool, new_packet.source_id, new_packet.seq_num);
+ 622               	.LM33:
+ 623 0170 6A81      		ldd r22,Y+2
+ 624 0172 6730      		cpi r22,lo8(7)
+ 625 0174 01F0      		breq .L11
+ 196:main.c        ****       new_node = NODE_FOUND;
+ 627               	.LM34:
+ 628 0176 4B81      		ldd r20,Y+3
+ 629 0178 5C81      		ldd r21,Y+4
+ 630 017a 80E0      		ldi r24,lo8(seq_pool)
+ 631 017c 90E0      		ldi r25,hi8(seq_pool)
+ 632 017e 0E94 0000 		call add_to_sequence_pool
+ 197:main.c        ****     }
+ 634               	.LM35:
+ 635 0182 3324      		clr r3
+ 636 0184 3394      		inc r3
+ 637               	.L11:
+ 200:main.c        ****     if((new_packet.source_id != MAC_ADDR) && (new_packet.source_id != GATEWAY_ID) &&
+ 639               	.LM36:
+ 640 0186 6A81      		ldd r22,Y+2
+ 641 0188 80E0      		ldi r24,lo8(seq_pool)
+ 642 018a 90E0      		ldi r25,hi8(seq_pool)
+ 643 018c 0E94 0000 		call get_sequence_number
+ 201:main.c        ****         ((new_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND))) {
+ 645               	.LM37:
+ 646 0190 6A81      		ldd r22,Y+2
+ 647 0192 6730      		cpi r22,lo8(7)
+ 648 0194 01F0      		breq .L12
+ 201:main.c        ****         ((new_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND))) {
+ 650               	.LM38:
+ 651 0196 6130      		cpi r22,lo8(1)
+ 652 0198 01F0      		breq .L12
+ 202:main.c        ****       
+ 654               	.LM39:
+ 655 019a 4B81      		ldd r20,Y+3
+ 656 019c 5C81      		ldd r21,Y+4
+ 201:main.c        ****         ((new_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND))) {
+ 658               	.LM40:
+ 659 019e 8417      		cp r24,r20
+ 660 01a0 9507      		cpc r25,r21
+ 661 01a2 00F0      		brlo .L13
+ 202:main.c        ****       
+ 663               	.LM41:
+ 664 01a4 81E0      		ldi r24,lo8(1)
+ 665 01a6 3812      		cpse r3,r24
+ 666 01a8 00C0      		rjmp .L17
+ 667               	.L13:
+ 205:main.c        ****       new_node = NONE;
+ 669               	.LM42:
+ 670 01aa 80E0      		ldi r24,lo8(seq_pool)
+ 671 01ac 90E0      		ldi r25,hi8(seq_pool)
+ 672 01ae 0E94 0000 		call update_sequence_pool
+ 209:main.c        ****       assemble_packet(&tx_buf,&new_packet);
+ 674               	.LM43:
+ 675 01b2 8D81      		ldd r24,Y+5
+ 676 01b4 8F5F      		subi r24,lo8(-(1))
+ 677 01b6 8D83      		std Y+5,r24
+ 210:main.c        ****       val=bmac_tx_pkt(tx_buf, strlen(tx_buf)+1);      
+ 679               	.LM44:
+ 680 01b8 BE01      		movw r22,r28
+ 681 01ba 6F5F      		subi r22,-1
+ 682 01bc 7F4F      		sbci r23,-1
+ 683 01be 80E0      		ldi r24,lo8(tx_buf)
+ 684 01c0 90E0      		ldi r25,hi8(tx_buf)
+ 685 01c2 0E94 0000 		call assemble_packet
+ 211:main.c        ****     }
+ 687               	.LM45:
+ 688 01c6 E0E0      		ldi r30,lo8(tx_buf)
+ 689 01c8 F0E0      		ldi r31,hi8(tx_buf)
+ 690               		0:
+ 691 01ca 0190      		ld __tmp_reg__,Z+
+ 692 01cc 0020      		tst __tmp_reg__
+ 693 01ce 01F4      		brne 0b
+ 694 01d0 3197      		sbiw r30,1
+ 695 01d2 E050      		subi r30,lo8(tx_buf)
+ 696 01d4 F040      		sbci r31,hi8(tx_buf)
+ 697 01d6 61E0      		ldi r22,lo8(1)
+ 698 01d8 6E0F      		add r22,r30
+ 699 01da 80E0      		ldi r24,lo8(tx_buf)
+ 700 01dc 90E0      		ldi r25,hi8(tx_buf)
+ 701 01de 0E94 0000 		call bmac_tx_pkt
+ 702               	.L17:
+ 703 01e2 312C      		mov r3,__zero_reg__
+ 704               	.L12:
+ 218:main.c        **** 
+ 706               	.LM46:
+ 707 01e4 CE01      		movw r24,r28
+ 708 01e6 8996      		adiw r24,41
+ 709 01e8 0E94 0000 		call nrk_time_get
+ 223:main.c        ****     uint16_t difference_s = delta_sensor.secs;
+ 711               	.LM47:
+ 712 01ec 89A0      		ldd r8,Y+33
+ 713 01ee 9AA0      		ldd r9,Y+34
+ 714 01f0 ABA0      		ldd r10,Y+35
+ 715 01f2 BCA0      		ldd r11,Y+36
+ 716 01f4 CDA0      		ldd r12,Y+37
+ 717 01f6 DEA0      		ldd r13,Y+38
+ 718 01f8 EFA0      		ldd r14,Y+39
+ 719 01fa F8A4      		ldd r15,Y+40
+ 720 01fc 09A5      		ldd r16,Y+41
+ 721 01fe 1AA5      		ldd r17,Y+42
+ 722 0200 2BA5      		ldd r18,Y+43
+ 723 0202 3CA5      		ldd r19,Y+44
+ 724 0204 4DA5      		ldd r20,Y+45
+ 725 0206 5EA5      		ldd r21,Y+46
+ 726 0208 6FA5      		ldd r22,Y+47
+ 727 020a 78A9      		ldd r23,Y+48
+ 728 020c CE01      		movw r24,r28
+ 729 020e 4996      		adiw r24,25
+ 730 0210 0E94 0000 		call nrk_time_sub
+ 225:main.c        ****     {
+ 732               	.LM48:
+ 733 0214 498D      		ldd r20,Y+25
+ 734 0216 5A8D      		ldd r21,Y+26
+ 735 0218 6B8D      		ldd r22,Y+27
+ 736 021a 7C8D      		ldd r23,Y+28
+ 737 021c 8091 0000 		lds r24,sensor_time_limit
+ 738 0220 9091 0000 		lds r25,sensor_time_limit+1
+ 739 0224 A091 0000 		lds r26,sensor_time_limit+2
+ 740 0228 B091 0000 		lds r27,sensor_time_limit+3
+ 741 022c 4817      		cp r20,r24
+ 742 022e 5907      		cpc r21,r25
+ 743 0230 6A07      		cpc r22,r26
+ 744 0232 7B07      		cpc r23,r27
+ 745 0234 00F0      		brlo .L14
+ 227:main.c        **** 
+ 747               	.LM49:
+ 748 0236 0E94 0000 		call sample_light
+ 749 023a 8093 0000 		sts light,r24
+ 750 023e 9093 0000 		sts light+1,r25
+ 230:main.c        ****       val=bmac_tx_pkt(tx_buf, strlen(tx_buf)+1);
+ 752               	.LM50:
+ 753 0242 9F93      		push r25
+ 754 0244 8F93      		push r24
+ 755 0246 1F92      		push __zero_reg__
+ 756 0248 1F92      		push __zero_reg__
+ 757 024a 8091 0000 		lds r24,local_seq_count+1
+ 758 024e 8F93      		push r24
+ 759 0250 8091 0000 		lds r24,local_seq_count
+ 760 0254 8F93      		push r24
+ 761 0256 1F92      		push __zero_reg__
+ 762 0258 2F92      		push r2
+ 763 025a 1F92      		push __zero_reg__
+ 764 025c 91E0      		ldi r25,lo8(1)
+ 765 025e 9F93      		push r25
+ 766 0260 7F92      		push r7
+ 767 0262 6F92      		push r6
+ 768 0264 00E0      		ldi r16,lo8(tx_buf)
+ 769 0266 10E0      		ldi r17,hi8(tx_buf)
+ 770 0268 1F93      		push r17
+ 771 026a 0F93      		push r16
+ 772 026c 0E94 0000 		call sprintf
+ 231:main.c        **** 
+ 774               	.LM51:
+ 775 0270 F801      		movw r30,r16
+ 776               		0:
+ 777 0272 0190      		ld __tmp_reg__,Z+
+ 778 0274 0020      		tst __tmp_reg__
+ 779 0276 01F4      		brne 0b
+ 780 0278 3197      		sbiw r30,1
+ 781 027a 8F01      		movw r16,r30
+ 782 027c 0050      		subi r16,lo8(tx_buf)
+ 783 027e 1040      		sbci r17,hi8(tx_buf)
+ 784 0280 61E0      		ldi r22,lo8(1)
+ 785 0282 600F      		add r22,r16
+ 786 0284 80E0      		ldi r24,lo8(tx_buf)
+ 787 0286 90E0      		ldi r25,hi8(tx_buf)
+ 788 0288 0E94 0000 		call bmac_tx_pkt
+ 233:main.c        ****       nrk_time_get(&sensor_start_time);
+ 790               	.LM52:
+ 791 028c 8091 0000 		lds r24,local_seq_count
+ 792 0290 9091 0000 		lds r25,local_seq_count+1
+ 793 0294 0196      		adiw r24,1
+ 794 0296 9093 0000 		sts local_seq_count+1,r25
+ 795 029a 8093 0000 		sts local_seq_count,r24
+ 234:main.c        ****     }
+ 797               	.LM53:
+ 798 029e CE01      		movw r24,r28
+ 799 02a0 8196      		adiw r24,33
+ 800 02a2 0E94 0000 		call nrk_time_get
+ 801 02a6 0FB6      		in __tmp_reg__,__SREG__
+ 802 02a8 F894      		cli
+ 803 02aa DEBF      		out __SP_H__,r29
+ 804 02ac 0FBE      		out __SREG__,__tmp_reg__
+ 805 02ae CDBF      		out __SP_L__,r28
+ 806               	.L14:
+ 237:main.c        ****     status = nrk_time_sub (&delta_neighbor,current_time, neighbor_start_time);
+ 808               	.LM54:
+ 809 02b0 CE01      		movw r24,r28
+ 810 02b2 8996      		adiw r24,41
+ 811 02b4 0E94 0000 		call nrk_time_get
+ 238:main.c        ****     uint16_t difference_n = delta_neighbor.secs;
+ 813               	.LM55:
+ 814 02b8 89A8      		ldd r8,Y+49
+ 815 02ba 9AA8      		ldd r9,Y+50
+ 816 02bc ABA8      		ldd r10,Y+51
+ 817 02be BCA8      		ldd r11,Y+52
+ 818 02c0 CDA8      		ldd r12,Y+53
+ 819 02c2 DEA8      		ldd r13,Y+54
+ 820 02c4 EFA8      		ldd r14,Y+55
+ 821 02c6 F8AC      		ldd r15,Y+56
+ 822 02c8 09A5      		ldd r16,Y+41
+ 823 02ca 1AA5      		ldd r17,Y+42
+ 824 02cc 2BA5      		ldd r18,Y+43
+ 825 02ce 3CA5      		ldd r19,Y+44
+ 826 02d0 4DA5      		ldd r20,Y+45
+ 827 02d2 5EA5      		ldd r21,Y+46
+ 828 02d4 6FA5      		ldd r22,Y+47
+ 829 02d6 78A9      		ldd r23,Y+48
+ 830 02d8 CE01      		movw r24,r28
+ 831 02da 4196      		adiw r24,17
+ 832 02dc 0E94 0000 		call nrk_time_sub
+ 241:main.c        ****     {
+ 834               	.LM56:
+ 835 02e0 4989      		ldd r20,Y+17
+ 836 02e2 5A89      		ldd r21,Y+18
+ 837 02e4 6B89      		ldd r22,Y+19
+ 838 02e6 7C89      		ldd r23,Y+20
+ 839 02e8 8091 0000 		lds r24,neighbor_time_limit
+ 840 02ec 9091 0000 		lds r25,neighbor_time_limit+1
+ 841 02f0 A091 0000 		lds r26,neighbor_time_limit+2
+ 842 02f4 B091 0000 		lds r27,neighbor_time_limit+3
+ 843 02f8 4817      		cp r20,r24
+ 844 02fa 5907      		cpc r21,r25
+ 845 02fc 6A07      		cpc r22,r26
+ 846 02fe 7B07      		cpc r23,r27
+ 847 0300 00F4      		brsh .+2
+ 848 0302 00C0      		rjmp .L15
+ 850               	.LM57:
+ 851 0304 8091 0000 		lds r24,local_neighbor_table+4
+ 852 0308 1F92      		push __zero_reg__
+ 853 030a 8F93      		push r24
+ 854 030c 8091 0000 		lds r24,local_neighbor_table+3
+ 855 0310 1F92      		push __zero_reg__
+ 856 0312 8F93      		push r24
+ 857 0314 8091 0000 		lds r24,local_neighbor_table+2
+ 858 0318 1F92      		push __zero_reg__
+ 859 031a 8F93      		push r24
+ 860 031c 8091 0000 		lds r24,light+1
+ 861 0320 8F93      		push r24
+ 862 0322 8091 0000 		lds r24,light
+ 863 0326 8F93      		push r24
+ 864 0328 1F92      		push __zero_reg__
+ 865 032a 1F92      		push __zero_reg__
+ 866 032c 8091 0000 		lds r24,local_seq_count+1
+ 867 0330 8F93      		push r24
+ 868 0332 8091 0000 		lds r24,local_seq_count
+ 869 0336 8F93      		push r24
+ 870 0338 1F92      		push __zero_reg__
+ 871 033a 2F92      		push r2
+ 872 033c 1F92      		push __zero_reg__
+ 873 033e 92E0      		ldi r25,lo8(2)
+ 874 0340 9F93      		push r25
+ 875 0342 5F92      		push r5
+ 876 0344 4F92      		push r4
+ 877 0346 00E0      		ldi r16,lo8(tx_buf)
+ 878 0348 10E0      		ldi r17,hi8(tx_buf)
+ 879 034a 1F93      		push r17
+ 880 034c 0F93      		push r16
+ 881 034e 0E94 0000 		call sprintf
+ 245:main.c        ****       0, light, local_neighbor_table.neighbors[0].id, local_neighbor_table.neighbors[1].id, local_n
+ 246:main.c        ****       val=bmac_tx_pkt(tx_buf, strlen(tx_buf)+1);
+ 883               	.LM58:
+ 884 0352 F801      		movw r30,r16
+ 885               		0:
+ 886 0354 0190      		ld __tmp_reg__,Z+
+ 887 0356 0020      		tst __tmp_reg__
+ 888 0358 01F4      		brne 0b
+ 889 035a 3197      		sbiw r30,1
+ 890 035c 8F01      		movw r16,r30
+ 891 035e 0050      		subi r16,lo8(tx_buf)
+ 892 0360 1040      		sbci r17,hi8(tx_buf)
+ 893 0362 61E0      		ldi r22,lo8(1)
+ 894 0364 600F      		add r22,r16
+ 895 0366 80E0      		ldi r24,lo8(tx_buf)
+ 896 0368 90E0      		ldi r25,hi8(tx_buf)
+ 897 036a 0E94 0000 		call bmac_tx_pkt
+ 247:main.c        ****       
+ 248:main.c        ****       // Reset neighbor table
+ 249:main.c        ****       init_neighbor_table(&local_neighbor_table);
+ 899               	.LM59:
+ 900 036e 80E0      		ldi r24,lo8(local_neighbor_table)
+ 901 0370 90E0      		ldi r25,hi8(local_neighbor_table)
+ 902 0372 0E94 0000 		call init_neighbor_table
+ 250:main.c        ****       
+ 251:main.c        ****       local_seq_count ++;
+ 904               	.LM60:
+ 905 0376 8091 0000 		lds r24,local_seq_count
+ 906 037a 9091 0000 		lds r25,local_seq_count+1
+ 907 037e 0196      		adiw r24,1
+ 908 0380 9093 0000 		sts local_seq_count+1,r25
+ 909 0384 8093 0000 		sts local_seq_count,r24
+ 252:main.c        ****       nrk_time_get(&neighbor_start_time);
+ 911               	.LM61:
+ 912 0388 CE01      		movw r24,r28
+ 913 038a C196      		adiw r24,49
+ 914 038c 0E94 0000 		call nrk_time_get
+ 915 0390 0FB6      		in __tmp_reg__,__SREG__
+ 916 0392 F894      		cli
+ 917 0394 DEBF      		out __SP_H__,r29
+ 918 0396 0FBE      		out __SREG__,__tmp_reg__
+ 919 0398 CDBF      		out __SP_L__,r28
+ 920               	.L15:
+ 253:main.c        ****     }
+ 254:main.c        **** 
+ 255:main.c        ****     nrk_wait_until_next_period();
+ 922               	.LM62:
+ 923 039a 0E94 0000 		call nrk_wait_until_next_period
+ 924               	.LBE4:
+ 256:main.c        ****   }
+ 926               	.LM63:
+ 927 039e 00C0      		rjmp .L16
+ 941               	.Lscope2:
+ 943               		.stabd	78,0,0
+ 945               	.global	nrk_create_taskset
+ 947               	nrk_create_taskset:
+ 948               		.stabd	46,0,0
+ 257:main.c        **** }
+ 258:main.c        **** 
+ 259:main.c        **** void nrk_create_taskset ()
+ 260:main.c        **** {
+ 950               	.LM64:
+ 951               	.LFBB3:
+ 952               	/* prologue: function */
+ 953               	/* frame size = 0 */
+ 954               	/* stack size = 0 */
+ 955               	.L__stack_usage = 0
+ 261:main.c        ****   nrk_task_set_stk( &HOP_TASK, hop_task_stack, NRK_APP_STACKSIZE);
+ 957               	.LM65:
+ 958 03a0 40E0      		ldi r20,0
+ 959 03a2 52E0      		ldi r21,lo8(2)
+ 960 03a4 60E0      		ldi r22,lo8(hop_task_stack)
+ 961 03a6 70E0      		ldi r23,hi8(hop_task_stack)
+ 962 03a8 80E0      		ldi r24,lo8(HOP_TASK)
+ 963 03aa 90E0      		ldi r25,hi8(HOP_TASK)
+ 964 03ac 0E94 0000 		call nrk_task_set_stk
+ 262:main.c        ****   HOP_TASK.task = hop_task;
+ 966               	.LM66:
+ 967 03b0 E0E0      		ldi r30,lo8(HOP_TASK)
+ 968 03b2 F0E0      		ldi r31,hi8(HOP_TASK)
+ 969 03b4 80E0      		ldi r24,lo8(gs(hop_task))
+ 970 03b6 90E0      		ldi r25,hi8(gs(hop_task))
+ 971 03b8 9683      		std Z+6,r25
+ 972 03ba 8583      		std Z+5,r24
+ 263:main.c        ****   HOP_TASK.prio = 2;
+ 974               	.LM67:
+ 975 03bc 82E0      		ldi r24,lo8(2)
+ 976 03be 8087      		std Z+8,r24
+ 264:main.c        ****   HOP_TASK.FirstActivation = TRUE;
+ 978               	.LM68:
+ 979 03c0 81E0      		ldi r24,lo8(1)
+ 980 03c2 8783      		std Z+7,r24
+ 265:main.c        ****   HOP_TASK.Type = BASIC_TASK;
+ 982               	.LM69:
+ 983 03c4 8187      		std Z+9,r24
+ 266:main.c        ****   HOP_TASK.SchType = PREEMPTIVE;
+ 985               	.LM70:
+ 986 03c6 8287      		std Z+10,r24
+ 267:main.c        ****   HOP_TASK.period.secs = 1;
+ 988               	.LM71:
+ 989 03c8 81E0      		ldi r24,lo8(1)
+ 990 03ca 90E0      		ldi r25,0
+ 991 03cc A0E0      		ldi r26,0
+ 992 03ce B0E0      		ldi r27,0
+ 993 03d0 8387      		std Z+11,r24
+ 994 03d2 9487      		std Z+12,r25
+ 995 03d4 A587      		std Z+13,r26
+ 996 03d6 B687      		std Z+14,r27
+ 268:main.c        ****   HOP_TASK.period.nano_secs = 0;
+ 998               	.LM72:
+ 999 03d8 1786      		std Z+15,__zero_reg__
+ 1000 03da 108A      		std Z+16,__zero_reg__
+ 1001 03dc 118A      		std Z+17,__zero_reg__
+ 1002 03de 128A      		std Z+18,__zero_reg__
+ 269:main.c        ****   HOP_TASK.cpu_reserve.secs = 1;
+ 1004               	.LM73:
+ 1005 03e0 838B      		std Z+19,r24
+ 1006 03e2 948B      		std Z+20,r25
+ 1007 03e4 A58B      		std Z+21,r26
+ 1008 03e6 B68B      		std Z+22,r27
+ 270:main.c        ****   HOP_TASK.cpu_reserve.nano_secs = 0;
+ 1010               	.LM74:
+ 1011 03e8 178A      		std Z+23,__zero_reg__
+ 1012 03ea 108E      		std Z+24,__zero_reg__
+ 1013 03ec 118E      		std Z+25,__zero_reg__
+ 1014 03ee 128E      		std Z+26,__zero_reg__
+ 271:main.c        ****   HOP_TASK.offset.secs = 0;
+ 1016               	.LM75:
+ 1017 03f0 138E      		std Z+27,__zero_reg__
+ 1018 03f2 148E      		std Z+28,__zero_reg__
+ 1019 03f4 158E      		std Z+29,__zero_reg__
+ 1020 03f6 168E      		std Z+30,__zero_reg__
+ 272:main.c        ****   HOP_TASK.offset.nano_secs = 0;
+ 1022               	.LM76:
+ 1023 03f8 178E      		std Z+31,__zero_reg__
+ 1024 03fa 10A2      		std Z+32,__zero_reg__
+ 1025 03fc 11A2      		std Z+33,__zero_reg__
+ 1026 03fe 12A2      		std Z+34,__zero_reg__
+ 273:main.c        ****   nrk_activate_task (&HOP_TASK);
+ 1028               	.LM77:
+ 1029 0400 CF01      		movw r24,r30
+ 1030 0402 0E94 0000 		call nrk_activate_task
+ 274:main.c        **** 
+ 275:main.c        ****   nrk_kprintf( PSTR("Create Done\r\n") );
+ 1032               	.LM78:
+ 1033 0406 80E0      		ldi r24,lo8(__c.3879)
+ 1034 0408 90E0      		ldi r25,hi8(__c.3879)
+ 1035 040a 0C94 0000 		jmp nrk_kprintf
+ 1037               	.Lscope3:
+ 1039               		.stabd	78,0,0
+ 1041               	.global	nrk_register_drivers
+ 1043               	nrk_register_drivers:
+ 1044               		.stabd	46,0,0
+ 276:main.c        **** }
+ 277:main.c        **** void nrk_register_drivers()
+ 278:main.c        **** {
+ 1046               	.LM79:
+ 1047               	.LFBB4:
+ 1048               	/* prologue: function */
+ 1049               	/* frame size = 0 */
+ 1050               	/* stack size = 0 */
+ 1051               	.L__stack_usage = 0
+ 279:main.c        ****   int8_t val;
+ 280:main.c        **** 
+ 281:main.c        ****   // Register the Basic FireFly Sensor device driver
+ 282:main.c        ****   // Make sure to add:
+ 283:main.c        ****   //     #define NRK_MAX_DRIVER_CNT
+ 284:main.c        ****   //     in nrk_cfg.h
+ 285:main.c        ****   // Make sure to add:
+ 286:main.c        ****   //     SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/ff_basic_sensor.c
+ 287:main.c        ****   //     in makefile
+ 288:main.c        ****   val=nrk_register_driver( &dev_manager_ff3_sensors,FIREFLY_3_SENSOR_BASIC);
+ 1053               	.LM80:
+ 1054 040e 63E0      		ldi r22,lo8(3)
+ 1055 0410 80E0      		ldi r24,lo8(gs(dev_manager_ff3_sensors))
+ 1056 0412 90E0      		ldi r25,hi8(gs(dev_manager_ff3_sensors))
+ 1057 0414 0E94 0000 		call nrk_register_driver
+ 289:main.c        ****   if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to load my ADC driver\r\n") );
+ 1059               	.LM81:
+ 1060 0418 8F3F      		cpi r24,lo8(-1)
+ 1061 041a 01F4      		brne .L28
+ 1063               	.LM82:
+ 1064 041c 80E0      		ldi r24,lo8(__c.3884)
+ 1065 041e 90E0      		ldi r25,hi8(__c.3884)
+ 1066 0420 0C94 0000 		jmp nrk_kprintf
+ 1067               	.L28:
+ 1068 0424 0895      		ret
+ 1070               	.Lscope4:
+ 1072               		.stabd	78,0,0
+ 1073               		.section	.text.startup,"ax",@progbits
+ 1075               	.global	main
+ 1077               	main:
+ 1078               		.stabd	46,0,0
+  67:main.c        ****   nrk_setup_ports ();
+ 1080               	.LM83:
+ 1081               	.LFBB5:
+ 1082               	/* prologue: function */
+ 1083               	/* frame size = 0 */
+ 1084               	/* stack size = 0 */
+ 1085               	.L__stack_usage = 0
+  68:main.c        ****   nrk_setup_uart (UART_BAUDRATE_115K2);
+ 1087               	.LM84:
+ 1088 0000 0E94 0000 		call nrk_setup_ports
+  69:main.c        **** 
+ 1090               	.LM85:
+ 1091 0004 80E1      		ldi r24,lo8(16)
+ 1092 0006 90E0      		ldi r25,0
+ 1093 0008 0E94 0000 		call nrk_setup_uart
+  71:main.c        **** 
+ 1095               	.LM86:
+ 1096 000c 0E94 0000 		call nrk_init
+  73:main.c        ****   nrk_led_clr (1);
+ 1098               	.LM87:
+ 1099 0010 80E0      		ldi r24,0
+ 1100 0012 90E0      		ldi r25,0
+ 1101 0014 0E94 0000 		call nrk_led_clr
+  74:main.c        ****   nrk_led_clr (2);
+ 1103               	.LM88:
+ 1104 0018 81E0      		ldi r24,lo8(1)
+ 1105 001a 90E0      		ldi r25,0
+ 1106 001c 0E94 0000 		call nrk_led_clr
+  75:main.c        ****   nrk_led_clr (3);
+ 1108               	.LM89:
+ 1109 0020 82E0      		ldi r24,lo8(2)
+ 1110 0022 90E0      		ldi r25,0
+ 1111 0024 0E94 0000 		call nrk_led_clr
+  76:main.c        **** 
+ 1113               	.LM90:
+ 1114 0028 83E0      		ldi r24,lo8(3)
+ 1115 002a 90E0      		ldi r25,0
+ 1116 002c 0E94 0000 		call nrk_led_clr
+  78:main.c        **** 
+ 1118               	.LM91:
+ 1119 0030 20E0      		ldi r18,0
+ 1120 0032 30E0      		ldi r19,0
+ 1121 0034 A901      		movw r20,r18
+ 1122 0036 60E0      		ldi r22,0
+ 1123 0038 70E0      		ldi r23,0
+ 1124 003a CB01      		movw r24,r22
+ 1125 003c 0E94 0000 		call nrk_time_set
+  80:main.c        **** 
+ 1127               	.LM92:
+ 1128 0040 0E94 0000 		call bmac_task_config
+  82:main.c        ****   nrk_create_taskset ();
+ 1130               	.LM93:
+ 1131 0044 0E94 0000 		call nrk_register_drivers
+  83:main.c        ****   nrk_start ();
+ 1133               	.LM94:
+ 1134 0048 0E94 0000 		call nrk_create_taskset
+  84:main.c        **** 
+ 1136               	.LM95:
+ 1137 004c 0E94 0000 		call nrk_start
+  87:main.c        **** 
+ 1139               	.LM96:
+ 1140 0050 80E0      		ldi r24,0
+ 1141 0052 90E0      		ldi r25,0
+ 1142 0054 0895      		ret
+ 1144               	.Lscope5:
+ 1146               		.stabd	78,0,0
+ 1147               		.section	.progmem.data,"a",@progbits
+ 1150               	__c.3884:
+ 1151 0000 4661 696C 		.string	"Failed to load my ADC driver\r\n"
+ 1151      6564 2074 
+ 1151      6F20 6C6F 
+ 1151      6164 206D 
+ 1151      7920 4144 
+ 1154               	__c.3879:
+ 1155 001f 4372 6561 		.string	"Create Done\r\n"
+ 1155      7465 2044 
+ 1155      6F6E 650D 
+ 1155      0A00 
+ 1156               		.comm	light,2,1
+ 1157               		.comm	light_baseline,2,1
+ 1158               		.comm	cmd,116,1
+ 1159               		.comm	tx_buf,116,1
+ 1160               		.comm	rx_buf,116,1
+ 1161               		.comm	hop_buf,116,1
+ 1162               		.comm	hop_task_stack,512,1
+ 1163               		.comm	HOP_TASK,35,1
+ 1164               		.comm	neighbor_time_limit,8,1
+ 1165               		.comm	sensor_time_limit,8,1
+ 1166               		.comm	seq_pool,10,1
+ 1167               		.comm	local_seq_count,2,1
+ 1168               		.comm	neighbor_count,1,1
+ 1169               		.comm	local_neighbor_table,5,1
+ 1170               		.comm	error_num,1,1
+ 1171               		.comm	error_task,1,1
+ 1172               		.comm	bmac_rfTxInfo,7,1
+ 1173               		.comm	bmac_rfRxInfo,12,1
+ 1174               		.comm	bmac_enable_signal,1,1
+ 1175               		.comm	bmac_tx_pkt_done_signal,1,1
+ 1176               		.comm	bmac_rx_pkt_signal,1,1
+ 1177               		.comm	nrk_kernel_stk_ptr,2,1
+ 1178               		.comm	nrk_idle_task_stk,512,1
+ 1179               		.comm	_nrk_signal_list,4,1
+ 1204               		.text
+ 1206               	.Letext0:
+ 1207               		.ident	"GCC: (GNU) 4.9.1"
+ 1208               	.global __do_copy_data
+ 1209               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:357    .text:0000000000000000 receive_message
+                            *COM*:0000000000000008 sensor_time_limit
+                            *COM*:0000000000000008 neighbor_time_limit
+                            *COM*:0000000000000005 local_neighbor_table
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:538    .text:00000000000000f0 hop_task
+                            *COM*:0000000000000074 rx_buf
+                            *COM*:000000000000000a seq_pool
+                            *COM*:0000000000000074 tx_buf
+                            *COM*:0000000000000002 light
+                            *COM*:0000000000000002 local_seq_count
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:947    .text:00000000000003a0 nrk_create_taskset
+                            *COM*:0000000000000200 hop_task_stack
+                            *COM*:0000000000000023 HOP_TASK
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:1154   .progmem.data:000000000000001f __c.3879
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:1043   .text:000000000000040e nrk_register_drivers
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:1150   .progmem.data:0000000000000000 __c.3884
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//cc5KJSxT.s:1077   .text.startup:0000000000000000 main
+                            *COM*:0000000000000002 light_baseline
+                            *COM*:0000000000000074 cmd
+                            *COM*:0000000000000074 hop_buf
+                            *COM*:0000000000000001 neighbor_count
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000007 bmac_rfTxInfo
+                            *COM*:000000000000000c bmac_rfRxInfo
+                            *COM*:0000000000000001 bmac_enable_signal
+                            *COM*:0000000000000001 bmac_tx_pkt_done_signal
+                            *COM*:0000000000000001 bmac_rx_pkt_signal
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+nrk_led_set
+bmac_rx_pkt_ready
+bmac_rx_pkt_get
+printf
+parse_msg
+print_packet
+print_neighbor_table
+in_neighbor_table
+add_neighbor
+nrk_led_clr
+bmac_rx_pkt_release
+bmac_init
+bmac_rx_pkt_set_buffer
+in_sequence_pool
+add_to_sequence_pool
+get_sequence_number
+update_sequence_pool
+assemble_packet
+bmac_tx_pkt
+nrk_time_get
+nrk_time_sub
+sample_light
+sprintf
+init_neighbor_table
+nrk_wait_until_next_period
+nrk_task_set_stk
+nrk_activate_task
+nrk_kprintf
+dev_manager_ff3_sensors
+nrk_register_driver
+nrk_setup_ports
+nrk_setup_uart
+nrk_init
+nrk_time_set
+bmac_task_config
+nrk_start
+__do_copy_data
+__do_clear_bss

@@ -1,0 +1,2327 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 352               	.global	transmit_task
+ 354               	transmit_task:
+ 355               		.stabd	46,0,0
+   1:main.c        **** /**
+   2:main.c        ****  * 18-748 Wireless Sensor Networks
+   3:main.c        ****  * Spring 2016
+   4:main.c        ****  * Lab 3: Multi-Hop Communication
+   5:main.c        ****  * main.c (gateway)
+   6:main.c        ****  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+   7:main.c        ****  */
+   8:main.c        **** 
+   9:main.c        **** // INCLUDES
+  10:main.c        **** // standard nrk 
+  11:main.c        **** #include <nrk.h>
+  12:main.c        **** #include <nrk_events.h>
+  13:main.c        **** #include <include.h>
+  14:main.c        **** #include <ulib.h>
+  15:main.c        **** #include <stdio.h>
+  16:main.c        **** #include <stdlib.h>
+  17:main.c        **** #include <avr/sleep.h>
+  18:main.c        **** #include <hal.h>
+  19:main.c        **** #include <bmac.h>
+  20:main.c        **** #include <nrk_error.h>
+  21:main.c        **** // this package
+  22:main.c        **** #include <assembler.h>
+  23:main.c        **** #include <light_pool.h>
+  24:main.c        **** #include <neighbors.h>
+  25:main.c        **** #include <parser.h>
+  26:main.c        **** #include <sequence_pool.h>
+  27:main.c        **** 
+  28:main.c        **** // DEFINES
+  29:main.c        **** #define MAC_ADDR 1
+  30:main.c        **** 
+  31:main.c        **** // ENUMS
+  32:main.c        **** typedef enum {
+  33:main.c        ****   STATE_INIT_NEIGHBOR,
+  34:main.c        ****   STATE_INIT_SENSOR,
+  35:main.c        ****   STATE_SET_SENSOR_POLL,
+  36:main.c        ****   STATE_SET_NEIGHBOR_UPDATE,
+  37:main.c        ****   STATE_PRINT_MAP,
+  38:main.c        ****   STATE_PRINT_DATA,
+  39:main.c        ****   STATE_WAIT
+  40:main.c        **** } states;
+  41:main.c        **** 
+  42:main.c        **** // TASKS
+  43:main.c        **** nrk_task_type UI_TASK, RECEIVE_TASK, TRANSMIT_TASK;
+  44:main.c        **** NRK_STK ui_task_stack[NRK_APP_STACKSIZE];
+  45:main.c        **** NRK_STK receive_task_stack[NRK_APP_STACKSIZE];
+  46:main.c        **** NRK_STK transmit_task_stack[NRK_APP_STACKSIZE];
+  47:main.c        **** void ui_task (void);
+  48:main.c        **** void receive_task(void);
+  49:main.c        **** void transmit_task(void);
+  50:main.c        **** void nrk_create_taskset ();
+  51:main.c        **** 
+  52:main.c        **** // BUFFERS
+  53:main.c        **** char rx_buf[RF_MAX_PAYLOAD_SIZE];
+  54:main.c        **** char tx_buf[RF_MAX_PAYLOAD_SIZE];
+  55:main.c        **** char ui_buf[RF_MAX_PAYLOAD_SIZE];
+  56:main.c        **** uint8_t ui_index = 0;
+  57:main.c        **** 
+  58:main.c        **** // DRIVERS 
+  59:main.c        **** void nrk_register_drivers();
+  60:main.c        **** 
+  61:main.c        **** // PERIOD VALUES/SEMAPHORES
+  62:main.c        **** uint8_t neighbor_update_rate = DEFAULT_NEIGHBOR_RATE;
+  63:main.c        **** uint8_t sensor_update_rate = DEFAULT_SENSOR_RATE;
+  64:main.c        **** nrk_sem_t *neighbor_mux;
+  65:main.c        **** nrk_sem_t *sensor_mux;
+  66:main.c        **** 
+  67:main.c        **** // NEIGHBOR VALUES/SEMAPHORES
+  68:main.c        **** sequence_pool_t seq_pool;
+  69:main.c        **** 
+  70:main.c        **** // LIGHT VALUES/SEMAPHORE
+  71:main.c        **** light_pool_t light_pool;
+  72:main.c        **** nrk_sem_t *light_pool_mux;
+  73:main.c        **** 
+  74:main.c        **** // NEIGHBOR GRAPH/SEMAPHORE
+  75:main.c        **** neighbor_graph_t neighbor_graph;
+  76:main.c        **** nrk_sem_t *neighbor_graph_mux;
+  77:main.c        **** 
+  78:main.c        **** // GLOBAL FLAG/SEMAPHORE
+  79:main.c        **** uint8_t print_incoming;
+  80:main.c        **** nrk_sem_t *print_mux;
+  81:main.c        **** 
+  82:main.c        **** // PACKET
+  83:main.c        **** packet tx_packet;
+  84:main.c        **** uint16_t seq_num = 0;
+  85:main.c        **** 
+  86:main.c        **** int main ()
+  87:main.c        **** {
+  88:main.c        ****   nrk_setup_ports ();
+  89:main.c        ****   nrk_setup_uart (UART_BAUDRATE_115K2);
+  90:main.c        **** 
+  91:main.c        ****   nrk_init ();
+  92:main.c        **** 
+  93:main.c        ****   nrk_led_clr (0);
+  94:main.c        ****   nrk_led_clr (1);
+  95:main.c        ****   nrk_led_clr (2);
+  96:main.c        ****   nrk_led_clr (3);
+  97:main.c        ****   
+  98:main.c        ****   sensor_mux = nrk_sem_create(1, 5);
+  99:main.c        ****   neighbor_mux = nrk_sem_create(1,5);
+ 100:main.c        ****   light_pool_mux = nrk_sem_create(1, 5);
+ 101:main.c        ****   neighbor_graph_mux = nrk_sem_create(1, 5);
+ 102:main.c        ****   print_mux = nrk_sem_create(1, 5);
+ 103:main.c        ****   
+ 104:main.c        ****   print_incoming = 0;
+ 105:main.c        ****   
+ 106:main.c        ****   tx_packet.type = MSG_GATEWAY;
+ 107:main.c        ****   tx_packet.source_id = MAC_ADDR;
+ 108:main.c        ****   tx_packet.seq_num = seq_num;
+ 109:main.c        ****   tx_packet.num_hops = 0;
+ 110:main.c        **** 
+ 111:main.c        ****   nrk_time_set (0, 0);
+ 112:main.c        **** 
+ 113:main.c        ****   bmac_task_config ();
+ 114:main.c        **** 
+ 115:main.c        ****   nrk_create_taskset ();
+ 116:main.c        ****   bmac_init (13);
+ 117:main.c        ****   nrk_start ();
+ 118:main.c        **** 
+ 119:main.c        ****   return 0;
+ 120:main.c        **** }
+ 121:main.c        **** 
+ 122:main.c        **** /** 
+ 123:main.c        ****  * add_to_ui_buffer - add char to the ui buffer 
+ 124:main.c        ****  */
+ 125:main.c        **** void add_to_ui_buffer(char c) {
+ 126:main.c        ****   ui_buf[ui_index] = c;
+ 127:main.c        ****   printf("%c", c);
+ 128:main.c        ****   ui_index++;
+ 129:main.c        **** }
+ 130:main.c        **** 
+ 131:main.c        **** 
+ 132:main.c        **** /**
+ 133:main.c        ****  * get_user_input - get input from command line
+ 134:main.c        ****  */
+ 135:main.c        **** uint8_t get_user_input() {
+ 136:main.c        ****   char option;
+ 137:main.c        ****   while(nrk_uart_data_ready(NRK_DEFAULT_UART)) {
+ 138:main.c        ****     option = getchar();
+ 139:main.c        ****     add_to_ui_buffer(option);
+ 140:main.c        ****     if(option == '\r') {
+ 141:main.c        ****       add_to_ui_buffer('\n');
+ 142:main.c        ****       nrk_kprintf(PSTR("\n"));
+ 143:main.c        ****       return 1;    
+ 144:main.c        ****     }
+ 145:main.c        ****   }
+ 146:main.c        ****   return 0;
+ 147:main.c        **** }
+ 148:main.c        **** 
+ 149:main.c        **** /** 
+ 150:main.c        ****  * clear_ui_buf - clear the UI buffe
+ 151:main.c        ****  */
+ 152:main.c        **** void clear_ui_buf() {
+ 153:main.c        ****   for(uint8_t i = 0; i < ui_index; i++) {
+ 154:main.c        ****     ui_buf[i] = '\0';
+ 155:main.c        ****   }
+ 156:main.c        ****   ui_index = 0;
+ 157:main.c        **** }
+ 158:main.c        **** 
+ 159:main.c        **** /** 
+ 160:main.c        ****  * turnUItoUint - convert user input to a uint duration of seconds. 
+ 161:main.c        ****  * 
+ 162:main.c        ****  * NOTE: The range of input values is bounded by MIN_RATE and MAX_RATE. 
+ 163:main.c        ****  *  Thus, this function is not general, but only for use in this context.
+ 164:main.c        ****  */
+ 165:main.c        **** int8_t turnUItoUint() {
+ 166:main.c        ****   // inital declarations
+ 167:main.c        ****   uint16_t make = 0;
+ 168:main.c        ****   int16_t temp = 0;
+ 169:main.c        ****   
+ 170:main.c        ****   // loop through entire useful ui_buf (-2 for '\r' and '\n')
+ 171:main.c        ****   for(uint8_t i = 0; i < (ui_index - 2); i++) {
+ 172:main.c        ****     temp = ui_buf[i] - '0';
+ 173:main.c        ****     if((temp < 0) || (temp > 9)) {
+ 174:main.c        ****       return -1;
+ 175:main.c        ****     } else {
+ 176:main.c        ****       make *= 10;
+ 177:main.c        ****       make += temp;  
+ 178:main.c        ****       if(make > MAX_RATE) {
+ 179:main.c        ****         return -1;
+ 180:main.c        ****       }
+ 181:main.c        ****     }
+ 182:main.c        ****   }
+ 183:main.c        ****   return (int8_t)make;
+ 184:main.c        **** }
+ 185:main.c        **** 
+ 186:main.c        **** 
+ 187:main.c        **** /**
+ 188:main.c        ****  * set_neighbor_rate - helper function to set the neighbor rate dynamically from 
+ 189:main.c        ****  *  the terminal gui.
+ 190:main.c        ****  * 
+ 191:main.c        ****  * NOTE: This function requires use of a semaphore to ensure the correct access
+ 192:main.c        ****  *  of a global variable.
+ 193:main.c        ****  */
+ 194:main.c        **** uint8_t set_neighbor_rate() {
+ 195:main.c        ****   int8_t uiUint;
+ 196:main.c        ****   
+ 197:main.c        ****   // prompt
+ 198:main.c        ****   if(get_user_input()) {
+ 199:main.c        ****     // analyze input
+ 200:main.c        ****     uiUint = turnUItoUint();
+ 201:main.c        ****     if((uiUint < MIN_RATE) || (uiUint > MAX_RATE)) {
+ 202:main.c        ****       nrk_kprintf(PSTR("I'm very sorry, but that is an invalid input.\r\n# "));
+ 203:main.c        ****       clear_ui_buf();
+ 204:main.c        ****       return INVALID;
+ 205:main.c        ****     } else {
+ 206:main.c        ****       printf("Neighbor update rate set has been set to %d seconds!\r\n", uiUint);
+ 207:main.c        ****       
+ 208:main.c        ****       // ATOMIC ACCESS of global neighbor_update_rate
+ 209:main.c        ****       nrk_sem_pend(neighbor_mux);
+ 210:main.c        ****       neighbor_update_rate = uiUint;
+ 211:main.c        ****       nrk_sem_post(neighbor_mux);
+ 212:main.c        ****       clear_ui_buf();
+ 213:main.c        ****       return SET;
+ 214:main.c        ****     }
+ 215:main.c        ****   }
+ 216:main.c        ****   return NOT_SET;
+ 217:main.c        **** }
+ 218:main.c        **** 
+ 219:main.c        **** /**
+ 220:main.c        ****  * set sensor rate - helper function to set the sensor rate dynamically from the 
+ 221:main.c        ****  *  terminal gui.
+ 222:main.c        ****  * 
+ 223:main.c        ****  * NOTE: This function requires use of a semaphore to ensure the correct access 
+ 224:main.c        ****  *  of a global variable.
+ 225:main.c        ****  */
+ 226:main.c        **** uint8_t set_sensor_rate() {
+ 227:main.c        ****   int8_t uiUint;
+ 228:main.c        ****   
+ 229:main.c        ****   // prompt
+ 230:main.c        ****   if(get_user_input()) {
+ 231:main.c        ****     // analyze inputr
+ 232:main.c        ****     uiUint = turnUItoUint();
+ 233:main.c        ****     if((uiUint < MIN_RATE) || (uiUint > MAX_RATE)) {
+ 234:main.c        ****       nrk_kprintf(PSTR("I'm very sorry, but that is an invalid input.\r\n# "));
+ 235:main.c        ****       clear_ui_buf();
+ 236:main.c        ****       return INVALID;
+ 237:main.c        ****     } else {
+ 238:main.c        ****       printf("Sensor update rate set has been set to %d seconds!\r\n", uiUint);
+ 239:main.c        ****       
+ 240:main.c        ****       // ATOMIC ACCESS to global sensor_update_rate
+ 241:main.c        ****       nrk_sem_pend(sensor_mux);
+ 242:main.c        ****       sensor_update_rate = uiUint;
+ 243:main.c        ****       nrk_sem_post(sensor_mux);
+ 244:main.c        ****       
+ 245:main.c        ****       clear_ui_buf();
+ 246:main.c        ****       return SET;
+ 247:main.c        ****     }
+ 248:main.c        ****   }
+ 249:main.c        ****   return NOT_SET;
+ 250:main.c        **** }
+ 251:main.c        **** 
+ 252:main.c        **** /** 
+ 253:main.c        ****  * transmit_task - this task forms a message in the TX buffer and sends it
+ 254:main.c        ****  * to all listening nodes.
+ 255:main.c        ****  * 
+ 256:main.c        ****  * NOTE: This function requires use of a semaphore to ensure the correct access 
+ 257:main.c        ****  *  of a global variable.
+ 258:main.c        ****  */
+ 259:main.c        **** void transmit_task() {
+ 357               	.LM0:
+ 358               	.LFBB1:
+ 359               	/* prologue: function */
+ 360               	/* frame size = 0 */
+ 361               	/* stack size = 0 */
+ 362               	.L__stack_usage = 0
+ 260:main.c        ****   /** TEMP LED STUFF **/
+ 261:main.c        ****   nrk_led_clr (2);
+ 364               	.LM1:
+ 365 0000 82E0      		ldi r24,lo8(2)
+ 366 0002 90E0      		ldi r25,0
+ 367 0004 0E94 0000 		call nrk_led_clr
+ 262:main.c        ****   nrk_led_clr (3);
+ 369               	.LM2:
+ 370 0008 83E0      		ldi r24,lo8(3)
+ 371 000a 90E0      		ldi r25,0
+ 372 000c 0E94 0000 		call nrk_led_clr
+ 373               	.L2:
+ 263:main.c        ****   uint8_t i = 0;
+ 264:main.c        ****   
+ 265:main.c        ****   // local variable initialization
+ 266:main.c        ****   uint16_t val;
+ 267:main.c        ****   nrk_sig_t tx_done_signal;
+ 268:main.c        ****   nrk_sig_mask_t ret;
+ 269:main.c        ****   
+ 270:main.c        ****   // Wait until bmac has started. This should be called by all tasks using bmac that do not call bm
+ 271:main.c        ****   while (!bmac_started ())
+ 375               	.LM3:
+ 376 0010 0E94 0000 		call bmac_started
+ 377 0014 8111      		cpse r24,__zero_reg__
+ 378 0016 00C0      		rjmp .L16
+ 272:main.c        ****     nrk_wait_until_next_period ();
+ 380               	.LM4:
+ 381 0018 0E94 0000 		call nrk_wait_until_next_period
+ 382 001c 00C0      		rjmp .L2
+ 383               	.L16:
+ 273:main.c        **** 
+ 274:main.c        ****   // Get and register the tx_done_signal to perform non-blocking transmits
+ 275:main.c        ****   tx_done_signal = bmac_get_tx_done_signal ();
+ 385               	.LM5:
+ 386 001e 0E94 0000 		call bmac_get_tx_done_signal
+ 387 0022 C82F      		mov r28,r24
+ 276:main.c        ****   nrk_signal_register (tx_done_signal);
+ 389               	.LM6:
+ 390 0024 0E94 0000 		call nrk_signal_register
+ 277:main.c        ****   
+ 278:main.c        ****   while(1) {
+ 279:main.c        ****     /** TEMP LED STUFF **/
+ 280:main.c        ****     i++;
+ 281:main.c        ****     i%=4;
+ 282:main.c        ****     if(i < 2) {
+ 283:main.c        ****       nrk_led_set(i+2);
+ 284:main.c        ****     } else {
+ 285:main.c        ****       nrk_led_clr(i);
+ 286:main.c        ****     }
+ 287:main.c        ****     
+ 288:main.c        ****     // ATOMIC ACCESS to global sensor_update_rate
+ 289:main.c        ****     nrk_sem_pend(sensor_mux);
+ 290:main.c        ****     tx_packet.sensor_sample_rate = sensor_update_rate;
+ 291:main.c        ****     nrk_sem_post(sensor_mux);
+ 292:main.c        ****     
+ 293:main.c        ****     // ATOMIC ACCESS to global neighbor_update_rate
+ 294:main.c        ****     nrk_sem_pend(neighbor_mux);
+ 295:main.c        ****     tx_packet.neighbor_update_rate = neighbor_update_rate;
+ 296:main.c        ****     nrk_sem_post(neighbor_mux);
+ 297:main.c        ****     
+ 298:main.c        ****     // assemble the rest of the packet
+ 299:main.c        ****     seq_num++;
+ 300:main.c        ****     tx_packet.seq_num = seq_num;
+ 301:main.c        ****     assemble_packet(&tx_buf, &tx_packet);
+ 302:main.c        **** 
+ 303:main.c        ****     // send the packet
+ 304:main.c        ****     val = bmac_tx_pkt_nonblocking(tx_buf, strlen(tx_buf));
+ 305:main.c        ****     ret = nrk_event_wait (SIG(tx_done_signal));
+ 392               	.LM7:
+ 393 0028 C12C      		mov r12,__zero_reg__
+ 394 002a D12C      		mov r13,__zero_reg__
+ 395 002c 7601      		movw r14,r12
+ 396 002e C394      		inc r12
+ 397 0030 00C0      		rjmp 2f
+ 398               		1:
+ 399 0032 CC0C      		lsl r12
+ 400 0034 DD1C      		rol r13
+ 401 0036 EE1C      		rol r14
+ 402 0038 FF1C      		rol r15
+ 403               		2:
+ 404 003a CA95      		dec r28
+ 405 003c 02F4      		brpl 1b
+ 306:main.c        ****     
+ 307:main.c        ****     // Just check to be sure signal is okay
+ 308:main.c        ****     if(ret & SIG(tx_done_signal) == 0 ) {
+ 407               	.LM8:
+ 408 003e 812C      		mov r8,__zero_reg__
+ 409 0040 912C      		mov r9,__zero_reg__
+ 410 0042 5401      		movw r10,r8
+ 411 0044 8394      		inc r8
+ 412 0046 C114      		cp r12,__zero_reg__
+ 413 0048 D104      		cpc r13,__zero_reg__
+ 414 004a E104      		cpc r14,__zero_reg__
+ 415 004c F104      		cpc r15,__zero_reg__
+ 416 004e 01F0      		breq .L4
+ 417 0050 812C      		mov r8,__zero_reg__
+ 418 0052 912C      		mov r9,__zero_reg__
+ 419 0054 5401      		movw r10,r8
+ 420               	.L4:
+ 263:main.c        ****   
+ 422               	.LM9:
+ 423 0056 C0E0      		ldi r28,0
+ 424               	.L8:
+ 280:main.c        ****     i%=4;
+ 426               	.LM10:
+ 427 0058 CF5F      		subi r28,lo8(-(1))
+ 281:main.c        ****     if(i < 2) {
+ 429               	.LM11:
+ 430 005a C370      		andi r28,lo8(3)
+ 431 005c 8C2F      		mov r24,r28
+ 432 005e 90E0      		ldi r25,0
+ 282:main.c        ****       nrk_led_set(i+2);
+ 434               	.LM12:
+ 435 0060 C230      		cpi r28,lo8(2)
+ 436 0062 00F4      		brsh .L5
+ 283:main.c        ****     } else {
+ 438               	.LM13:
+ 439 0064 0296      		adiw r24,2
+ 440 0066 0E94 0000 		call nrk_led_set
+ 441 006a 00C0      		rjmp .L6
+ 442               	.L5:
+ 285:main.c        ****     }
+ 444               	.LM14:
+ 445 006c 0E94 0000 		call nrk_led_clr
+ 446               	.L6:
+ 289:main.c        ****     tx_packet.sensor_sample_rate = sensor_update_rate;
+ 448               	.LM15:
+ 449 0070 8091 0000 		lds r24,sensor_mux
+ 450 0074 9091 0000 		lds r25,sensor_mux+1
+ 451 0078 0E94 0000 		call nrk_sem_pend
+ 290:main.c        ****     nrk_sem_post(sensor_mux);
+ 453               	.LM16:
+ 454 007c 8091 0000 		lds r24,sensor_update_rate
+ 455 0080 90E0      		ldi r25,0
+ 456 0082 9093 0000 		sts tx_packet+12+1,r25
+ 457 0086 8093 0000 		sts tx_packet+12,r24
+ 291:main.c        ****     
+ 459               	.LM17:
+ 460 008a 8091 0000 		lds r24,sensor_mux
+ 461 008e 9091 0000 		lds r25,sensor_mux+1
+ 462 0092 0E94 0000 		call nrk_sem_post
+ 294:main.c        ****     tx_packet.neighbor_update_rate = neighbor_update_rate;
+ 464               	.LM18:
+ 465 0096 8091 0000 		lds r24,neighbor_mux
+ 466 009a 9091 0000 		lds r25,neighbor_mux+1
+ 467 009e 0E94 0000 		call nrk_sem_pend
+ 295:main.c        ****     nrk_sem_post(neighbor_mux);
+ 469               	.LM19:
+ 470 00a2 8091 0000 		lds r24,neighbor_update_rate
+ 471 00a6 90E0      		ldi r25,0
+ 472 00a8 9093 0000 		sts tx_packet+14+1,r25
+ 473 00ac 8093 0000 		sts tx_packet+14,r24
+ 296:main.c        ****     
+ 475               	.LM20:
+ 476 00b0 8091 0000 		lds r24,neighbor_mux
+ 477 00b4 9091 0000 		lds r25,neighbor_mux+1
+ 478 00b8 0E94 0000 		call nrk_sem_post
+ 299:main.c        ****     tx_packet.seq_num = seq_num;
+ 480               	.LM21:
+ 481 00bc 8091 0000 		lds r24,seq_num
+ 482 00c0 9091 0000 		lds r25,seq_num+1
+ 483 00c4 0196      		adiw r24,1
+ 484 00c6 9093 0000 		sts seq_num+1,r25
+ 485 00ca 8093 0000 		sts seq_num,r24
+ 300:main.c        ****     assemble_packet(&tx_buf, &tx_packet);
+ 487               	.LM22:
+ 488 00ce 9093 0000 		sts tx_packet+2+1,r25
+ 489 00d2 8093 0000 		sts tx_packet+2,r24
+ 301:main.c        **** 
+ 491               	.LM23:
+ 492 00d6 60E0      		ldi r22,lo8(tx_packet)
+ 493 00d8 70E0      		ldi r23,hi8(tx_packet)
+ 494 00da 80E0      		ldi r24,lo8(tx_buf)
+ 495 00dc 90E0      		ldi r25,hi8(tx_buf)
+ 496 00de 0E94 0000 		call assemble_packet
+ 304:main.c        ****     ret = nrk_event_wait (SIG(tx_done_signal));
+ 498               	.LM24:
+ 499 00e2 E0E0      		ldi r30,lo8(tx_buf)
+ 500 00e4 F0E0      		ldi r31,hi8(tx_buf)
+ 501               		0:
+ 502 00e6 0190      		ld __tmp_reg__,Z+
+ 503 00e8 0020      		tst __tmp_reg__
+ 504 00ea 01F4      		brne 0b
+ 505 00ec 3197      		sbiw r30,1
+ 506 00ee BF01      		movw r22,r30
+ 507 00f0 6050      		subi r22,lo8(tx_buf)
+ 508 00f2 7040      		sbci r23,hi8(tx_buf)
+ 509 00f4 80E0      		ldi r24,lo8(tx_buf)
+ 510 00f6 90E0      		ldi r25,hi8(tx_buf)
+ 511 00f8 0E94 0000 		call bmac_tx_pkt_nonblocking
+ 305:main.c        ****     
+ 513               	.LM25:
+ 514 00fc C701      		movw r24,r14
+ 515 00fe B601      		movw r22,r12
+ 516 0100 0E94 0000 		call nrk_event_wait
+ 518               	.LM26:
+ 519 0104 DC01      		movw r26,r24
+ 520 0106 CB01      		movw r24,r22
+ 521 0108 8821      		and r24,r8
+ 522 010a 9921      		and r25,r9
+ 523 010c AA21      		and r26,r10
+ 524 010e BB21      		and r27,r11
+ 525 0110 892B      		or r24,r25
+ 526 0112 8A2B      		or r24,r26
+ 527 0114 8B2B      		or r24,r27
+ 528 0116 01F0      		breq .L7
+ 309:main.c        ****       nrk_kprintf (PSTR ("TX done signal error\r\n"));
+ 530               	.LM27:
+ 531 0118 80E0      		ldi r24,lo8(__c.3815)
+ 532 011a 90E0      		ldi r25,hi8(__c.3815)
+ 533 011c 0E94 0000 		call nrk_kprintf
+ 534               	.L7:
+ 310:main.c        ****     }
+ 311:main.c        ****     nrk_wait_until_next_period();
+ 536               	.LM28:
+ 537 0120 0E94 0000 		call nrk_wait_until_next_period
+ 312:main.c        ****   }
+ 539               	.LM29:
+ 540 0124 00C0      		rjmp .L8
+ 546               	.Lscope1:
+ 548               		.stabd	78,0,0
+ 549               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 550               	.LC0:
+ 551 0000 5258 3A20 		.string	"RX: "
+ 551      00
+ 552               	.LC1:
+ 553 0005 0D00      		.string	"\r"
+ 554               		.text
+ 556               	.global	receive_task
+ 558               	receive_task:
+ 559               		.stabd	46,0,0
+ 313:main.c        **** }
+ 314:main.c        **** 
+ 315:main.c        **** /**
+ 316:main.c        ****  * receive_task - receives a message and adds the information to either 
+ 317:main.c        ****  *  (1) the light data (2) the neighbor data or (3) both.
+ 318:main.c        ****  */
+ 319:main.c        **** void receive_task() {
+ 561               	.LM30:
+ 562               	.LFBB2:
+ 563 0126 CF93      		push r28
+ 564 0128 DF93      		push r29
+ 565 012a CDB7      		in r28,__SP_L__
+ 566 012c DEB7      		in r29,__SP_H__
+ 567 012e 6297      		sbiw r28,18
+ 568 0130 0FB6      		in __tmp_reg__,__SREG__
+ 569 0132 F894      		cli
+ 570 0134 DEBF      		out __SP_H__,r29
+ 571 0136 0FBE      		out __SREG__,__tmp_reg__
+ 572 0138 CDBF      		out __SP_L__,r28
+ 573               	/* prologue: function */
+ 574               	/* frame size = 18 */
+ 575               	/* stack size = 20 */
+ 576               	.L__stack_usage = 20
+ 320:main.c        ****   /** TEMP LED STUFF **/
+ 321:main.c        ****   nrk_led_clr (0);
+ 578               	.LM31:
+ 579 013a 80E0      		ldi r24,0
+ 580 013c 90E0      		ldi r25,0
+ 581 013e 0E94 0000 		call nrk_led_clr
+ 322:main.c        ****   nrk_led_clr (1);
+ 583               	.LM32:
+ 584 0142 81E0      		ldi r24,lo8(1)
+ 585 0144 90E0      		ldi r25,0
+ 586 0146 0E94 0000 		call nrk_led_clr
+ 323:main.c        ****   uint8_t i = 0;
+ 324:main.c        ****   
+ 325:main.c        ****   // local variable instantiation
+ 326:main.c        ****   packet rx_packet;
+ 327:main.c        ****   uint8_t len, rssi;
+ 328:main.c        ****   uint8_t *local_buf;
+ 329:main.c        ****   int8_t in_seq_pool;
+ 330:main.c        ****   uint16_t local_seq_num;
+ 331:main.c        ****   uint8_t new_node = NONE;
+ 332:main.c        ****   uint8_t print;
+ 333:main.c        **** 
+ 334:main.c        **** 
+ 335:main.c        ****   bmac_rx_pkt_set_buffer (rx_buf, RF_MAX_PAYLOAD_SIZE);
+ 588               	.LM33:
+ 589 014a 64E7      		ldi r22,lo8(116)
+ 590 014c 80E0      		ldi r24,lo8(rx_buf)
+ 591 014e 90E0      		ldi r25,hi8(rx_buf)
+ 592 0150 0E94 0000 		call bmac_rx_pkt_set_buffer
+ 593               	.L18:
+ 336:main.c        ****   
+ 337:main.c        ****   // Wait until bmac has started. This should be called by all tasks using bmac that do not call bm
+ 338:main.c        ****   while (!bmac_started ())
+ 595               	.LM34:
+ 596 0154 0E94 0000 		call bmac_started
+ 597 0158 8111      		cpse r24,__zero_reg__
+ 598 015a 00C0      		rjmp .L45
+ 339:main.c        ****     nrk_wait_until_next_period ();
+ 600               	.LM35:
+ 601 015c 0E94 0000 		call nrk_wait_until_next_period
+ 602 0160 00C0      		rjmp .L18
+ 603               	.L45:
+ 604 0162 00E0      		ldi r16,0
+ 605 0164 10E0      		ldi r17,0
+ 340:main.c        ****   
+ 341:main.c        ****   while(1) {
+ 342:main.c        ****     /** LED indication for debug **/
+ 343:main.c        ****     i++;
+ 344:main.c        ****     i%=4;
+ 345:main.c        ****     if(i < 2) {
+ 346:main.c        ****       nrk_led_set(i);
+ 347:main.c        ****     } else {
+ 348:main.c        ****       nrk_led_clr(i-2);
+ 349:main.c        ****     }
+ 350:main.c        ****     
+ 351:main.c        ****     // if there is a packet available
+ 352:main.c        ****     if(bmac_rx_pkt_ready()) {
+ 353:main.c        ****       // get the packet, parse and release
+ 354:main.c        ****       parse_msg(&rx_packet, &rx_buf, len);
+ 355:main.c        ****       local_buf = bmac_rx_pkt_get(&len, &rssi);
+ 356:main.c        ****       
+ 357:main.c        ****       nrk_sem_pend(print_mux);
+ 358:main.c        ****         print = print_incoming;
+ 359:main.c        ****       nrk_sem_post(print_mux);
+ 360:main.c        ****       if(print == 1) {
+ 361:main.c        ****         printf ("RX: ");
+ 607               	.LM36:
+ 608 0166 80E0      		ldi r24,lo8(.LC0)
+ 609 0168 C82E      		mov r12,r24
+ 610 016a 80E0      		ldi r24,hi8(.LC0)
+ 611 016c D82E      		mov r13,r24
+ 612               	.L30:
+ 343:main.c        ****     i%=4;
+ 614               	.LM37:
+ 615 016e 1F5F      		subi r17,lo8(-(1))
+ 344:main.c        ****     if(i < 2) {
+ 617               	.LM38:
+ 618 0170 1370      		andi r17,lo8(3)
+ 619 0172 812F      		mov r24,r17
+ 620 0174 90E0      		ldi r25,0
+ 345:main.c        ****       nrk_led_set(i);
+ 622               	.LM39:
+ 623 0176 1230      		cpi r17,lo8(2)
+ 624 0178 00F4      		brsh .L20
+ 346:main.c        ****     } else {
+ 626               	.LM40:
+ 627 017a 0E94 0000 		call nrk_led_set
+ 628 017e 00C0      		rjmp .L21
+ 629               	.L20:
+ 348:main.c        ****     }
+ 631               	.LM41:
+ 632 0180 0297      		sbiw r24,2
+ 633 0182 0E94 0000 		call nrk_led_clr
+ 634               	.L21:
+ 352:main.c        ****       // get the packet, parse and release
+ 636               	.LM42:
+ 637 0186 0E94 0000 		call bmac_rx_pkt_ready
+ 638 018a 8823      		tst r24
+ 639 018c 01F4      		brne .+2
+ 640 018e 00C0      		rjmp .L22
+ 354:main.c        ****       local_buf = bmac_rx_pkt_get(&len, &rssi);
+ 642               	.LM43:
+ 643 0190 4A89      		ldd r20,Y+18
+ 644 0192 60E0      		ldi r22,lo8(rx_buf)
+ 645 0194 70E0      		ldi r23,hi8(rx_buf)
+ 646 0196 CE01      		movw r24,r28
+ 647 0198 0196      		adiw r24,1
+ 648 019a 0E94 0000 		call parse_msg
+ 355:main.c        ****       
+ 650               	.LM44:
+ 651 019e BE01      		movw r22,r28
+ 652 01a0 6F5E      		subi r22,-17
+ 653 01a2 7F4F      		sbci r23,-1
+ 654 01a4 CE01      		movw r24,r28
+ 655 01a6 4296      		adiw r24,18
+ 656 01a8 0E94 0000 		call bmac_rx_pkt_get
+ 357:main.c        ****         print = print_incoming;
+ 658               	.LM45:
+ 659 01ac 8091 0000 		lds r24,print_mux
+ 660 01b0 9091 0000 		lds r25,print_mux+1
+ 661 01b4 0E94 0000 		call nrk_sem_pend
+ 358:main.c        ****       nrk_sem_post(print_mux);
+ 663               	.LM46:
+ 664 01b8 F090 0000 		lds r15,print_incoming
+ 359:main.c        ****       if(print == 1) {
+ 666               	.LM47:
+ 667 01bc 8091 0000 		lds r24,print_mux
+ 668 01c0 9091 0000 		lds r25,print_mux+1
+ 669 01c4 0E94 0000 		call nrk_sem_post
+ 360:main.c        ****         printf ("RX: ");
+ 671               	.LM48:
+ 672 01c8 81E0      		ldi r24,lo8(1)
+ 673 01ca F812      		cpse r15,r24
+ 674 01cc 00C0      		rjmp .L23
+ 676               	.LM49:
+ 677 01ce DF92      		push r13
+ 678 01d0 CF92      		push r12
+ 679 01d2 0E94 0000 		call printf
+ 680               	.LBB5:
+ 362:main.c        ****         for (uint8_t j = 0; j < len; j++)
+ 682               	.LM50:
+ 683 01d6 0F90      		pop __tmp_reg__
+ 684 01d8 0F90      		pop __tmp_reg__
+ 685 01da F12C      		mov r15,__zero_reg__
+ 686               	.L24:
+ 688               	.LM51:
+ 689 01dc 8A89      		ldd r24,Y+18
+ 690 01de F816      		cp r15,r24
+ 691 01e0 00F4      		brsh .L46
+ 363:main.c        ****           printf ("%c", rx_buf[j]);
+ 693               	.LM52:
+ 694 01e2 EF2D      		mov r30,r15
+ 695 01e4 F0E0      		ldi r31,0
+ 696 01e6 E050      		subi r30,lo8(-(rx_buf))
+ 697 01e8 F040      		sbci r31,hi8(-(rx_buf))
+ 698 01ea 8081      		ld r24,Z
+ 699 01ec 90E0      		ldi r25,0
+ 700 01ee 0E94 0000 		call putchar
+ 362:main.c        ****         for (uint8_t j = 0; j < len; j++)
+ 702               	.LM53:
+ 703 01f2 F394      		inc r15
+ 704 01f4 00C0      		rjmp .L24
+ 705               	.L46:
+ 706               	.LBE5:
+ 364:main.c        ****         printf("\r\n");        
+ 708               	.LM54:
+ 709 01f6 80E0      		ldi r24,lo8(.LC1)
+ 710 01f8 90E0      		ldi r25,hi8(.LC1)
+ 711 01fa 0E94 0000 		call puts
+ 712               	.L23:
+ 365:main.c        ****       }
+ 366:main.c        ****       
+ 367:main.c        ****       bmac_rx_pkt_release ();  
+ 714               	.LM55:
+ 715 01fe 0E94 0000 		call bmac_rx_pkt_release
+ 368:main.c        **** 
+ 369:main.c        ****       // check to see if this node is in the sequence pool, if not then add it
+ 370:main.c        ****       in_seq_pool = in_sequence_pool(&seq_pool, rx_packet.source_id);
+ 717               	.LM56:
+ 718 0202 6A81      		ldd r22,Y+2
+ 719 0204 80E0      		ldi r24,lo8(seq_pool)
+ 720 0206 90E0      		ldi r25,hi8(seq_pool)
+ 721 0208 0E94 0000 		call in_sequence_pool
+ 371:main.c        ****       if((in_seq_pool == -1) && (rx_packet.source_id != MAC_ADDR)) {
+ 723               	.LM57:
+ 724 020c 8F3F      		cpi r24,lo8(-1)
+ 725 020e 01F4      		brne .L26
+ 727               	.LM58:
+ 728 0210 6A81      		ldd r22,Y+2
+ 729 0212 6130      		cpi r22,lo8(1)
+ 730 0214 01F0      		breq .L26
+ 372:main.c        ****         add_to_sequence_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
+ 732               	.LM59:
+ 733 0216 4B81      		ldd r20,Y+3
+ 734 0218 5C81      		ldd r21,Y+4
+ 735 021a 80E0      		ldi r24,lo8(seq_pool)
+ 736 021c 90E0      		ldi r25,hi8(seq_pool)
+ 737 021e 0E94 0000 		call add_to_sequence_pool
+ 373:main.c        ****         new_node = NODE_FOUND;
+ 739               	.LM60:
+ 740 0222 01E0      		ldi r16,lo8(1)
+ 741               	.L26:
+ 374:main.c        ****       }
+ 375:main.c        ****     
+ 376:main.c        ****       // determine if we should parse this packet based on the sequence number
+ 377:main.c        ****       local_seq_num = get_sequence_number(&seq_pool, rx_packet.source_id);
+ 743               	.LM61:
+ 744 0224 6A81      		ldd r22,Y+2
+ 745 0226 80E0      		ldi r24,lo8(seq_pool)
+ 746 0228 90E0      		ldi r25,hi8(seq_pool)
+ 747 022a 0E94 0000 		call get_sequence_number
+ 378:main.c        ****       if((rx_packet.source_id != MAC_ADDR) && 
+ 749               	.LM62:
+ 750 022e 6A81      		ldd r22,Y+2
+ 751 0230 6130      		cpi r22,lo8(1)
+ 752 0232 01F0      		breq .L22
+ 379:main.c        ****           ((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND))) {
+ 754               	.LM63:
+ 755 0234 4B81      		ldd r20,Y+3
+ 756 0236 5C81      		ldd r21,Y+4
+ 378:main.c        ****       if((rx_packet.source_id != MAC_ADDR) && 
+ 758               	.LM64:
+ 759 0238 8417      		cp r24,r20
+ 760 023a 9507      		cpc r25,r21
+ 761 023c 00F0      		brlo .L27
+ 763               	.LM65:
+ 764 023e 0130      		cpi r16,lo8(1)
+ 765 0240 01F4      		brne .L22
+ 766               	.L27:
+ 380:main.c        ****         
+ 381:main.c        ****         // update the sequence pool and reset the new_node flag
+ 382:main.c        ****         update_sequence_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
+ 768               	.LM66:
+ 769 0242 80E0      		ldi r24,lo8(seq_pool)
+ 770 0244 90E0      		ldi r25,hi8(seq_pool)
+ 771 0246 0E94 0000 		call update_sequence_pool
+ 383:main.c        ****         new_node = NONE;
+ 384:main.c        ****         
+ 385:main.c        ****         // update neighbor_graph/light_pool based on the current message type 
+ 386:main.c        ****         switch(rx_packet.type) {
+ 773               	.LM67:
+ 774 024a 8981      		ldd r24,Y+1
+ 775 024c 8130      		cpi r24,lo8(1)
+ 776 024e 01F0      		breq .L28
+ 777 0250 8230      		cpi r24,lo8(2)
+ 778 0252 01F4      		brne .L44
+ 779               	.LBB6:
+ 387:main.c        ****           case MSG_NODE_NEIGHBORS:
+ 388:main.c        ****             nrk_sem_pend(neighbor_graph_mux);
+ 781               	.LM68:
+ 782 0254 8091 0000 		lds r24,neighbor_graph_mux
+ 783 0258 9091 0000 		lds r25,neighbor_graph_mux+1
+ 784 025c 0E94 0000 		call nrk_sem_pend
+ 389:main.c        ****             update_neighbor_graph(&neighbor_graph, &(rx_packet.neighbor_table));
+ 786               	.LM69:
+ 787 0260 BE01      		movw r22,r28
+ 788 0262 685F      		subi r22,-8
+ 789 0264 7F4F      		sbci r23,-1
+ 790 0266 80E0      		ldi r24,lo8(neighbor_graph)
+ 791 0268 90E0      		ldi r25,hi8(neighbor_graph)
+ 792 026a 0E94 0000 		call update_neighbor_graph
+ 390:main.c        ****             nrk_sem_post(neighbor_graph_mux);
+ 794               	.LM70:
+ 795 026e 8091 0000 		lds r24,neighbor_graph_mux
+ 796 0272 9091 0000 		lds r25,neighbor_graph_mux+1
+ 797 0276 0E94 0000 		call nrk_sem_post
+ 798               	.L28:
+ 391:main.c        ****             // NOTE: Intentional fall through - also should update light value
+ 392:main.c        ****           case MSG_NODE_SENSOR_VALUE:
+ 393:main.c        ****             nrk_sem_pend(light_pool_mux);
+ 800               	.LM71:
+ 801 027a 8091 0000 		lds r24,light_pool_mux
+ 802 027e 9091 0000 		lds r25,light_pool_mux+1
+ 803 0282 0E94 0000 		call nrk_sem_pend
+ 394:main.c        ****             update_light_pool(&light_pool, rx_packet.source_id, rx_packet.light_value);
+ 805               	.LM72:
+ 806 0286 4E81      		ldd r20,Y+6
+ 807 0288 5F81      		ldd r21,Y+7
+ 808 028a 6A81      		ldd r22,Y+2
+ 809 028c 80E0      		ldi r24,lo8(light_pool)
+ 810 028e 90E0      		ldi r25,hi8(light_pool)
+ 811 0290 0E94 0000 		call update_light_pool
+ 395:main.c        ****             nrk_sem_post(light_pool_mux);
+ 813               	.LM73:
+ 814 0294 8091 0000 		lds r24,light_pool_mux
+ 815 0298 9091 0000 		lds r25,light_pool_mux+1
+ 816 029c 0E94 0000 		call nrk_sem_post
+ 817               	.L44:
+ 818               	.LBE6:
+ 383:main.c        ****         
+ 820               	.LM74:
+ 821 02a0 00E0      		ldi r16,0
+ 822               	.L22:
+ 396:main.c        ****             break;
+ 397:main.c        ****           case MSG_NO_MESSAGE:
+ 398:main.c        ****           case MSG_GATEWAY:
+ 399:main.c        ****           default:
+ 400:main.c        ****             // do nothing
+ 401:main.c        ****             break;
+ 402:main.c        ****         }
+ 403:main.c        ****       }
+ 404:main.c        ****     }
+ 405:main.c        ****     nrk_wait_until_next_period();
+ 824               	.LM75:
+ 825 02a2 0E94 0000 		call nrk_wait_until_next_period
+ 406:main.c        ****   }
+ 827               	.LM76:
+ 828 02a6 00C0      		rjmp .L30
+ 841               	.Lscope2:
+ 843               		.stabd	78,0,0
+ 846               	.global	add_to_ui_buffer
+ 848               	add_to_ui_buffer:
+ 849               		.stabd	46,0,0
+ 125:main.c        ****   ui_buf[ui_index] = c;
+ 851               	.LM77:
+ 852               	.LFBB3:
+ 853               	/* prologue: function */
+ 854               	/* frame size = 0 */
+ 855               	/* stack size = 0 */
+ 856               	.L__stack_usage = 0
+ 126:main.c        ****   printf("%c", c);
+ 858               	.LM78:
+ 859 02a8 E091 0000 		lds r30,ui_index
+ 860 02ac F0E0      		ldi r31,0
+ 861 02ae E050      		subi r30,lo8(-(ui_buf))
+ 862 02b0 F040      		sbci r31,hi8(-(ui_buf))
+ 863 02b2 8083      		st Z,r24
+ 127:main.c        ****   ui_index++;
+ 865               	.LM79:
+ 866 02b4 90E0      		ldi r25,0
+ 867 02b6 0E94 0000 		call putchar
+ 128:main.c        **** }
+ 869               	.LM80:
+ 870 02ba 8091 0000 		lds r24,ui_index
+ 871 02be 8F5F      		subi r24,lo8(-(1))
+ 872 02c0 8093 0000 		sts ui_index,r24
+ 873 02c4 0895      		ret
+ 875               	.Lscope3:
+ 877               		.stabd	78,0,0
+ 879               	.global	get_user_input
+ 881               	get_user_input:
+ 882               		.stabd	46,0,0
+ 135:main.c        ****   char option;
+ 884               	.LM81:
+ 885               	.LFBB4:
+ 886 02c6 CF93      		push r28
+ 887               	/* prologue: function */
+ 888               	/* frame size = 0 */
+ 889               	/* stack size = 1 */
+ 890               	.L__stack_usage = 1
+ 891               	.L49:
+ 137:main.c        ****     option = getchar();
+ 893               	.LM82:
+ 894 02c8 80E0      		ldi r24,0
+ 895 02ca 0E94 0000 		call nrk_uart_data_ready
+ 896 02ce 8823      		tst r24
+ 897 02d0 01F0      		breq .L50
+ 138:main.c        ****     add_to_ui_buffer(option);
+ 899               	.LM83:
+ 900 02d2 8091 0000 		lds r24,__iob
+ 901 02d6 9091 0000 		lds r25,__iob+1
+ 902 02da 0E94 0000 		call fgetc
+ 903 02de C82F      		mov r28,r24
+ 139:main.c        ****     if(option == '\r') {
+ 905               	.LM84:
+ 906 02e0 0E94 0000 		call add_to_ui_buffer
+ 140:main.c        ****       add_to_ui_buffer('\n');
+ 908               	.LM85:
+ 909 02e4 CD30      		cpi r28,lo8(13)
+ 910 02e6 01F4      		brne .L49
+ 911               	.LBB10:
+ 912               	.LBB11:
+ 141:main.c        ****       nrk_kprintf(PSTR("\n"));
+ 914               	.LM86:
+ 915 02e8 8AE0      		ldi r24,lo8(10)
+ 916 02ea 0E94 0000 		call add_to_ui_buffer
+ 142:main.c        ****       return 1;    
+ 918               	.LM87:
+ 919 02ee 80E0      		ldi r24,lo8(__c.3777)
+ 920 02f0 90E0      		ldi r25,hi8(__c.3777)
+ 921 02f2 0E94 0000 		call nrk_kprintf
+ 922 02f6 81E0      		ldi r24,lo8(1)
+ 923               	.L50:
+ 924               	/* epilogue start */
+ 925               	.LBE11:
+ 926               	.LBE10:
+ 147:main.c        **** 
+ 928               	.LM88:
+ 929 02f8 CF91      		pop r28
+ 930 02fa 0895      		ret
+ 932               	.Lscope4:
+ 934               		.stabd	78,0,0
+ 936               	.global	clear_ui_buf
+ 938               	clear_ui_buf:
+ 939               		.stabd	46,0,0
+ 152:main.c        ****   for(uint8_t i = 0; i < ui_index; i++) {
+ 941               	.LM89:
+ 942               	.LFBB5:
+ 943               	/* prologue: function */
+ 944               	/* frame size = 0 */
+ 945               	/* stack size = 0 */
+ 946               	.L__stack_usage = 0
+ 947               	.LBB12:
+ 153:main.c        ****     ui_buf[i] = '\0';
+ 949               	.LM90:
+ 950 02fc 8091 0000 		lds r24,ui_index
+ 951 0300 20E0      		ldi r18,lo8(ui_buf)
+ 952 0302 30E0      		ldi r19,hi8(ui_buf)
+ 953 0304 F901      		movw r30,r18
+ 954               	.L54:
+ 955 0306 9E2F      		mov r25,r30
+ 956 0308 921B      		sub r25,r18
+ 153:main.c        ****     ui_buf[i] = '\0';
+ 958               	.LM91:
+ 959 030a 9817      		cp r25,r24
+ 960 030c 00F4      		brsh .L56
+ 154:main.c        ****   }
+ 962               	.LM92:
+ 963 030e 1192      		st Z+,__zero_reg__
+ 964 0310 00C0      		rjmp .L54
+ 965               	.L56:
+ 966               	.LBE12:
+ 156:main.c        **** }
+ 968               	.LM93:
+ 969 0312 1092 0000 		sts ui_index,__zero_reg__
+ 970 0316 0895      		ret
+ 972               	.Lscope5:
+ 974               		.stabd	78,0,0
+ 976               	.global	turnUItoUint
+ 978               	turnUItoUint:
+ 979               		.stabd	46,0,0
+ 165:main.c        ****   // inital declarations
+ 981               	.LM94:
+ 982               	.LFBB6:
+ 983               	/* prologue: function */
+ 984               	/* frame size = 0 */
+ 985               	/* stack size = 0 */
+ 986               	.L__stack_usage = 0
+ 987               	.LBB13:
+ 171:main.c        ****     temp = ui_buf[i] - '0';
+ 989               	.LM95:
+ 990 0318 4091 0000 		lds r20,ui_index
+ 991 031c 50E0      		ldi r21,0
+ 992 031e 4250      		subi r20,2
+ 993 0320 5109      		sbc r21,__zero_reg__
+ 994 0322 60E0      		ldi r22,0
+ 995               	.LBE13:
+ 167:main.c        ****   int16_t temp = 0;
+ 997               	.LM96:
+ 998 0324 80E0      		ldi r24,0
+ 999 0326 90E0      		ldi r25,0
+ 1000               	.LBB14:
+ 176:main.c        ****       make += temp;  
+ 1002               	.LM97:
+ 1003 0328 7AE0      		ldi r23,lo8(10)
+ 1004               	.L58:
+ 171:main.c        ****     temp = ui_buf[i] - '0';
+ 1006               	.LM98:
+ 1007 032a 262F      		mov r18,r22
+ 1008 032c 30E0      		ldi r19,0
+ 1009 032e 2417      		cp r18,r20
+ 1010 0330 3507      		cpc r19,r21
+ 1011 0332 04F4      		brge .L63
+ 172:main.c        ****     if((temp < 0) || (temp > 9)) {
+ 1013               	.LM99:
+ 1014 0334 F901      		movw r30,r18
+ 1015 0336 E050      		subi r30,lo8(-(ui_buf))
+ 1016 0338 F040      		sbci r31,hi8(-(ui_buf))
+ 1017 033a 2081      		ld r18,Z
+ 1018 033c 30E0      		ldi r19,0
+ 1019 033e 2053      		subi r18,48
+ 1020 0340 3109      		sbc r19,__zero_reg__
+ 173:main.c        ****       return -1;
+ 1022               	.LM100:
+ 1023 0342 2A30      		cpi r18,10
+ 1024 0344 3105      		cpc r19,__zero_reg__
+ 1025 0346 00F4      		brsh .L62
+ 176:main.c        ****       make += temp;  
+ 1027               	.LM101:
+ 1028 0348 789F      		mul r23,r24
+ 1029 034a F001      		movw r30,r0
+ 1030 034c 799F      		mul r23,r25
+ 1031 034e F00D      		add r31,r0
+ 1032 0350 1124      		clr __zero_reg__
+ 177:main.c        ****       if(make > MAX_RATE) {
+ 1034               	.LM102:
+ 1035 0352 C901      		movw r24,r18
+ 1036 0354 8E0F      		add r24,r30
+ 1037 0356 9F1F      		adc r25,r31
+ 178:main.c        ****         return -1;
+ 1039               	.LM103:
+ 1040 0358 8F31      		cpi r24,31
+ 1041 035a 9105      		cpc r25,__zero_reg__
+ 1042 035c 00F4      		brsh .L62
+ 171:main.c        ****     temp = ui_buf[i] - '0';
+ 1044               	.LM104:
+ 1045 035e 6F5F      		subi r22,lo8(-(1))
+ 1046 0360 00C0      		rjmp .L58
+ 1047               	.L63:
+ 1048               	.LBE14:
+ 183:main.c        **** }
+ 1050               	.LM105:
+ 1051 0362 0895      		ret
+ 1052               	.L62:
+ 1053               	.LBB15:
+ 174:main.c        ****     } else {
+ 1055               	.LM106:
+ 1056 0364 8FEF      		ldi r24,lo8(-1)
+ 1057               	.LBE15:
+ 184:main.c        **** 
+ 1059               	.LM107:
+ 1060 0366 0895      		ret
+ 1071               	.Lscope6:
+ 1073               		.stabd	78,0,0
+ 1074               		.section	.rodata.str1.1
+ 1075               	.LC2:
+ 1076 0007 4E65 6967 		.string	"Neighbor update rate set has been set to %d seconds!\r\n"
+ 1076      6862 6F72 
+ 1076      2075 7064 
+ 1076      6174 6520 
+ 1076      7261 7465 
+ 1077               		.text
+ 1079               	.global	set_neighbor_rate
+ 1081               	set_neighbor_rate:
+ 1082               		.stabd	46,0,0
+ 194:main.c        ****   int8_t uiUint;
+ 1084               	.LM108:
+ 1085               	.LFBB7:
+ 1086 0368 CF93      		push r28
+ 1087               	/* prologue: function */
+ 1088               	/* frame size = 0 */
+ 1089               	/* stack size = 1 */
+ 1090               	.L__stack_usage = 1
+ 198:main.c        ****     // analyze input
+ 1092               	.LM109:
+ 1093 036a 0E94 0000 		call get_user_input
+ 1094 036e 8823      		tst r24
+ 1095 0370 01F0      		breq .L65
+ 200:main.c        ****     if((uiUint < MIN_RATE) || (uiUint > MAX_RATE)) {
+ 1097               	.LM110:
+ 1098 0372 0E94 0000 		call turnUItoUint
+ 1099 0376 C82F      		mov r28,r24
+ 201:main.c        ****       nrk_kprintf(PSTR("I'm very sorry, but that is an invalid input.\r\n# "));
+ 1101               	.LM111:
+ 1102 0378 8FEF      		ldi r24,lo8(-1)
+ 1103 037a 8C0F      		add r24,r28
+ 1104 037c 8E31      		cpi r24,lo8(30)
+ 1105 037e 00F0      		brlo .L66
+ 1106               	.LBB19:
+ 1107               	.LBB20:
+ 202:main.c        ****       clear_ui_buf();
+ 1109               	.LM112:
+ 1110 0380 80E0      		ldi r24,lo8(__c.3799)
+ 1111 0382 90E0      		ldi r25,hi8(__c.3799)
+ 1112 0384 0E94 0000 		call nrk_kprintf
+ 203:main.c        ****       return INVALID;
+ 1114               	.LM113:
+ 1115 0388 0E94 0000 		call clear_ui_buf
+ 1116 038c 82E0      		ldi r24,lo8(2)
+ 1117 038e 00C0      		rjmp .L65
+ 1118               	.L66:
+ 1119               	.LBE20:
+ 1120               	.LBE19:
+ 206:main.c        ****       
+ 1122               	.LM114:
+ 1123 0390 8C2F      		mov r24,r28
+ 1124 0392 9927      		clr r25
+ 1125 0394 87FD      		sbrc r24,7
+ 1126 0396 9095      		com r25
+ 1127 0398 9F93      		push r25
+ 1128 039a CF93      		push r28
+ 1129 039c 80E0      		ldi r24,lo8(.LC2)
+ 1130 039e 90E0      		ldi r25,hi8(.LC2)
+ 1131 03a0 9F93      		push r25
+ 1132 03a2 8F93      		push r24
+ 1133 03a4 0E94 0000 		call printf
+ 209:main.c        ****       neighbor_update_rate = uiUint;
+ 1135               	.LM115:
+ 1136 03a8 8091 0000 		lds r24,neighbor_mux
+ 1137 03ac 9091 0000 		lds r25,neighbor_mux+1
+ 1138 03b0 0E94 0000 		call nrk_sem_pend
+ 210:main.c        ****       nrk_sem_post(neighbor_mux);
+ 1140               	.LM116:
+ 1141 03b4 C093 0000 		sts neighbor_update_rate,r28
+ 211:main.c        ****       clear_ui_buf();
+ 1143               	.LM117:
+ 1144 03b8 8091 0000 		lds r24,neighbor_mux
+ 1145 03bc 9091 0000 		lds r25,neighbor_mux+1
+ 1146 03c0 0E94 0000 		call nrk_sem_post
+ 212:main.c        ****       return SET;
+ 1148               	.LM118:
+ 1149 03c4 0E94 0000 		call clear_ui_buf
+ 213:main.c        ****     }
+ 1151               	.LM119:
+ 1152 03c8 0F90      		pop __tmp_reg__
+ 1153 03ca 0F90      		pop __tmp_reg__
+ 1154 03cc 0F90      		pop __tmp_reg__
+ 1155 03ce 0F90      		pop __tmp_reg__
+ 1156 03d0 81E0      		ldi r24,lo8(1)
+ 1157               	.L65:
+ 1158               	/* epilogue start */
+ 217:main.c        **** 
+ 1160               	.LM120:
+ 1161 03d2 CF91      		pop r28
+ 1162 03d4 0895      		ret
+ 1167               	.Lscope7:
+ 1169               		.stabd	78,0,0
+ 1170               		.section	.rodata.str1.1
+ 1171               	.LC3:
+ 1172 003e 5365 6E73 		.string	"Sensor update rate set has been set to %d seconds!\r\n"
+ 1172      6F72 2075 
+ 1172      7064 6174 
+ 1172      6520 7261 
+ 1172      7465 2073 
+ 1173               		.text
+ 1175               	.global	set_sensor_rate
+ 1177               	set_sensor_rate:
+ 1178               		.stabd	46,0,0
+ 226:main.c        ****   int8_t uiUint;
+ 1180               	.LM121:
+ 1181               	.LFBB8:
+ 1182 03d6 CF93      		push r28
+ 1183               	/* prologue: function */
+ 1184               	/* frame size = 0 */
+ 1185               	/* stack size = 1 */
+ 1186               	.L__stack_usage = 1
+ 230:main.c        ****     // analyze inputr
+ 1188               	.LM122:
+ 1189 03d8 0E94 0000 		call get_user_input
+ 1190 03dc 8823      		tst r24
+ 1191 03de 01F0      		breq .L71
+ 232:main.c        ****     if((uiUint < MIN_RATE) || (uiUint > MAX_RATE)) {
+ 1193               	.LM123:
+ 1194 03e0 0E94 0000 		call turnUItoUint
+ 1195 03e4 C82F      		mov r28,r24
+ 233:main.c        ****       nrk_kprintf(PSTR("I'm very sorry, but that is an invalid input.\r\n# "));
+ 1197               	.LM124:
+ 1198 03e6 8FEF      		ldi r24,lo8(-1)
+ 1199 03e8 8C0F      		add r24,r28
+ 1200 03ea 8E31      		cpi r24,lo8(30)
+ 1201 03ec 00F0      		brlo .L72
+ 1202               	.LBB24:
+ 1203               	.LBB25:
+ 234:main.c        ****       clear_ui_buf();
+ 1205               	.LM125:
+ 1206 03ee 80E0      		ldi r24,lo8(__c.3804)
+ 1207 03f0 90E0      		ldi r25,hi8(__c.3804)
+ 1208 03f2 0E94 0000 		call nrk_kprintf
+ 235:main.c        ****       return INVALID;
+ 1210               	.LM126:
+ 1211 03f6 0E94 0000 		call clear_ui_buf
+ 1212 03fa 82E0      		ldi r24,lo8(2)
+ 1213 03fc 00C0      		rjmp .L71
+ 1214               	.L72:
+ 1215               	.LBE25:
+ 1216               	.LBE24:
+ 238:main.c        ****       
+ 1218               	.LM127:
+ 1219 03fe 8C2F      		mov r24,r28
+ 1220 0400 9927      		clr r25
+ 1221 0402 87FD      		sbrc r24,7
+ 1222 0404 9095      		com r25
+ 1223 0406 9F93      		push r25
+ 1224 0408 CF93      		push r28
+ 1225 040a 80E0      		ldi r24,lo8(.LC3)
+ 1226 040c 90E0      		ldi r25,hi8(.LC3)
+ 1227 040e 9F93      		push r25
+ 1228 0410 8F93      		push r24
+ 1229 0412 0E94 0000 		call printf
+ 241:main.c        ****       sensor_update_rate = uiUint;
+ 1231               	.LM128:
+ 1232 0416 8091 0000 		lds r24,sensor_mux
+ 1233 041a 9091 0000 		lds r25,sensor_mux+1
+ 1234 041e 0E94 0000 		call nrk_sem_pend
+ 242:main.c        ****       nrk_sem_post(sensor_mux);
+ 1236               	.LM129:
+ 1237 0422 C093 0000 		sts sensor_update_rate,r28
+ 243:main.c        ****       
+ 1239               	.LM130:
+ 1240 0426 8091 0000 		lds r24,sensor_mux
+ 1241 042a 9091 0000 		lds r25,sensor_mux+1
+ 1242 042e 0E94 0000 		call nrk_sem_post
+ 245:main.c        ****       return SET;
+ 1244               	.LM131:
+ 1245 0432 0E94 0000 		call clear_ui_buf
+ 246:main.c        ****     }
+ 1247               	.LM132:
+ 1248 0436 0F90      		pop __tmp_reg__
+ 1249 0438 0F90      		pop __tmp_reg__
+ 1250 043a 0F90      		pop __tmp_reg__
+ 1251 043c 0F90      		pop __tmp_reg__
+ 1252 043e 81E0      		ldi r24,lo8(1)
+ 1253               	.L71:
+ 1254               	/* epilogue start */
+ 250:main.c        **** 
+ 1256               	.LM133:
+ 1257 0440 CF91      		pop r28
+ 1258 0442 0895      		ret
+ 1263               	.Lscope8:
+ 1265               		.stabd	78,0,0
+ 1267               	.global	ui_task
+ 1269               	ui_task:
+ 1270               		.stabd	46,0,0
+ 407:main.c        **** }
+ 408:main.c        **** 
+ 409:main.c        **** /** 
+ 410:main.c        ****  * ui_task - implements a user interface
+ 411:main.c        ****  */
+ 412:main.c        **** void ui_task ()
+ 413:main.c        **** {
+ 1272               	.LM134:
+ 1273               	.LFBB9:
+ 1274               	/* prologue: function */
+ 1275               	/* frame size = 0 */
+ 1276               	/* stack size = 0 */
+ 1277               	.L__stack_usage = 0
+ 414:main.c        ****   // get the UART signal and register it
+ 415:main.c        ****   nrk_sig_t uart_rx_signal = nrk_uart_rx_signal_get();
+ 1279               	.LM135:
+ 1280 0444 0E94 0000 		call nrk_uart_rx_signal_get
+ 416:main.c        ****   nrk_signal_register(uart_rx_signal);
+ 1282               	.LM136:
+ 1283 0448 0E94 0000 		call nrk_signal_register
+ 417:main.c        ****   
+ 418:main.c        ****   // intitial state information
+ 419:main.c        ****   states cur_state = STATE_WAIT;
+ 420:main.c        ****   states last_state = STATE_SET_NEIGHBOR_UPDATE;
+ 421:main.c        ****   
+ 422:main.c        ****   // boolean flags to bound print statements
+ 423:main.c        ****   uint8_t neighbor_set = NOT_SET;
+ 424:main.c        ****   uint8_t sensor_set = NOT_SET;
+ 425:main.c        **** 
+ 426:main.c        ****   // initial welcome statement
+ 427:main.c        ****   nrk_kprintf(PSTR("Welcome!\r\n"));
+ 1285               	.LM137:
+ 1286 044c 80E0      		ldi r24,lo8(__c.3852)
+ 1287 044e 90E0      		ldi r25,hi8(__c.3852)
+ 1288 0450 0E94 0000 		call nrk_kprintf
+ 424:main.c        **** 
+ 1290               	.LM138:
+ 1291 0454 00E0      		ldi r16,0
+ 423:main.c        ****   uint8_t sensor_set = NOT_SET;
+ 1293               	.LM139:
+ 1294 0456 10E0      		ldi r17,0
+ 420:main.c        ****   
+ 1296               	.LM140:
+ 1297 0458 93E0      		ldi r25,lo8(3)
+ 419:main.c        ****   states last_state = STATE_SET_NEIGHBOR_UPDATE;
+ 1299               	.LM141:
+ 1300 045a D6E0      		ldi r29,lo8(6)
+ 428:main.c        ****   
+ 429:main.c        ****   while (1) {
+ 430:main.c        ****    switch(cur_state) {
+ 431:main.c        ****       // SET_NEIGHTBOR_RATE - set the neighbor rate and return to the WAIT state
+ 432:main.c        ****       case STATE_SET_NEIGHBOR_UPDATE:
+ 433:main.c        ****         // state actions
+ 434:main.c        ****         if(neighbor_set != SET) {
+ 435:main.c        ****           if(last_state != cur_state) {
+ 436:main.c        ****             nrk_kprintf(PSTR("\r\nPlease set the neighbor update rate. (1-30 seconds)\r\n# "));
+ 437:main.c        ****           }
+ 438:main.c        ****           neighbor_set = set_neighbor_rate();
+ 439:main.c        ****         }
+ 440:main.c        ****         
+ 441:main.c        ****         // state transitions
+ 442:main.c        ****         last_state = cur_state;
+ 443:main.c        ****         if(neighbor_set == SET) {
+ 444:main.c        ****           neighbor_set = NOT_SET; // reset flag
+ 445:main.c        ****           cur_state = STATE_WAIT;          
+ 446:main.c        ****         } else {
+ 447:main.c        ****           cur_state = STATE_SET_NEIGHBOR_UPDATE;
+ 448:main.c        ****         }
+ 449:main.c        ****         break;
+ 450:main.c        ****         
+ 451:main.c        ****       // SET SENSOR POLL - set the sensor poll rate and return to the WAIT state
+ 452:main.c        ****       case STATE_SET_SENSOR_POLL:
+ 453:main.c        ****         if(sensor_set != SET) {
+ 454:main.c        ****           if(last_state != cur_state) {
+ 455:main.c        ****             nrk_kprintf(PSTR("\r\nPlease set the sensor update rate. (1-30 seconds)\r\n# "));
+ 456:main.c        ****           }
+ 457:main.c        ****           sensor_set = set_sensor_rate();
+ 458:main.c        ****         }
+ 459:main.c        ****         
+ 460:main.c        ****         // state transitions
+ 461:main.c        ****         last_state = cur_state;
+ 462:main.c        ****         if(sensor_set == SET) {
+ 463:main.c        ****           sensor_set = NOT_SET;
+ 464:main.c        ****           cur_state = STATE_WAIT;
+ 465:main.c        ****         } else {
+ 466:main.c        ****           cur_state = STATE_SET_SENSOR_POLL;
+ 467:main.c        ****         }
+ 468:main.c        ****         break;
+ 469:main.c        ****         
+ 470:main.c        ****       // PRINT MAP - print the neighbor map and return to the WAIT state
+ 471:main.c        ****       case STATE_PRINT_MAP:
+ 472:main.c        ****         // state actions
+ 473:main.c        ****         nrk_sem_pend(neighbor_graph_mux);
+ 474:main.c        ****         print_neighbor_graph(&neighbor_graph);
+ 475:main.c        ****         nrk_sem_post(neighbor_graph_mux);        
+ 476:main.c        ****         // state transitions
+ 477:main.c        ****         last_state = cur_state;
+ 478:main.c        ****         cur_state = STATE_WAIT;
+ 479:main.c        ****         break;
+ 480:main.c        ****       
+ 481:main.c        ****       // PRINT DATA - print light data and return to the WAIT state
+ 482:main.c        ****       case STATE_PRINT_DATA:
+ 483:main.c        ****         // state actions
+ 484:main.c        ****         nrk_sem_pend(light_pool_mux);
+ 485:main.c        ****         print_light_pool(&light_pool);
+ 486:main.c        ****         nrk_sem_post(light_pool_mux);
+ 487:main.c        **** 
+ 488:main.c        ****         // state transitions
+ 489:main.c        ****         last_state = cur_state;
+ 490:main.c        ****         cur_state = STATE_WAIT;
+ 491:main.c        ****         break;
+ 492:main.c        ****       
+ 493:main.c        ****       // WAIT - wait for user input and react
+ 494:main.c        ****       case STATE_WAIT:
+ 495:main.c        ****       default:
+ 496:main.c        ****         // state output
+ 497:main.c        ****         if(last_state != STATE_WAIT) {
+ 498:main.c        ****           nrk_kprintf(PSTR("\r\nHere are your options...\r\n"));
+ 499:main.c        ****           nrk_kprintf(PSTR("  n: update neighbor refresh rate.\r\n"));
+ 500:main.c        ****           nrk_kprintf(PSTR("  s: update sensor refresh rate.\r\n"));
+ 501:main.c        ****           nrk_kprintf(PSTR("  m: view current neighbor dependencies.\r\n"));
+ 502:main.c        ****           nrk_kprintf(PSTR("  l: view current light values.\r\n"));
+ 503:main.c        ****           nrk_kprintf(PSTR("  p: stream incoming packets.\r\n# "));
+ 504:main.c        ****         }
+ 505:main.c        **** 
+ 506:main.c        ****         // state transitions
+ 507:main.c        ****         last_state = cur_state;
+ 508:main.c        ****         if(get_user_input()) {
+ 509:main.c        ****           if(ui_index == 3) {
+ 510:main.c        ****             if(ui_buf[0] == 'n') {
+ 511:main.c        ****               cur_state = STATE_SET_NEIGHBOR_UPDATE;
+ 512:main.c        ****             } else if (ui_buf[0] == 's') {
+ 513:main.c        ****               cur_state = STATE_SET_SENSOR_POLL;
+ 514:main.c        ****             } else if (ui_buf[0] == 'm') {
+ 515:main.c        ****               cur_state = STATE_PRINT_MAP;
+ 516:main.c        ****             } else if (ui_buf[0] == 'l') {
+ 517:main.c        ****               cur_state = STATE_PRINT_DATA;
+ 518:main.c        ****             } else if (ui_buf[0] == 'p') {
+ 519:main.c        ****               nrk_sem_pend(print_mux);
+ 520:main.c        ****               if(print_incoming == 1) {
+ 521:main.c        ****                 nrk_kprintf(PSTR("Streaming off.\r\n# "));
+ 522:main.c        ****                 print_incoming = 0;
+ 523:main.c        ****               } else {
+ 524:main.c        ****                 nrk_kprintf(PSTR("Streaming on.\r\n"));
+ 525:main.c        ****                 print_incoming = 1;
+ 1302               	.LM142:
+ 1303 045c FF24      		clr r15
+ 1304 045e F394      		inc r15
+ 1305               	.L96:
+ 430:main.c        ****       // SET_NEIGHTBOR_RATE - set the neighbor rate and return to the WAIT state
+ 1307               	.LM143:
+ 1308 0460 D330      		cpi r29,lo8(3)
+ 1309 0462 01F0      		breq .L78
+ 1310 0464 00F4      		brsh .L79
+ 1311 0466 D230      		cpi r29,lo8(2)
+ 1312 0468 01F0      		breq .L80
+ 1313 046a 00C0      		rjmp .L77
+ 1314               	.L79:
+ 1315 046c D430      		cpi r29,lo8(4)
+ 1316 046e 01F0      		breq .L81
+ 1317 0470 D530      		cpi r29,lo8(5)
+ 1318 0472 01F0      		breq .+2
+ 1319 0474 00C0      		rjmp .L77
+ 484:main.c        ****         print_light_pool(&light_pool);
+ 1321               	.LM144:
+ 1322 0476 8091 0000 		lds r24,light_pool_mux
+ 1323 047a 9091 0000 		lds r25,light_pool_mux+1
+ 1324 047e 0E94 0000 		call nrk_sem_pend
+ 485:main.c        ****         nrk_sem_post(light_pool_mux);
+ 1326               	.LM145:
+ 1327 0482 80E0      		ldi r24,lo8(light_pool)
+ 1328 0484 90E0      		ldi r25,hi8(light_pool)
+ 1329 0486 0E94 0000 		call print_light_pool
+ 486:main.c        **** 
+ 1331               	.LM146:
+ 1332 048a 8091 0000 		lds r24,light_pool_mux
+ 1333 048e 9091 0000 		lds r25,light_pool_mux+1
+ 1334 0492 00C0      		rjmp .L118
+ 1335               	.L78:
+ 434:main.c        ****           if(last_state != cur_state) {
+ 1337               	.LM147:
+ 1338 0494 1130      		cpi r17,lo8(1)
+ 1339 0496 01F4      		brne .L83
+ 1340               	.L86:
+ 444:main.c        ****           cur_state = STATE_WAIT;          
+ 1342               	.LM148:
+ 1343 0498 10E0      		ldi r17,0
+ 1344 049a 00C0      		rjmp .L97
+ 1345               	.L83:
+ 435:main.c        ****             nrk_kprintf(PSTR("\r\nPlease set the neighbor update rate. (1-30 seconds)\r\n# "));
+ 1347               	.LM149:
+ 1348 049c 9330      		cpi r25,lo8(3)
+ 1349 049e 01F0      		breq .L85
+ 436:main.c        ****           }
+ 1351               	.LM150:
+ 1352 04a0 80E0      		ldi r24,lo8(__c.3855)
+ 1353 04a2 90E0      		ldi r25,hi8(__c.3855)
+ 1354 04a4 0E94 0000 		call nrk_kprintf
+ 1355               	.L85:
+ 438:main.c        ****         }
+ 1357               	.LM151:
+ 1358 04a8 0E94 0000 		call set_neighbor_rate
+ 1359 04ac 182F      		mov r17,r24
+ 443:main.c        ****           neighbor_set = NOT_SET; // reset flag
+ 1361               	.LM152:
+ 1362 04ae 8130      		cpi r24,lo8(1)
+ 1363 04b0 01F0      		breq .L86
+ 447:main.c        ****         }
+ 1365               	.LM153:
+ 1366 04b2 C3E0      		ldi r28,lo8(3)
+ 1367 04b4 00C0      		rjmp .L84
+ 1368               	.L80:
+ 453:main.c        ****           if(last_state != cur_state) {
+ 1370               	.LM154:
+ 1371 04b6 0130      		cpi r16,lo8(1)
+ 1372 04b8 01F4      		brne .L87
+ 1373               	.L89:
+ 463:main.c        ****           cur_state = STATE_WAIT;
+ 1375               	.LM155:
+ 1376 04ba 00E0      		ldi r16,0
+ 1377 04bc 00C0      		rjmp .L97
+ 1378               	.L87:
+ 454:main.c        ****             nrk_kprintf(PSTR("\r\nPlease set the sensor update rate. (1-30 seconds)\r\n# "));
+ 1380               	.LM156:
+ 1381 04be 9230      		cpi r25,lo8(2)
+ 1382 04c0 01F0      		breq .L88
+ 455:main.c        ****           }
+ 1384               	.LM157:
+ 1385 04c2 80E0      		ldi r24,lo8(__c.3859)
+ 1386 04c4 90E0      		ldi r25,hi8(__c.3859)
+ 1387 04c6 0E94 0000 		call nrk_kprintf
+ 1388               	.L88:
+ 457:main.c        ****         }
+ 1390               	.LM158:
+ 1391 04ca 0E94 0000 		call set_sensor_rate
+ 1392 04ce 082F      		mov r16,r24
+ 462:main.c        ****           sensor_set = NOT_SET;
+ 1394               	.LM159:
+ 1395 04d0 8130      		cpi r24,lo8(1)
+ 1396 04d2 01F0      		breq .L89
+ 466:main.c        ****         }
+ 1398               	.LM160:
+ 1399 04d4 C2E0      		ldi r28,lo8(2)
+ 1400 04d6 00C0      		rjmp .L84
+ 1401               	.L81:
+ 473:main.c        ****         print_neighbor_graph(&neighbor_graph);
+ 1403               	.LM161:
+ 1404 04d8 8091 0000 		lds r24,neighbor_graph_mux
+ 1405 04dc 9091 0000 		lds r25,neighbor_graph_mux+1
+ 1406 04e0 0E94 0000 		call nrk_sem_pend
+ 474:main.c        ****         nrk_sem_post(neighbor_graph_mux);        
+ 1408               	.LM162:
+ 1409 04e4 80E0      		ldi r24,lo8(neighbor_graph)
+ 1410 04e6 90E0      		ldi r25,hi8(neighbor_graph)
+ 1411 04e8 0E94 0000 		call print_neighbor_graph
+ 475:main.c        ****         // state transitions
+ 1413               	.LM163:
+ 1414 04ec 8091 0000 		lds r24,neighbor_graph_mux
+ 1415 04f0 9091 0000 		lds r25,neighbor_graph_mux+1
+ 1416               	.L118:
+ 486:main.c        **** 
+ 1418               	.LM164:
+ 1419 04f4 0E94 0000 		call nrk_sem_post
+ 1420 04f8 00C0      		rjmp .L97
+ 1421               	.L77:
+ 497:main.c        ****           nrk_kprintf(PSTR("\r\nHere are your options...\r\n"));
+ 1423               	.LM165:
+ 1424 04fa 9630      		cpi r25,lo8(6)
+ 1425 04fc 01F0      		breq .L90
+ 498:main.c        ****           nrk_kprintf(PSTR("  n: update neighbor refresh rate.\r\n"));
+ 1427               	.LM166:
+ 1428 04fe 80E0      		ldi r24,lo8(__c.3865)
+ 1429 0500 90E0      		ldi r25,hi8(__c.3865)
+ 1430 0502 0E94 0000 		call nrk_kprintf
+ 499:main.c        ****           nrk_kprintf(PSTR("  s: update sensor refresh rate.\r\n"));
+ 1432               	.LM167:
+ 1433 0506 80E0      		ldi r24,lo8(__c.3867)
+ 1434 0508 90E0      		ldi r25,hi8(__c.3867)
+ 1435 050a 0E94 0000 		call nrk_kprintf
+ 500:main.c        ****           nrk_kprintf(PSTR("  m: view current neighbor dependencies.\r\n"));
+ 1437               	.LM168:
+ 1438 050e 80E0      		ldi r24,lo8(__c.3869)
+ 1439 0510 90E0      		ldi r25,hi8(__c.3869)
+ 1440 0512 0E94 0000 		call nrk_kprintf
+ 501:main.c        ****           nrk_kprintf(PSTR("  l: view current light values.\r\n"));
+ 1442               	.LM169:
+ 1443 0516 80E0      		ldi r24,lo8(__c.3871)
+ 1444 0518 90E0      		ldi r25,hi8(__c.3871)
+ 1445 051a 0E94 0000 		call nrk_kprintf
+ 502:main.c        ****           nrk_kprintf(PSTR("  p: stream incoming packets.\r\n# "));
+ 1447               	.LM170:
+ 1448 051e 80E0      		ldi r24,lo8(__c.3873)
+ 1449 0520 90E0      		ldi r25,hi8(__c.3873)
+ 1450 0522 0E94 0000 		call nrk_kprintf
+ 503:main.c        ****         }
+ 1452               	.LM171:
+ 1453 0526 80E0      		ldi r24,lo8(__c.3875)
+ 1454 0528 90E0      		ldi r25,hi8(__c.3875)
+ 1455 052a 0E94 0000 		call nrk_kprintf
+ 1456               	.L90:
+ 508:main.c        ****           if(ui_index == 3) {
+ 1458               	.LM172:
+ 1459 052e 0E94 0000 		call get_user_input
+ 1460 0532 8823      		tst r24
+ 1461 0534 01F4      		brne .+2
+ 1462 0536 00C0      		rjmp .L97
+ 509:main.c        ****             if(ui_buf[0] == 'n') {
+ 1464               	.LM173:
+ 1465 0538 8091 0000 		lds r24,ui_index
+ 1466 053c 8330      		cpi r24,lo8(3)
+ 1467 053e 01F4      		brne .L91
+ 510:main.c        ****               cur_state = STATE_SET_NEIGHBOR_UPDATE;
+ 1469               	.LM174:
+ 1470 0540 9091 0000 		lds r25,ui_buf
+ 1471 0544 9E36      		cpi r25,lo8(110)
+ 1472 0546 01F0      		breq .L98
+ 512:main.c        ****               cur_state = STATE_SET_SENSOR_POLL;
+ 1474               	.LM175:
+ 1475 0548 9337      		cpi r25,lo8(115)
+ 1476 054a 01F0      		breq .L99
+ 514:main.c        ****               cur_state = STATE_PRINT_MAP;
+ 1478               	.LM176:
+ 1479 054c 9D36      		cpi r25,lo8(109)
+ 1480 054e 01F0      		breq .L100
+ 516:main.c        ****               cur_state = STATE_PRINT_DATA;
+ 1482               	.LM177:
+ 1483 0550 9C36      		cpi r25,lo8(108)
+ 1484 0552 01F0      		breq .L101
+ 518:main.c        ****               nrk_sem_pend(print_mux);
+ 1486               	.LM178:
+ 1487 0554 9037      		cpi r25,lo8(112)
+ 1488 0556 01F4      		brne .L93
+ 519:main.c        ****               if(print_incoming == 1) {
+ 1490               	.LM179:
+ 1491 0558 8091 0000 		lds r24,print_mux
+ 1492 055c 9091 0000 		lds r25,print_mux+1
+ 1493 0560 0E94 0000 		call nrk_sem_pend
+ 520:main.c        ****                 nrk_kprintf(PSTR("Streaming off.\r\n# "));
+ 1495               	.LM180:
+ 1496 0564 8091 0000 		lds r24,print_incoming
+ 1497 0568 8130      		cpi r24,lo8(1)
+ 1498 056a 01F4      		brne .L94
+ 521:main.c        ****                 print_incoming = 0;
+ 1500               	.LM181:
+ 1501 056c 80E0      		ldi r24,lo8(__c.3877)
+ 1502 056e 90E0      		ldi r25,hi8(__c.3877)
+ 1503 0570 0E94 0000 		call nrk_kprintf
+ 522:main.c        ****               } else {
+ 1505               	.LM182:
+ 1506 0574 1092 0000 		sts print_incoming,__zero_reg__
+ 1507 0578 00C0      		rjmp .L95
+ 1508               	.L94:
+ 524:main.c        ****                 print_incoming = 1;
+ 1510               	.LM183:
+ 1511 057a 80E0      		ldi r24,lo8(__c.3879)
+ 1512 057c 90E0      		ldi r25,hi8(__c.3879)
+ 1513 057e 0E94 0000 		call nrk_kprintf
+ 1515               	.LM184:
+ 1516 0582 F092 0000 		sts print_incoming,r15
+ 1517               	.L95:
+ 526:main.c        ****               }
+ 527:main.c        ****               nrk_sem_post(print_mux);
+ 1519               	.LM185:
+ 1520 0586 8091 0000 		lds r24,print_mux
+ 1521 058a 9091 0000 		lds r25,print_mux+1
+ 1522 058e 0E94 0000 		call nrk_sem_post
+ 1523 0592 CD2F      		mov r28,r29
+ 1524 0594 00C0      		rjmp .L92
+ 1525               	.L93:
+ 528:main.c        ****             } else {
+ 529:main.c        ****               nrk_kprintf(PSTR("Invalid input.\r\n# "));
+ 1527               	.LM186:
+ 1528 0596 80E0      		ldi r24,lo8(__c.3881)
+ 1529 0598 90E0      		ldi r25,hi8(__c.3881)
+ 1530 059a 00C0      		rjmp .L117
+ 1531               	.L91:
+ 530:main.c        ****               cur_state = STATE_WAIT;
+ 531:main.c        ****             }
+ 532:main.c        ****           } else {
+ 533:main.c        ****             nrk_kprintf(PSTR("Invalid input.\r\n# "));
+ 1533               	.LM187:
+ 1534 059c 80E0      		ldi r24,lo8(__c.3883)
+ 1535 059e 90E0      		ldi r25,hi8(__c.3883)
+ 1536               	.L117:
+ 1537 05a0 0E94 0000 		call nrk_kprintf
+ 534:main.c        ****             cur_state = STATE_WAIT;
+ 1539               	.LM188:
+ 1540 05a4 C6E0      		ldi r28,lo8(6)
+ 1541 05a6 00C0      		rjmp .L92
+ 1542               	.L98:
+ 511:main.c        ****             } else if (ui_buf[0] == 's') {
+ 1544               	.LM189:
+ 1545 05a8 C3E0      		ldi r28,lo8(3)
+ 1546 05aa 00C0      		rjmp .L92
+ 1547               	.L99:
+ 513:main.c        ****             } else if (ui_buf[0] == 'm') {
+ 1549               	.LM190:
+ 1550 05ac C2E0      		ldi r28,lo8(2)
+ 1551 05ae 00C0      		rjmp .L92
+ 1552               	.L100:
+ 515:main.c        ****             } else if (ui_buf[0] == 'l') {
+ 1554               	.LM191:
+ 1555 05b0 C4E0      		ldi r28,lo8(4)
+ 1556 05b2 00C0      		rjmp .L92
+ 1557               	.L101:
+ 517:main.c        ****             } else if (ui_buf[0] == 'p') {
+ 1559               	.LM192:
+ 1560 05b4 C5E0      		ldi r28,lo8(5)
+ 1561               	.L92:
+ 535:main.c        ****           }
+ 536:main.c        ****           clear_ui_buf();
+ 1563               	.LM193:
+ 1564 05b6 0E94 0000 		call clear_ui_buf
+ 1565 05ba 00C0      		rjmp .L84
+ 1566               	.L97:
+ 537:main.c        ****         } else {
+ 538:main.c        ****           cur_state = STATE_WAIT;
+ 1568               	.LM194:
+ 1569 05bc C6E0      		ldi r28,lo8(6)
+ 1570               	.L84:
+ 539:main.c        ****         }
+ 540:main.c        ****         break;
+ 541:main.c        ****     }
+ 542:main.c        ****     nrk_wait_until_next_period();
+ 1572               	.LM195:
+ 1573 05be 0E94 0000 		call nrk_wait_until_next_period
+ 543:main.c        ****   }
+ 1575               	.LM196:
+ 1576 05c2 9D2F      		mov r25,r29
+ 1577 05c4 DC2F      		mov r29,r28
+ 1578 05c6 00C0      		rjmp .L96
+ 1584               	.Lscope9:
+ 1586               		.stabd	78,0,0
+ 1588               	.global	nrk_create_taskset
+ 1590               	nrk_create_taskset:
+ 1591               		.stabd	46,0,0
+ 544:main.c        **** }
+ 545:main.c        **** 
+ 546:main.c        **** /**
+ 547:main.c        ****  * nrk_create_taskset - create the tasks in this application
+ 548:main.c        ****  * 
+ 549:main.c        ****  * NOTE: task priority maps to importance. That is, priority(5) > priority(2).
+ 550:main.c        ****  */
+ 551:main.c        **** void nrk_create_taskset ()
+ 552:main.c        **** {
+ 1593               	.LM197:
+ 1594               	.LFBB10:
+ 1595 05c8 1F93      		push r17
+ 1596 05ca CF93      		push r28
+ 1597 05cc DF93      		push r29
+ 1598               	/* prologue: function */
+ 1599               	/* frame size = 0 */
+ 1600               	/* stack size = 3 */
+ 1601               	.L__stack_usage = 3
+ 553:main.c        ****   // PRIORITY 2
+ 554:main.c        ****   TRANSMIT_TASK.task = transmit_task;
+ 1603               	.LM198:
+ 1604 05ce C0E0      		ldi r28,lo8(TRANSMIT_TASK)
+ 1605 05d0 D0E0      		ldi r29,hi8(TRANSMIT_TASK)
+ 1606 05d2 80E0      		ldi r24,lo8(gs(transmit_task))
+ 1607 05d4 90E0      		ldi r25,hi8(gs(transmit_task))
+ 1608 05d6 9E83      		std Y+6,r25
+ 1609 05d8 8D83      		std Y+5,r24
+ 555:main.c        ****   nrk_task_set_stk( &TRANSMIT_TASK, transmit_task_stack, NRK_APP_STACKSIZE);
+ 1611               	.LM199:
+ 1612 05da 40E0      		ldi r20,0
+ 1613 05dc 52E0      		ldi r21,lo8(2)
+ 1614 05de 60E0      		ldi r22,lo8(transmit_task_stack)
+ 1615 05e0 70E0      		ldi r23,hi8(transmit_task_stack)
+ 1616 05e2 CE01      		movw r24,r28
+ 1617 05e4 0E94 0000 		call nrk_task_set_stk
+ 556:main.c        ****   TRANSMIT_TASK.prio = 2;
+ 1619               	.LM200:
+ 1620 05e8 82E0      		ldi r24,lo8(2)
+ 1621 05ea 8887      		std Y+8,r24
+ 557:main.c        ****   TRANSMIT_TASK.FirstActivation = TRUE;
+ 1623               	.LM201:
+ 1624 05ec 11E0      		ldi r17,lo8(1)
+ 1625 05ee 1F83      		std Y+7,r17
+ 558:main.c        ****   TRANSMIT_TASK.Type = BASIC_TASK;
+ 1627               	.LM202:
+ 1628 05f0 1987      		std Y+9,r17
+ 559:main.c        ****   TRANSMIT_TASK.SchType = PREEMPTIVE;
+ 1630               	.LM203:
+ 1631 05f2 1A87      		std Y+10,r17
+ 560:main.c        ****   TRANSMIT_TASK.period.secs = 5;
+ 1633               	.LM204:
+ 1634 05f4 85E0      		ldi r24,lo8(5)
+ 1635 05f6 90E0      		ldi r25,0
+ 1636 05f8 A0E0      		ldi r26,0
+ 1637 05fa B0E0      		ldi r27,0
+ 1638 05fc 8B87      		std Y+11,r24
+ 1639 05fe 9C87      		std Y+12,r25
+ 1640 0600 AD87      		std Y+13,r26
+ 1641 0602 BE87      		std Y+14,r27
+ 561:main.c        ****   TRANSMIT_TASK.period.nano_secs = 0;
+ 1643               	.LM205:
+ 1644 0604 1F86      		std Y+15,__zero_reg__
+ 1645 0606 188A      		std Y+16,__zero_reg__
+ 1646 0608 198A      		std Y+17,__zero_reg__
+ 1647 060a 1A8A      		std Y+18,__zero_reg__
+ 562:main.c        ****   TRANSMIT_TASK.cpu_reserve.secs = 1;
+ 1649               	.LM206:
+ 1650 060c 81E0      		ldi r24,lo8(1)
+ 1651 060e 90E0      		ldi r25,0
+ 1652 0610 A0E0      		ldi r26,0
+ 1653 0612 B0E0      		ldi r27,0
+ 1654 0614 8B8B      		std Y+19,r24
+ 1655 0616 9C8B      		std Y+20,r25
+ 1656 0618 AD8B      		std Y+21,r26
+ 1657 061a BE8B      		std Y+22,r27
+ 563:main.c        ****   TRANSMIT_TASK.cpu_reserve.nano_secs = 0;
+ 1659               	.LM207:
+ 1660 061c 1F8A      		std Y+23,__zero_reg__
+ 1661 061e 188E      		std Y+24,__zero_reg__
+ 1662 0620 198E      		std Y+25,__zero_reg__
+ 1663 0622 1A8E      		std Y+26,__zero_reg__
+ 564:main.c        ****   TRANSMIT_TASK.offset.secs = 0;
+ 1665               	.LM208:
+ 1666 0624 1B8E      		std Y+27,__zero_reg__
+ 1667 0626 1C8E      		std Y+28,__zero_reg__
+ 1668 0628 1D8E      		std Y+29,__zero_reg__
+ 1669 062a 1E8E      		std Y+30,__zero_reg__
+ 565:main.c        ****   TRANSMIT_TASK.offset.nano_secs = 0;
+ 1671               	.LM209:
+ 1672 062c 1F8E      		std Y+31,__zero_reg__
+ 1673 062e 18A2      		std Y+32,__zero_reg__
+ 1674 0630 19A2      		std Y+33,__zero_reg__
+ 1675 0632 1AA2      		std Y+34,__zero_reg__
+ 566:main.c        ****   nrk_activate_task (&TRANSMIT_TASK);
+ 1677               	.LM210:
+ 1678 0634 CE01      		movw r24,r28
+ 1679 0636 0E94 0000 		call nrk_activate_task
+ 567:main.c        ****   
+ 568:main.c        ****   // PRIORITY 3
+ 569:main.c        ****   UI_TASK.task = ui_task;
+ 1681               	.LM211:
+ 1682 063a C0E0      		ldi r28,lo8(UI_TASK)
+ 1683 063c D0E0      		ldi r29,hi8(UI_TASK)
+ 1684 063e 80E0      		ldi r24,lo8(gs(ui_task))
+ 1685 0640 90E0      		ldi r25,hi8(gs(ui_task))
+ 1686 0642 9E83      		std Y+6,r25
+ 1687 0644 8D83      		std Y+5,r24
+ 570:main.c        ****   nrk_task_set_stk( &UI_TASK, ui_task_stack, NRK_APP_STACKSIZE);
+ 1689               	.LM212:
+ 1690 0646 40E0      		ldi r20,0
+ 1691 0648 52E0      		ldi r21,lo8(2)
+ 1692 064a 60E0      		ldi r22,lo8(ui_task_stack)
+ 1693 064c 70E0      		ldi r23,hi8(ui_task_stack)
+ 1694 064e CE01      		movw r24,r28
+ 1695 0650 0E94 0000 		call nrk_task_set_stk
+ 571:main.c        ****   UI_TASK.prio = 3;
+ 1697               	.LM213:
+ 1698 0654 83E0      		ldi r24,lo8(3)
+ 1699 0656 8887      		std Y+8,r24
+ 572:main.c        ****   UI_TASK.FirstActivation = TRUE;
+ 1701               	.LM214:
+ 1702 0658 1F83      		std Y+7,r17
+ 573:main.c        ****   UI_TASK.Type = BASIC_TASK;
+ 1704               	.LM215:
+ 1705 065a 1987      		std Y+9,r17
+ 574:main.c        ****   UI_TASK.SchType = PREEMPTIVE;
+ 1707               	.LM216:
+ 1708 065c 1A87      		std Y+10,r17
+ 575:main.c        ****   UI_TASK.period.secs = 0;
+ 1710               	.LM217:
+ 1711 065e 1B86      		std Y+11,__zero_reg__
+ 1712 0660 1C86      		std Y+12,__zero_reg__
+ 1713 0662 1D86      		std Y+13,__zero_reg__
+ 1714 0664 1E86      		std Y+14,__zero_reg__
+ 576:main.c        ****   UI_TASK.period.nano_secs = 100*NANOS_PER_MS;
+ 1716               	.LM218:
+ 1717 0666 80E0      		ldi r24,0
+ 1718 0668 91EE      		ldi r25,lo8(-31)
+ 1719 066a A5EF      		ldi r26,lo8(-11)
+ 1720 066c B5E0      		ldi r27,lo8(5)
+ 1721 066e 8F87      		std Y+15,r24
+ 1722 0670 988B      		std Y+16,r25
+ 1723 0672 A98B      		std Y+17,r26
+ 1724 0674 BA8B      		std Y+18,r27
+ 577:main.c        ****   UI_TASK.cpu_reserve.secs = 0;
+ 1726               	.LM219:
+ 1727 0676 1B8A      		std Y+19,__zero_reg__
+ 1728 0678 1C8A      		std Y+20,__zero_reg__
+ 1729 067a 1D8A      		std Y+21,__zero_reg__
+ 1730 067c 1E8A      		std Y+22,__zero_reg__
+ 578:main.c        ****   UI_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
+ 1732               	.LM220:
+ 1733 067e 8F8B      		std Y+23,r24
+ 1734 0680 988F      		std Y+24,r25
+ 1735 0682 A98F      		std Y+25,r26
+ 1736 0684 BA8F      		std Y+26,r27
+ 579:main.c        ****   UI_TASK.offset.secs = 0;
+ 1738               	.LM221:
+ 1739 0686 1B8E      		std Y+27,__zero_reg__
+ 1740 0688 1C8E      		std Y+28,__zero_reg__
+ 1741 068a 1D8E      		std Y+29,__zero_reg__
+ 1742 068c 1E8E      		std Y+30,__zero_reg__
+ 580:main.c        ****   UI_TASK.offset.nano_secs = 0;
+ 1744               	.LM222:
+ 1745 068e 1F8E      		std Y+31,__zero_reg__
+ 1746 0690 18A2      		std Y+32,__zero_reg__
+ 1747 0692 19A2      		std Y+33,__zero_reg__
+ 1748 0694 1AA2      		std Y+34,__zero_reg__
+ 581:main.c        ****   nrk_activate_task (&UI_TASK);
+ 1750               	.LM223:
+ 1751 0696 CE01      		movw r24,r28
+ 1752 0698 0E94 0000 		call nrk_activate_task
+ 582:main.c        ****   
+ 583:main.c        ****   // PRIORITY 4
+ 584:main.c        ****   RECEIVE_TASK.task = receive_task;
+ 1754               	.LM224:
+ 1755 069c C0E0      		ldi r28,lo8(RECEIVE_TASK)
+ 1756 069e D0E0      		ldi r29,hi8(RECEIVE_TASK)
+ 1757 06a0 80E0      		ldi r24,lo8(gs(receive_task))
+ 1758 06a2 90E0      		ldi r25,hi8(gs(receive_task))
+ 1759 06a4 9E83      		std Y+6,r25
+ 1760 06a6 8D83      		std Y+5,r24
+ 585:main.c        ****   nrk_task_set_stk( &RECEIVE_TASK, receive_task_stack, NRK_APP_STACKSIZE);
+ 1762               	.LM225:
+ 1763 06a8 40E0      		ldi r20,0
+ 1764 06aa 52E0      		ldi r21,lo8(2)
+ 1765 06ac 60E0      		ldi r22,lo8(receive_task_stack)
+ 1766 06ae 70E0      		ldi r23,hi8(receive_task_stack)
+ 1767 06b0 CE01      		movw r24,r28
+ 1768 06b2 0E94 0000 		call nrk_task_set_stk
+ 586:main.c        ****   RECEIVE_TASK.prio = 4;
+ 1770               	.LM226:
+ 1771 06b6 84E0      		ldi r24,lo8(4)
+ 1772 06b8 8887      		std Y+8,r24
+ 587:main.c        ****   RECEIVE_TASK.FirstActivation = TRUE;
+ 1774               	.LM227:
+ 1775 06ba 1F83      		std Y+7,r17
+ 588:main.c        ****   RECEIVE_TASK.Type = BASIC_TASK;
+ 1777               	.LM228:
+ 1778 06bc 1987      		std Y+9,r17
+ 589:main.c        ****   RECEIVE_TASK.SchType = PREEMPTIVE;
+ 1780               	.LM229:
+ 1781 06be 1A87      		std Y+10,r17
+ 590:main.c        ****   RECEIVE_TASK.period.secs = 0;
+ 1783               	.LM230:
+ 1784 06c0 1B86      		std Y+11,__zero_reg__
+ 1785 06c2 1C86      		std Y+12,__zero_reg__
+ 1786 06c4 1D86      		std Y+13,__zero_reg__
+ 1787 06c6 1E86      		std Y+14,__zero_reg__
+ 591:main.c        ****   RECEIVE_TASK.period.nano_secs = 10*NANOS_PER_MS;
+ 1789               	.LM231:
+ 1790 06c8 80E8      		ldi r24,lo8(-128)
+ 1791 06ca 96E9      		ldi r25,lo8(-106)
+ 1792 06cc A8E9      		ldi r26,lo8(-104)
+ 1793 06ce B0E0      		ldi r27,0
+ 1794 06d0 8F87      		std Y+15,r24
+ 1795 06d2 988B      		std Y+16,r25
+ 1796 06d4 A98B      		std Y+17,r26
+ 1797 06d6 BA8B      		std Y+18,r27
+ 592:main.c        ****   RECEIVE_TASK.cpu_reserve.secs = 0;
+ 1799               	.LM232:
+ 1800 06d8 1B8A      		std Y+19,__zero_reg__
+ 1801 06da 1C8A      		std Y+20,__zero_reg__
+ 1802 06dc 1D8A      		std Y+21,__zero_reg__
+ 1803 06de 1E8A      		std Y+22,__zero_reg__
+ 593:main.c        ****   RECEIVE_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
+ 1805               	.LM233:
+ 1806 06e0 8F8B      		std Y+23,r24
+ 1807 06e2 988F      		std Y+24,r25
+ 1808 06e4 A98F      		std Y+25,r26
+ 1809 06e6 BA8F      		std Y+26,r27
+ 594:main.c        ****   RECEIVE_TASK.offset.secs = 0;
+ 1811               	.LM234:
+ 1812 06e8 1B8E      		std Y+27,__zero_reg__
+ 1813 06ea 1C8E      		std Y+28,__zero_reg__
+ 1814 06ec 1D8E      		std Y+29,__zero_reg__
+ 1815 06ee 1E8E      		std Y+30,__zero_reg__
+ 595:main.c        ****   RECEIVE_TASK.offset.nano_secs = 0;
+ 1817               	.LM235:
+ 1818 06f0 1F8E      		std Y+31,__zero_reg__
+ 1819 06f2 18A2      		std Y+32,__zero_reg__
+ 1820 06f4 19A2      		std Y+33,__zero_reg__
+ 1821 06f6 1AA2      		std Y+34,__zero_reg__
+ 596:main.c        ****   nrk_activate_task (&RECEIVE_TASK);
+ 1823               	.LM236:
+ 1824 06f8 CE01      		movw r24,r28
+ 1825 06fa 0E94 0000 		call nrk_activate_task
+ 597:main.c        ****   
+ 598:main.c        ****   nrk_kprintf(PSTR("Create done.\r\n"));
+ 1827               	.LM237:
+ 1828 06fe 80E0      		ldi r24,lo8(__c.3888)
+ 1829 0700 90E0      		ldi r25,hi8(__c.3888)
+ 1830               	/* epilogue start */
+ 599:main.c        **** }
+ 1832               	.LM238:
+ 1833 0702 DF91      		pop r29
+ 1834 0704 CF91      		pop r28
+ 1835 0706 1F91      		pop r17
+ 598:main.c        **** }
+ 1837               	.LM239:
+ 1838 0708 0C94 0000 		jmp nrk_kprintf
+ 1840               	.Lscope10:
+ 1842               		.stabd	78,0,0
+ 1843               		.section	.text.startup,"ax",@progbits
+ 1845               	.global	main
+ 1847               	main:
+ 1848               		.stabd	46,0,0
+  87:main.c        ****   nrk_setup_ports ();
+ 1850               	.LM240:
+ 1851               	.LFBB11:
+ 1852               	/* prologue: function */
+ 1853               	/* frame size = 0 */
+ 1854               	/* stack size = 0 */
+ 1855               	.L__stack_usage = 0
+  88:main.c        ****   nrk_setup_uart (UART_BAUDRATE_115K2);
+ 1857               	.LM241:
+ 1858 0000 0E94 0000 		call nrk_setup_ports
+  89:main.c        **** 
+ 1860               	.LM242:
+ 1861 0004 80E1      		ldi r24,lo8(16)
+ 1862 0006 90E0      		ldi r25,0
+ 1863 0008 0E94 0000 		call nrk_setup_uart
+  91:main.c        **** 
+ 1865               	.LM243:
+ 1866 000c 0E94 0000 		call nrk_init
+  93:main.c        ****   nrk_led_clr (1);
+ 1868               	.LM244:
+ 1869 0010 80E0      		ldi r24,0
+ 1870 0012 90E0      		ldi r25,0
+ 1871 0014 0E94 0000 		call nrk_led_clr
+  94:main.c        ****   nrk_led_clr (2);
+ 1873               	.LM245:
+ 1874 0018 81E0      		ldi r24,lo8(1)
+ 1875 001a 90E0      		ldi r25,0
+ 1876 001c 0E94 0000 		call nrk_led_clr
+  95:main.c        ****   nrk_led_clr (3);
+ 1878               	.LM246:
+ 1879 0020 82E0      		ldi r24,lo8(2)
+ 1880 0022 90E0      		ldi r25,0
+ 1881 0024 0E94 0000 		call nrk_led_clr
+  96:main.c        ****   
+ 1883               	.LM247:
+ 1884 0028 83E0      		ldi r24,lo8(3)
+ 1885 002a 90E0      		ldi r25,0
+ 1886 002c 0E94 0000 		call nrk_led_clr
+  98:main.c        ****   neighbor_mux = nrk_sem_create(1,5);
+ 1888               	.LM248:
+ 1889 0030 65E0      		ldi r22,lo8(5)
+ 1890 0032 81E0      		ldi r24,lo8(1)
+ 1891 0034 0E94 0000 		call nrk_sem_create
+ 1892 0038 9093 0000 		sts sensor_mux+1,r25
+ 1893 003c 8093 0000 		sts sensor_mux,r24
+  99:main.c        ****   light_pool_mux = nrk_sem_create(1, 5);
+ 1895               	.LM249:
+ 1896 0040 65E0      		ldi r22,lo8(5)
+ 1897 0042 81E0      		ldi r24,lo8(1)
+ 1898 0044 0E94 0000 		call nrk_sem_create
+ 1899 0048 9093 0000 		sts neighbor_mux+1,r25
+ 1900 004c 8093 0000 		sts neighbor_mux,r24
+ 100:main.c        ****   neighbor_graph_mux = nrk_sem_create(1, 5);
+ 1902               	.LM250:
+ 1903 0050 65E0      		ldi r22,lo8(5)
+ 1904 0052 81E0      		ldi r24,lo8(1)
+ 1905 0054 0E94 0000 		call nrk_sem_create
+ 1906 0058 9093 0000 		sts light_pool_mux+1,r25
+ 1907 005c 8093 0000 		sts light_pool_mux,r24
+ 101:main.c        ****   print_mux = nrk_sem_create(1, 5);
+ 1909               	.LM251:
+ 1910 0060 65E0      		ldi r22,lo8(5)
+ 1911 0062 81E0      		ldi r24,lo8(1)
+ 1912 0064 0E94 0000 		call nrk_sem_create
+ 1913 0068 9093 0000 		sts neighbor_graph_mux+1,r25
+ 1914 006c 8093 0000 		sts neighbor_graph_mux,r24
+ 102:main.c        ****   
+ 1916               	.LM252:
+ 1917 0070 65E0      		ldi r22,lo8(5)
+ 1918 0072 81E0      		ldi r24,lo8(1)
+ 1919 0074 0E94 0000 		call nrk_sem_create
+ 1920 0078 9093 0000 		sts print_mux+1,r25
+ 1921 007c 8093 0000 		sts print_mux,r24
+ 104:main.c        ****   
+ 1923               	.LM253:
+ 1924 0080 1092 0000 		sts print_incoming,__zero_reg__
+ 106:main.c        ****   tx_packet.source_id = MAC_ADDR;
+ 1926               	.LM254:
+ 1927 0084 E0E0      		ldi r30,lo8(tx_packet)
+ 1928 0086 F0E0      		ldi r31,hi8(tx_packet)
+ 1929 0088 83E0      		ldi r24,lo8(3)
+ 1930 008a 8083      		st Z,r24
+ 107:main.c        ****   tx_packet.seq_num = seq_num;
+ 1932               	.LM255:
+ 1933 008c 81E0      		ldi r24,lo8(1)
+ 1934 008e 8183      		std Z+1,r24
+ 108:main.c        ****   tx_packet.num_hops = 0;
+ 1936               	.LM256:
+ 1937 0090 8091 0000 		lds r24,seq_num
+ 1938 0094 9091 0000 		lds r25,seq_num+1
+ 1939 0098 9383      		std Z+3,r25
+ 1940 009a 8283      		std Z+2,r24
+ 109:main.c        **** 
+ 1942               	.LM257:
+ 1943 009c 1482      		std Z+4,__zero_reg__
+ 111:main.c        **** 
+ 1945               	.LM258:
+ 1946 009e 20E0      		ldi r18,0
+ 1947 00a0 30E0      		ldi r19,0
+ 1948 00a2 A901      		movw r20,r18
+ 1949 00a4 60E0      		ldi r22,0
+ 1950 00a6 70E0      		ldi r23,0
+ 1951 00a8 CB01      		movw r24,r22
+ 1952 00aa 0E94 0000 		call nrk_time_set
+ 113:main.c        **** 
+ 1954               	.LM259:
+ 1955 00ae 0E94 0000 		call bmac_task_config
+ 115:main.c        ****   bmac_init (13);
+ 1957               	.LM260:
+ 1958 00b2 0E94 0000 		call nrk_create_taskset
+ 116:main.c        ****   nrk_start ();
+ 1960               	.LM261:
+ 1961 00b6 8DE0      		ldi r24,lo8(13)
+ 1962 00b8 0E94 0000 		call bmac_init
+ 117:main.c        **** 
+ 1964               	.LM262:
+ 1965 00bc 0E94 0000 		call nrk_start
+ 120:main.c        **** 
+ 1967               	.LM263:
+ 1968 00c0 80E0      		ldi r24,0
+ 1969 00c2 90E0      		ldi r25,0
+ 1970 00c4 0895      		ret
+ 1972               	.Lscope11:
+ 1974               		.stabd	78,0,0
+ 1975               		.section	.progmem.data,"a",@progbits
+ 1978               	__c.3888:
+ 1979 0000 4372 6561 		.string	"Create done.\r\n"
+ 1979      7465 2064 
+ 1979      6F6E 652E 
+ 1979      0D0A 00
+ 1982               	__c.3883:
+ 1983 000f 496E 7661 		.string	"Invalid input.\r\n# "
+ 1983      6C69 6420 
+ 1983      696E 7075 
+ 1983      742E 0D0A 
+ 1983      2320 00
+ 1986               	__c.3881:
+ 1987 0022 496E 7661 		.string	"Invalid input.\r\n# "
+ 1987      6C69 6420 
+ 1987      696E 7075 
+ 1987      742E 0D0A 
+ 1987      2320 00
+ 1990               	__c.3879:
+ 1991 0035 5374 7265 		.string	"Streaming on.\r\n"
+ 1991      616D 696E 
+ 1991      6720 6F6E 
+ 1991      2E0D 0A00 
+ 1994               	__c.3877:
+ 1995 0045 5374 7265 		.string	"Streaming off.\r\n# "
+ 1995      616D 696E 
+ 1995      6720 6F66 
+ 1995      662E 0D0A 
+ 1995      2320 00
+ 1998               	__c.3875:
+ 1999 0058 2020 703A 		.string	"  p: stream incoming packets.\r\n# "
+ 1999      2073 7472 
+ 1999      6561 6D20 
+ 1999      696E 636F 
+ 1999      6D69 6E67 
+ 2002               	__c.3873:
+ 2003 007a 2020 6C3A 		.string	"  l: view current light values.\r\n"
+ 2003      2076 6965 
+ 2003      7720 6375 
+ 2003      7272 656E 
+ 2003      7420 6C69 
+ 2006               	__c.3871:
+ 2007 009c 2020 6D3A 		.string	"  m: view current neighbor dependencies.\r\n"
+ 2007      2076 6965 
+ 2007      7720 6375 
+ 2007      7272 656E 
+ 2007      7420 6E65 
+ 2010               	__c.3869:
+ 2011 00c7 2020 733A 		.string	"  s: update sensor refresh rate.\r\n"
+ 2011      2075 7064 
+ 2011      6174 6520 
+ 2011      7365 6E73 
+ 2011      6F72 2072 
+ 2014               	__c.3867:
+ 2015 00ea 2020 6E3A 		.string	"  n: update neighbor refresh rate.\r\n"
+ 2015      2075 7064 
+ 2015      6174 6520 
+ 2015      6E65 6967 
+ 2015      6862 6F72 
+ 2018               	__c.3865:
+ 2019 010f 0D0A 4865 		.string	"\r\nHere are your options...\r\n"
+ 2019      7265 2061 
+ 2019      7265 2079 
+ 2019      6F75 7220 
+ 2019      6F70 7469 
+ 2022               	__c.3859:
+ 2023 012c 0D0A 506C 		.string	"\r\nPlease set the sensor update rate. (1-30 seconds)\r\n# "
+ 2023      6561 7365 
+ 2023      2073 6574 
+ 2023      2074 6865 
+ 2023      2073 656E 
+ 2026               	__c.3855:
+ 2027 0164 0D0A 506C 		.string	"\r\nPlease set the neighbor update rate. (1-30 seconds)\r\n# "
+ 2027      6561 7365 
+ 2027      2073 6574 
+ 2027      2074 6865 
+ 2027      206E 6569 
+ 2030               	__c.3852:
+ 2031 019e 5765 6C63 		.string	"Welcome!\r\n"
+ 2031      6F6D 6521 
+ 2031      0D0A 00
+ 2034               	__c.3815:
+ 2035 01a9 5458 2064 		.string	"TX done signal error\r\n"
+ 2035      6F6E 6520 
+ 2035      7369 676E 
+ 2035      616C 2065 
+ 2035      7272 6F72 
+ 2038               	__c.3804:
+ 2039 01c0 4927 6D20 		.string	"I'm very sorry, but that is an invalid input.\r\n# "
+ 2039      7665 7279 
+ 2039      2073 6F72 
+ 2039      7279 2C20 
+ 2039      6275 7420 
+ 2042               	__c.3799:
+ 2043 01f2 4927 6D20 		.string	"I'm very sorry, but that is an invalid input.\r\n# "
+ 2043      7665 7279 
+ 2043      2073 6F72 
+ 2043      7279 2C20 
+ 2043      6275 7420 
+ 2046               	__c.3777:
+ 2047 0224 0A00      		.string	"\n"
+ 2048               	.global	seq_num
+ 2049               		.section .bss
+ 2052               	seq_num:
+ 2053 0000 0000      		.zero	2
+ 2054               		.comm	tx_packet,16,1
+ 2055               		.comm	print_mux,2,1
+ 2056               		.comm	print_incoming,1,1
+ 2057               		.comm	neighbor_graph_mux,2,1
+ 2058               		.comm	neighbor_graph,16,1
+ 2059               		.comm	light_pool_mux,2,1
+ 2060               		.comm	light_pool,10,1
+ 2061               		.comm	seq_pool,10,1
+ 2062               		.comm	sensor_mux,2,1
+ 2063               		.comm	neighbor_mux,2,1
+ 2064               	.global	sensor_update_rate
+ 2065               		.data
+ 2068               	sensor_update_rate:
+ 2069 0000 02        		.byte	2
+ 2070               	.global	neighbor_update_rate
+ 2073               	neighbor_update_rate:
+ 2074 0001 0A        		.byte	10
+ 2075               	.global	ui_index
+ 2076               		.section .bss
+ 2079               	ui_index:
+ 2080 0002 00        		.zero	1
+ 2081               		.comm	ui_buf,116,1
+ 2082               		.comm	tx_buf,116,1
+ 2083               		.comm	rx_buf,116,1
+ 2084               		.comm	transmit_task_stack,512,1
+ 2085               		.comm	receive_task_stack,512,1
+ 2086               		.comm	ui_task_stack,512,1
+ 2087               		.comm	TRANSMIT_TASK,35,1
+ 2088               		.comm	RECEIVE_TASK,35,1
+ 2089               		.comm	UI_TASK,35,1
+ 2090               		.comm	error_num,1,1
+ 2091               		.comm	error_task,1,1
+ 2092               		.comm	bmac_rfTxInfo,7,1
+ 2093               		.comm	bmac_rfRxInfo,12,1
+ 2094               		.comm	bmac_enable_signal,1,1
+ 2095               		.comm	bmac_tx_pkt_done_signal,1,1
+ 2096               		.comm	bmac_rx_pkt_signal,1,1
+ 2097               		.comm	nrk_kernel_stk_ptr,2,1
+ 2098               		.comm	nrk_idle_task_stk,512,1
+ 2099               		.comm	_nrk_signal_list,4,1
+ 2133               		.text
+ 2135               	.Letext0:
+ 2136               		.ident	"GCC: (GNU) 4.9.1"
+ 2137               	.global __do_copy_data
+ 2138               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:354    .text:0000000000000000 transmit_task
+                            *COM*:0000000000000002 sensor_mux
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2068   .data:0000000000000000 sensor_update_rate
+                            *COM*:0000000000000010 tx_packet
+                            *COM*:0000000000000002 neighbor_mux
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2073   .data:0000000000000001 neighbor_update_rate
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2052   .bss:0000000000000000 seq_num
+                            *COM*:0000000000000074 tx_buf
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2034   .progmem.data:00000000000001a9 __c.3815
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:558    .text:0000000000000126 receive_task
+                            *COM*:0000000000000074 rx_buf
+                            *COM*:0000000000000002 print_mux
+                            *COM*:0000000000000001 print_incoming
+                            *COM*:000000000000000a seq_pool
+                            *COM*:0000000000000002 neighbor_graph_mux
+                            *COM*:0000000000000010 neighbor_graph
+                            *COM*:0000000000000002 light_pool_mux
+                            *COM*:000000000000000a light_pool
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:848    .text:00000000000002a8 add_to_ui_buffer
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2079   .bss:0000000000000002 ui_index
+                            *COM*:0000000000000074 ui_buf
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:881    .text:00000000000002c6 get_user_input
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2046   .progmem.data:0000000000000224 __c.3777
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:938    .text:00000000000002fc clear_ui_buf
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:978    .text:0000000000000318 turnUItoUint
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1081   .text:0000000000000368 set_neighbor_rate
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2042   .progmem.data:00000000000001f2 __c.3799
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1177   .text:00000000000003d6 set_sensor_rate
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2038   .progmem.data:00000000000001c0 __c.3804
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1269   .text:0000000000000444 ui_task
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2030   .progmem.data:000000000000019e __c.3852
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2026   .progmem.data:0000000000000164 __c.3855
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2022   .progmem.data:000000000000012c __c.3859
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2018   .progmem.data:000000000000010f __c.3865
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2014   .progmem.data:00000000000000ea __c.3867
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2010   .progmem.data:00000000000000c7 __c.3869
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2006   .progmem.data:000000000000009c __c.3871
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:2002   .progmem.data:000000000000007a __c.3873
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1998   .progmem.data:0000000000000058 __c.3875
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1994   .progmem.data:0000000000000045 __c.3877
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1990   .progmem.data:0000000000000035 __c.3879
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1986   .progmem.data:0000000000000022 __c.3881
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1982   .progmem.data:000000000000000f __c.3883
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1590   .text:00000000000005c8 nrk_create_taskset
+                            *COM*:0000000000000023 TRANSMIT_TASK
+                            *COM*:0000000000000200 transmit_task_stack
+                            *COM*:0000000000000023 UI_TASK
+                            *COM*:0000000000000200 ui_task_stack
+                            *COM*:0000000000000023 RECEIVE_TASK
+                            *COM*:0000000000000200 receive_task_stack
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1978   .progmem.data:0000000000000000 __c.3888
+/var/folders/dp/d7kv32_x22l5x1fb945v1f8m0000gp/T//ccDRV7Cx.s:1847   .text.startup:0000000000000000 main
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000007 bmac_rfTxInfo
+                            *COM*:000000000000000c bmac_rfRxInfo
+                            *COM*:0000000000000001 bmac_enable_signal
+                            *COM*:0000000000000001 bmac_tx_pkt_done_signal
+                            *COM*:0000000000000001 bmac_rx_pkt_signal
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+nrk_led_clr
+bmac_started
+nrk_wait_until_next_period
+bmac_get_tx_done_signal
+nrk_signal_register
+nrk_led_set
+nrk_sem_pend
+nrk_sem_post
+assemble_packet
+bmac_tx_pkt_nonblocking
+nrk_event_wait
+nrk_kprintf
+bmac_rx_pkt_set_buffer
+bmac_rx_pkt_ready
+parse_msg
+bmac_rx_pkt_get
+printf
+putchar
+puts
+bmac_rx_pkt_release
+in_sequence_pool
+add_to_sequence_pool
+get_sequence_number
+update_sequence_pool
+update_neighbor_graph
+update_light_pool
+nrk_uart_data_ready
+__iob
+fgetc
+nrk_uart_rx_signal_get
+print_light_pool
+print_neighbor_graph
+nrk_task_set_stk
+nrk_activate_task
+nrk_setup_ports
+nrk_setup_uart
+nrk_init
+nrk_sem_create
+nrk_time_set
+bmac_task_config
+bmac_init
+nrk_start
+__do_copy_data
+__do_clear_bss
