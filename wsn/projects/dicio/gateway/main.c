@@ -134,8 +134,18 @@ uint8_t get_server_input() {
 
     // get UART byte and add to buffer
     option = getchar();
-    serv_rx_buf[serv_rx_index] = option;
-    serv_rx_index++;
+
+    // if there is room, add it to the buffer.
+    if(serv_rx_index < (RF_MAX_PAYLOAD_SIZE -1)) {
+      serv_rx_buf[serv_rx_index] = option;
+      serv_rx_index++;      
+    } 
+    // if there is not room, clear the buffer and then add the new byte.
+    else {
+      clear_serv_buf();
+      serv_rx_buf[serv_rx_index] = option;
+      serv_rx_index++;
+    }
 
     // print if appropriate
     if(print_incoming == PRINT2TERM) {
@@ -307,6 +317,7 @@ void rx_serv_task() {
 
       // parse message
       parse_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
+      clear_serv_buf();
 
       // check sequence number to determine if the packet should be received
       // NOTE: This probably is unnecessary because the likelihood of an earlier
