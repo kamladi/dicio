@@ -56,6 +56,11 @@
 #define MAX_POOL 8
 #define MAX_GRAPH 8
 
+// payload indexes
+#define CMD_ID 0
+#define CMD_NODE_ID 2
+#define CMD_ACTION 3
+
 /*** ENUMERATIONS ***/
 typedef enum
 {
