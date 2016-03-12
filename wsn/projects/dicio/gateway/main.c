@@ -257,7 +257,7 @@ void rx_node_task() {
             case MSG_HAND:
               nrk_sem_pend(hand_rx_queue_mux);
               push(&hand_rx_queue, &rx_packet);
-              nrk_sem_pend(hand_rx_queue_mux);
+              nrk_sem_post(hand_rx_queue_mux);
               break;
             case MSG_NO_MESSAGE:
               // do nothing. 
