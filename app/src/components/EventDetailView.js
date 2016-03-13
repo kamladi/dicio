@@ -7,12 +7,15 @@ import React, {
   StyleSheet,
   TouchableHighlight,
   Text,
+  PickerIOS,
   View,
   AlertIOS,
   SegmentedControlIOS,
 } from 'react-native';
 
 import {OutletPicker} from './OutletPicker';
+import {SensorPicker} from './SensorPicker';
+import {SENSORS} from '../lib/Constants';
 
 import EventStore from '../stores/EventStore';
 import OutletStore from '../stores/OutletStore';
@@ -27,6 +30,7 @@ export class EventDetailView extends Component {
     };
     this.onChange = this.onChange.bind(this);
     this.showOutletSelector = this.showOutletSelector.bind(this);
+    this.onFormValueChanged = this.onFormValueChanged.bind(this);
 	}
 
 	componentDidMount() {
@@ -49,22 +53,36 @@ export class EventDetailView extends Component {
     });
   }
 
-  // open a new view with a 'picker' to choose an outlet
-  showOutletSelector(param) {
-    var onValueChange = function (value) {
-      var update_params = {};
-      update_params[param] = value;
-      EventActions.updateEvent(this.props.event_id, update_params);
-    }.bind(this);
+  onFormValueChanged(paramName, value) {
+    var updatedParams = {};
+    updatedParams[paramName] = value;
+    EventActions.updateEvent(this.props.event_id, updatedParams);
+  }
 
+  // open a new view with a 'picker' to choose an input/output outlet
+  showOutletSelector(param) {
     var title = (param === 'input_outlet_id') ? 'Input Outlet' : 'Output Outlet';
 
     this.props.navigator.push({
       title: title,
       component: OutletPicker,
       passProps: {
+        paramName: param,
         selectedValue: this.state.event[param],
-        onValueChange: onValueChange
+        onValueChange: this.onFormValueChanged
+      }
+    });
+  }
+
+  // open a new view with a 'picker' to choose an input/output outlet
+  showSensorSelector() {
+    this.props.navigator.push({
+      title: 'Trigger',
+      component: SensorPicker,
+      passProps: {
+        paramName: 'input',
+        selectedValue: this.state.event.input,
+        onValueChange: this.onFormValueChanged
       }
     });
   }
@@ -102,7 +120,15 @@ export class EventDetailView extends Component {
             <Text style={styles.buttonText}>{inputOutlet.name}</Text>
           </TouchableHighlight>
         </View>
-				<Text>Input: {event.input}</Text>
+        <View style={styles.row}>
+          <Text style={styles.label}>Input:</Text>
+          <TouchableHighlight
+            style={[styles.button, styles.buttonWhite]}
+            onPress={() => this.showSensorSelector()}>
+            <Text style={styles.buttonText}>{event.input}</Text>
+          </TouchableHighlight>
+        </View>
+
 				<Text>Input Trigger: {event.input_threshold} {event.input_value}</Text>
 				<View style={styles.row}>
           <Text style={styles.label}>Output Outlet:</Text>
@@ -118,9 +144,7 @@ export class EventDetailView extends Component {
             style={styles.segmentedControl}
             values={['OFF','ON']}
             selectedIndex={(event.output_action === 'OFF') ? 0 : 1}
-            onValueChange={(value) => {
-              EventActions.updateEvent(event._id, { output_action: value});
-            }}>
+            onValueChange={(newValue) => this.onFormValueChanged('output_action', newValue)}>
           </SegmentedControlIOS>
         </View>
 			</View>
@@ -166,5 +190,8 @@ const styles = StyleSheet.create({
   segmentedControl: {
     width: 125,
     height: 50,
+  },
+  picker: {
+    width: 300
   }
 });

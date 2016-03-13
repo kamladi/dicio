@@ -16,7 +16,7 @@ import {API_OUTLETS_URL} from '../lib/Constants';
 import OutletStore from '../stores/OutletStore';
 import OutletActions from '../actions/OutletActions';
 
-class OutletButton extends Component {
+class OutletActionButton extends Component {
 	constructor(props) {
 		super(props);
 		this.onButtonPressed = this.onButtonPressed.bind(this);
@@ -164,7 +164,7 @@ export class OutletDetailView extends Component {
         <View style={styles.row}>
 				  <Text style={styles.label}>Status:</Text>
           <Text style={styles.sensorValue}>{outlet.status}</Text>
-          <OutletButton status={outlet.status} outlet_id={outlet._id} />
+          <OutletActionButton status={outlet.status} outlet_id={outlet._id} />
         </View>
 
 

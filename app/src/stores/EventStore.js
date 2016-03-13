@@ -9,6 +9,7 @@ class EventStore {
 			handleEventsChanged: EventActions.EVENTS_CHANGED,
 			handleEventChanged: EventActions.EVENT_CHANGED,
 			handleFetchEvents: EventActions.FETCH_EVENTS,
+			handleUpdateEvent: EventActions.UPDATE_EVENT
 		});
 
 		this.exportPublicMethods({
@@ -32,6 +33,17 @@ class EventStore {
 
 	handleFetchEvents() {
 		this.events = [];
+	}
+
+	handleUpdateEvent(data) {
+		this.events = this.events.map( (event) => {
+			// merge updated params into the given event object
+			if (event._id === data.event_id) {
+				return Object.assign({}, event, data.updatedParams);
+			} else {
+				return event;
+			}
+		});
 	}
 
 	findById(event_id) {

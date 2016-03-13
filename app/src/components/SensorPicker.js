@@ -6,37 +6,20 @@ import React, {
 	Text
 } from 'react-native';
 
-import OutletStore from '../stores/OutletStore';
-import OutletActions from '../actions/OutletActions';
+import {SENSORS} from '../lib/Constants';
 
-export class OutletPicker extends Component {
+export class SensorPicker extends Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			outlets: OutletStore.getState().outlets,
 			selectedValue: this.props.selectedValue
 		};
-		this.onOutletListChange = this.onOutletListChange.bind(this);
 		this.onValueChange = this.onValueChange.bind(this);
-	}
-
-	componentDidMount() {
-		OutletStore.listen(this.onOutletListChange);
-	}
-
-	componentWillUnmount() {
-		OutletStore.unlisten(this.onOutletListChange);
 	}
 
 	componentWillReceiveProps(newProps) {
 		this.setState({
 			selectedValue: newProps.selectedValue
-		});
-	}
-
-	onOutletListChange(state) {
-		this.setState({
-			outlets: state.outlets
 		});
 	}
 
@@ -48,19 +31,16 @@ export class OutletPicker extends Component {
 	}
 
 	render() {
-		// Render a list of Picker items
-		var renderedOutletItems = this.state.outlets.map( (outlet) => {
-			return <PickerIOS.Item key={outlet._id} label={outlet.name} value={outlet._id} />
-		});
-
 		return (
 			<View style={styles.container}>
-				<Text>Choose an Outlet:</Text>
+				<Text>Choose a Trigger:</Text>
 				<PickerIOS
 					style={styles.picker}
 				  selectedValue={this.state.selectedValue}
 				  onValueChange={this.onValueChange}>
-				  {renderedOutletItems}
+				  {SENSORS.map( (sensor,idx) => {
+						return <PickerIOS.Item key={idx} label={sensor} value={sensor} />
+					})}
 				</PickerIOS>
 			</View>
 		);

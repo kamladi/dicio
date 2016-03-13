@@ -33,15 +33,15 @@ class EventActions {
     return {};
   }
 
-  updateEvent(event_id, update_params) {
-    console.log("updating: ", update_params);
+  updateEvent(event_id, updatedParams) {
+    console.log("updating: ", updatedParams);
     fetch(`${API_EVENTS_URL}/${event_id}`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(update_params)
+      body: JSON.stringify(updatedParams)
     })
       .then((response) => response.json())
       .then((responseData) => {
@@ -49,7 +49,7 @@ class EventActions {
       })
       .catch(console.error)
       .done();
-    return {};
+    return {event_id, updatedParams};
   }
 
 }
