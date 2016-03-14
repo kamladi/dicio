@@ -227,27 +227,38 @@ void rx_msg_task() {
                 push(&act_queue, &rx_packet);
                 nrk_sem_post(act_queue_mux);
               } else {
+                rx_packet.num_hops++;
                 nrk_sem_pend(cmd_tx_queue_mux);
                 push(&cmd_tx_queue, &rx_packet);
                 nrk_sem_post(cmd_tx_queue_mux);
               }
               break;
-            // command act received -- forward to the server
+            // command ack received -- forward to the server
             case MSG_CMDACK:
+              rx_packet.num_hops++;
               nrk_sem_pend(cmd_tx_queue_mux);
               push(&cmd_tx_queue, &rx_packet);
               nrk_sem_post(cmd_tx_queue_mux);
               break;
-            // data received or command ack received -> forward to server
+            // data received -> forward to server
             case MSG_DATA:
+              rx_packet.num_hops++;
               nrk_sem_pend(data_tx_queue_mux);
               push(&data_tx_queue, &rx_packet);
               nrk_sem_post(data_tx_queue_mux);
-            // handshake message recieved -> deal with in handshake function
+            // handshake message recieved -> deal with in handshake function or forward
             case MSG_HAND:
-              nrk_sem_pend(hand_rx_queue_mux);
-              push(&hand_rx_queue, &rx_packet);
-              nrk_sem_post(hand_rx_queue_mux);
+              if(rx_packet.payload[HAND_NODE_ID_INDEX] == MAC_ADDR) {
+                nrk_sem_pend(hand_rx_queue_mux);
+                push(&hand_rx_queue, &rx_packet);
+                nrk_sem_post(hand_rx_queue_mux);                
+              } else {
+                rx_packet.num_hops++;
+                nrk_sem_pend(data_tx_queue_mux);
+                push(&data_tx_queue, &rx_packet);
+                nrk_sem_post(data_tx_queue_mux);                 
+              }
+
               break;
             // gateway message -> for future expansion
             case MSG_GATEWAY:

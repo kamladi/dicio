@@ -71,6 +71,8 @@
 #define DATA_PWR_INDEX 0
 #define DATA_TEMP_INDEX 2
 #define DATA_LIGHT_INDEX 4
+#define HAND_NODE_ID_INDEX 0
+#define HAND_PAYLOAD_INDEX 1
 
 /*** ENUMERATIONS ***/
 typedef enum {
