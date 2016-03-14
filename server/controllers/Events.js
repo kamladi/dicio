@@ -40,25 +40,26 @@ exports.getEventDetails = (req, res, next) => {
  */
 exports.updateEvent = (req, res, next) => {
 	req.checkParams('id', 'Invalid Event ID').notEmpty();
-	req.checkBody('name', 'Invalid Event Name').notEmpty();
-	req.checkBody('input_outlet_id', 'Undefined input outlet ID').notEmpty();
-	// TODO: add more checkBody()'s for other params
 	var errors = req.validationErrors();
 	if (errors) {
 		return res.send(errors, 400);
 	}
 	var id = new ObjectId(req.params.id);
-	var updatedParams = {
-		'name': req.body.name,
-		'input_outlet_id': req.body.input_outlet_id,
-		'input': req.body.input,
-		'input_value': req.body.input_value,
-		'input_threshold': req.body.input_threshold,
-		'output_outlet_id': req.body.output_outlet_id,
-		'output_action': req.output_action,
-	};
+	const allowedParams = [
+		'name', 'input_outlet_id', 'input', 'input_value', 'input_threshold',
+		'output_outlet_id', 'output_action'
+	];
 
-	return Event.findByIdAndUpdate(id, updatedParams).exec()
+	// Iterate over the list of allowed params, and if that param is in the
+	// request body, add it to an object of updated params to be saved.
+	var updatedParams = {};
+	allowedParams.forEach( (param) => {
+		if (req.body[param]) {
+			updatedParams[param] = req.body[param];
+		}
+	});
+
+	return Event.findByIdAndUpdate(id, updatedParams, {new: true}).exec()
 		.then( event => {
 			// successful update, return update event
 			return res.json(event);
