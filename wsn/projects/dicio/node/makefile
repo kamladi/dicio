@@ -28,18 +28,19 @@ SRC = $(TARGET).c
 SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/ff_basic_sensor.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/twi_base_calls.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/assembler.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/light_pool.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/neighbors.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/parser.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/sample_sensor.c
-SRC += $(ROOT_DIR)/projects/lab3/utility/sequence_pool.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/light_pool.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/neighbors.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/sample_sensor.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/sequence_pool.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
 
 # Add extra includes files. 
 # For example:
 EXTRAINCDIRS =
 EXTRAINCDIRS += $(ROOT_DIR)/src/net/bmac
-EXTRAINCDIRS += $(ROOT_DIR)/projects/lab3/utility
+EXTRAINCDIRS += $(ROOT_DIR)/projects/dicio/utility
 
 
 #  This is where the final compile and download happens

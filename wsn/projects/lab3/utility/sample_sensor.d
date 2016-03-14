@@ -1,5 +1,5 @@
-twi_base_calls.o twi_base_calls.d : \
- ../../../src/drivers/platform/firefly3/source/twi_base_calls.c \
+sample_sensor.o sample_sensor.d : ../../../projects/lab3/utility/sample_sensor.c \
+ ../../../projects/lab3/utility/sample_sensor.h \
  ../../../src/kernel/include/nrk.h \
  ../../../src/kernel/hal/include/nrk_cpu.h nrk_cfg.h \
  ../../../src/kernel/include/nrk_time.h \
@@ -10,9 +10,10 @@ twi_base_calls.o twi_base_calls.d : \
  ../../../src/platform/firefly3/include/nrk_pin_define.h \
  ../../../src/kernel/include/nrk_events.h \
  ../../../src/platform/firefly3/include/nrk_platform_time.h \
- ../../../src/kernel/include/nrk_task.h \
+ ../../../src/kernel/include/nrk_task.h ../../../src/net/bmac/bmac.h \
+ ../../../src/radio/rf231_soc/include/basic_rf.h \
  ../../../src/kernel/include/nrk_error.h \
- ../../../src/kernel/hal/include/nrk_timer.h \
- ../../../src/kernel/include/nrk_stack_check.h \
- ../../../src/kernel/include/nrk_stats.h \
- ../../../src/drivers/platform/firefly3/include/twi_base_calls.h
+ ../../../src/drivers/include/nrk_driver_list.h \
+ ../../../src/kernel/include/nrk_driver.h \
+ ../../../src/drivers/platform/firefly3/include/ff_basic_sensor.h \
+ ../../../projects/lab3/utility/type_defs.h
