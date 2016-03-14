@@ -30,7 +30,6 @@
 // DEFINES
 #define MAC_ADDR 1
 
-
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
 void clear_serv_buf();
@@ -40,24 +39,38 @@ void tx_data_task(void);
 void tx_serv_task(void);
 void nrk_create_taskset ();
 
+// STATE ENUM
+typedef enum {
+  STATE_ON,
+  STATE_OFF, 
+} act_state;
+
 // TASKS
 nrk_task_type RX_MSG_TASK;
 nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_DATA_TASK;
+nrk_task_type SAMPLE_TASK;
+nrk_task_type ACTUATE_TASK;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
+NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
+NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
+
+// CURRENT STATE
+act_state curr_state = STATE_OFF;
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
 nrk_sem_t* net_tx_buf_mux;
 
-// QUEUES
+// QUEUES / MUTEXES
 packet_queue act_queue;
 nrk_sem_t* act_queue_mux;
+uint16_t last_command = 0;
 
 packet_queue cmd_tx_queue;
 nrk_sem_t* cmd_tx_queue_mux;
@@ -68,6 +81,12 @@ nrk_sem_t* data_tx_queue_mux;
 packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
+// SENSOR VALUES
+uint8_t pwr_period;
+uint8_t temp_period;
+uint8_t light_period;
+sensor_packet sensor_pkt;
+
 // DRIVERS 
 void nrk_register_drivers();
 
@@ -75,7 +94,6 @@ void nrk_register_drivers();
 sequence_pool_t seq_pool;
 uint16_t seq_num = 0;
 nrk_sem_t* seq_num_mux;
-
 
 // GLOBAL FLAG
 uint8_t print_incoming;
@@ -105,17 +123,23 @@ int main () {
   hand_rx_queue_mux = nrk_sem_create(1, 6);
   seq_num_mux       = nrk_sem_create(1, 6);
 
+  // sensor periods
+  pwr_period = 1;
+  temp_period = 2;
+  light_period = 3;
+
   // packet queues
   packet_queue_init(&act_queue);
   packet_queue_init(&cmd_tx_queue);
   packet_queue_init(&data_tx_queue);
   packet_queue_init(&hand_rx_queue);
 
-  nrk_time_set (0, 0);
-  bmac_task_config ();
-  nrk_create_taskset ();
-  bmac_init (13);
-  nrk_start ();
+  // start running
+  nrk_time_set(0, 0);
+  bmac_task_config();
+  nrk_create_taskset();
+  bmac_init(13);
+  nrk_start();
   return 0;
 }
 
@@ -161,6 +185,7 @@ void rx_msg_task() {
       local_buf = bmac_rx_pkt_get(&len, &rssi);
       bmac_rx_pkt_release ();  
       
+      // print incoming packet if appropriate
       if(print_incoming == 1) {
         printf ("RX: ");
         for (uint8_t j = 0; j < len; j++)
@@ -192,7 +217,12 @@ void rx_msg_task() {
           switch(rx_packet.type) {
             // command received -- either act or forward
             case MSG_CMD:
-              if(rx_packet.payload[CMD_NODE_ID] == MAC_ADDR) {
+              // if command is for this node and hasn't been received yet, add it
+              //  to the action queue. Otherwise, add it to the cmd_tx queue for 
+              //  forwarding to other nodes.
+              if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
+                  (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) {
+                last_command = rx_packet.payload[CMD_ID_INDEX];
                 nrk_sem_pend(act_queue_mux);
                 push(&act_queue, &rx_packet);
                 nrk_sem_post(act_queue_mux);
@@ -219,9 +249,11 @@ void rx_msg_task() {
               push(&hand_rx_queue, &rx_packet);
               nrk_sem_post(hand_rx_queue_mux);
               break;
+            // gateway message -> for future expansion
             case MSG_GATEWAY:
               // do nothing...no messages have been defined with this type yet
               break;
+            // no message
             case MSG_NO_MESSAGE:
               // do nothing. 
               // NOTE: this is a valid case. If the message is not 'parsible' then it can be
@@ -268,11 +300,12 @@ void tx_cmd_task() {
     if(blink_leds == BLINKLEDS) {
       LED_FLAG++;
       LED_FLAG%=2;
+      /*
       if(LED_FLAG == 0) {
-        nrk_led_set(2);
+        nrk_led_set(1);
       } else {
-        nrk_led_clr(2);
-      }      
+        nrk_led_clr(1);
+      }  */    
     }
 
     // atomically get the queue size
@@ -330,7 +363,7 @@ void tx_data_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_data_queue_size;
-  
+
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
   while(!bmac_started ()) {
@@ -371,7 +404,7 @@ void tx_data_task() {
      *    at any given time, regardless of whether or not the queue has been 
      *    added to by another task.
      */
-    for(uint8_t i = 0; i < tx_node_queue_size; i++) {
+    for(uint8_t i = 0; i < tx_data_queue_size; i++) {
       // get a packet out of the queue.
       nrk_sem_pend(data_tx_queue_mux);
       pop(&data_tx_queue, &tx_packet);
@@ -397,12 +430,238 @@ void tx_data_task() {
 
 
 /**
+ * sample_task() -
+ *  sample any sensors that are supposed to be sampled.
+ */
+void sample_task() {
+  // local variable instantiation
+  uint8_t LED_FLAG = 0;
+  uint8_t pwr_period_count = 0;
+  uint8_t temp_period_count = 0;
+  uint8_t light_period_count = 0;
+  uint8_t sensor_sampled = FALSE;
+  uint16_t local_pwr_val = 0;
+  uint16_t local_temp_val = 0;
+  uint16_t local_light_val = 0;
+  packet tx_packet;
+
+  // initialize sensor packet
+  sensor_pkt.pwr_val = local_pwr_val;
+  sensor_pkt.temp_val = local_temp_val;
+  sensor_pkt.light_val = local_light_val;
+
+  // initialize tx_packet
+  tx_packet.source_id = MAC_ADDR;
+  tx_packet.type = MSG_DATA;
+  tx_packet.num_hops = 0;
+
+  // loop forever
+  while(1) {
+    // LED blinking - for debug
+    if(blink_leds == BLINKLEDS) {
+      LED_FLAG++;
+      LED_FLAG%=2;
+      if(LED_FLAG == 0) {
+        nrk_led_set(2);
+      } else {
+        nrk_led_clr(2);
+      }      
+    }
+
+    // update period counts
+    pwr_period_count++;
+    temp_period_count++;
+    light_period_count++;
+    pwr_period_count %= pwr_period;
+    temp_period_count %= temp_period;
+    light_period_count %= light_period;
+
+    // sample power sensor if appropriate
+    if(pwr_period_count == SAMPLE_SENSOR) {
+      //TODO: SAMPLE POWER SENSOR
+      local_pwr_val++;
+      sensor_pkt.pwr_val = local_pwr_val;
+      sensor_sampled = TRUE;
+    }
+
+    // sample temperature sensor if appropriate
+    if(temp_period_count == SAMPLE_SENSOR) {
+      //TODO: SAMPLE TEMP SENSOR
+      local_temp_val++;
+      sensor_pkt.temp_val = local_temp_val;
+      sensor_sampled = TRUE;
+    }
+
+    // sample light sensor if appropriate
+    if(light_period_count == SAMPLE_SENSOR) {
+      //TODO: SAMPLE LIGHT SENSOR
+      local_light_val++;
+      sensor_pkt.light_val = local_light_val;
+      sensor_sampled = TRUE;
+    }
+
+    // if a sensor has been sampled, send a packet out
+    if(sensor_sampled == TRUE) {
+      // update sequence number
+      nrk_sem_post(seq_num_mux);
+      seq_num++;
+      tx_packet.seq_num = seq_num;
+      nrk_sem_pend(seq_num_mux);
+
+      // add data values to sensor packet
+      tx_packet.payload[DATA_PWR_INDEX] = sensor_pkt.pwr_val;
+      tx_packet.payload[DATA_TEMP_INDEX] = sensor_pkt.temp_val;
+      tx_packet.payload[DATA_LIGHT_INDEX] = sensor_pkt.light_val;
+
+      // add packet to data queue
+      nrk_sem_pend(data_tx_queue_mux);
+      push(&data_tx_queue, &tx_packet);
+      nrk_sem_post(data_tx_queue_mux);
+    }
+    nrk_wait_until_next_period();
+  }
+}
+
+/**
+ * actuate_task() - 
+ *  actuate any commands that have been received for this node.
+ */
+void actuate_task() {
+  // local variable instantiation
+  uint8_t LED_FLAG = 0;
+  uint8_t act_queue_size;
+  packet act_packet, tx_packet;
+  uint8_t action, ack_required, act_required; 
+
+  // initialize tx_packet
+  tx_packet.source_id = MAC_ADDR;
+  tx_packet.type = MSG_CMDACK;
+  tx_packet.num_hops = 0;
+
+  // loop forever
+  while(1) {
+    // LEDs for debug
+    if(blink_leds == BLINKLEDS) {
+      LED_FLAG++;
+      LED_FLAG%=2;
+      if(LED_FLAG == 0) {
+        nrk_led_set(1);
+      } else {
+        nrk_led_clr(1);
+      }   
+    }
+
+    // get action queue size
+    nrk_sem_post(act_queue_mux);
+    act_queue_size = act_queue.size;
+    nrk_sem_pend(act_queue_mux);
+
+    /**
+     * loop on queue size received above, and no more.
+     *  NOTE: during this loop the queue can be added to. If, for instance,
+     *    a "while(act_queue.size > 0)" was used a few bad things could happen
+     *      (1) a mutex would be required around the entire loop - BAD IDEA
+     *      (2) the queue could be added to while this loop is running, thus
+     *        making the loop unbounded - BAD IDEA
+     *      (3) the size the queue read and the actual size of the queue could be 
+     *        incorrect due to preemtion - BAD IDEA
+     *    Doing it this way bounds this loop to the maximum size of the queue
+     *    at any given time, regardless of whether or not the queue has been 
+     *    added to by another task.
+     */
+    for(uint8_t i = 0; i < act_queue_size; i++) {
+      // get packet out of the queue
+      nrk_sem_post(act_queue_mux);
+      pop(&act_queue, &act_packet);
+      nrk_sem_pend(act_queue_mux); 
+
+      // pull action out of packet
+      action = act_packet.payload[CMD_ACT_INDEX];
+
+      // switch on current state
+      switch(curr_state) {
+        // STATE_ON - actuate if required / acknowledge if required
+        case STATE_ON:
+          // action ON received -> ack but don't act
+          if(action == ON) {
+            ack_required = TRUE;
+            act_required = FALSE;
+            curr_state = STATE_ON;
+          } 
+          // action OFF received -> ack and act
+          else if(action == OFF) {
+            ack_required = TRUE;
+            act_required = TRUE;
+            curr_state = STATE_OFF;
+          } 
+          // this should never happen, but -> don't ack and don't act
+          else {
+            ack_required = FALSE;
+            act_required = FALSE;
+            curr_state = STATE_ON;
+          }
+          break;        
+        // STATE_OFF - actuate if required / acknowledge if required
+        case STATE_OFF:
+          // action OFF received -> ack but don't act
+          if(action == OFF) {
+            ack_required = TRUE;
+            act_required = FALSE;
+            curr_state = STATE_OFF;
+          } 
+          // action ON received -> ack and act
+          else if(action == ON) {
+            ack_required = TRUE;
+            act_required = TRUE;
+            curr_state = STATE_ON;
+          } 
+          // this should never happen, but -> don't ack and don't act
+          else {
+            ack_required = FALSE;
+            act_required = FALSE;
+            curr_state = STATE_OFF;
+          }
+          break;
+        default:
+          // THIS SHOULD NEVER HAPPEN.
+          break;
+      }
+
+      // action required -> complete actuation
+      if(act_required == TRUE) {
+        // TODO: ACTUATE.
+        // dummy operation so the compiler doesn't yell.
+        i = i;
+      }
+
+      // acknowledge required -> add ack packet to cmd_tx_queue
+      if(ack_required == TRUE) {
+        // update sequence number
+        nrk_sem_pend(seq_num_mux);
+        seq_num++;
+        tx_packet.seq_num = seq_num;
+        nrk_sem_post(seq_num_mux);
+
+        // set payload
+        tx_packet.payload[CMDACK_ID_INDEX] = act_packet.payload[CMD_ID_INDEX];
+
+        // place message in the queue
+        nrk_sem_pend(cmd_tx_queue_mux);
+        push(&cmd_tx_queue, &tx_packet);
+        nrk_sem_post(cmd_tx_queue_mux);
+      }
+    }
+    nrk_wait_until_next_period();
+  }
+}
+
+/**
  * nrk_create_taskset - create the tasks in this application
  * 
  * NOTE: task priority maps to importance. That is, priority(5) > priority(2).
  */
 void nrk_create_taskset () {
-  // PRIORITY 5 - HIGHEST PRIORITY
+  // PRIORITY 5
   RX_MSG_TASK.task = rx_msg_task;
   nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
   RX_MSG_TASK.prio = 5;
@@ -410,14 +669,27 @@ void nrk_create_taskset () {
   RX_MSG_TASK.Type = BASIC_TASK;
   RX_MSG_TASK.SchType = PREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
-  RX_MSG_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
-  RX_MSG_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
+  RX_MSG_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   RX_MSG_TASK.offset.secs = 0;
   RX_MSG_TASK.offset.nano_secs = 0;
-  nrk_activate_task (&RX_MSG_TASK);
-  
-  // PRIORITY 3 - MIDDLE PRIORITY
+
+  // PRIORITY 4
+  ACTUATE_TASK.task = actuate_task;
+  nrk_task_set_stk(&ACTUATE_TASK, actuate_task_stack, NRK_APP_STACKSIZE);
+  ACTUATE_TASK.prio = 4;
+  ACTUATE_TASK.FirstActivation = TRUE;
+  ACTUATE_TASK.Type = BASIC_TASK;
+  ACTUATE_TASK.SchType = PREEMPTIVE;
+  ACTUATE_TASK.period.secs = 0;
+  ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
+  ACTUATE_TASK.cpu_reserve.secs = 0;
+  ACTUATE_TASK.cpu_reserve.nano_secs = 30*NANOS_PER_MS;
+  ACTUATE_TASK.offset.secs = 0;
+  ACTUATE_TASK.offset.nano_secs = 0;
+
+  // PRIORITY 3
   TX_CMD_TASK.task = tx_cmd_task;
   nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE);
   TX_CMD_TASK.prio = 3;
@@ -425,17 +697,30 @@ void nrk_create_taskset () {
   TX_CMD_TASK.Type = BASIC_TASK;
   TX_CMD_TASK.SchType = PREEMPTIVE;
   TX_CMD_TASK.period.secs = 0;
-  TX_CMD_TASK.period.nano_secs = 150*NANOS_PER_MS;
+  TX_CMD_TASK.period.nano_secs = 100*NANOS_PER_MS;
   TX_CMD_TASK.cpu_reserve.secs = 0;
-  TX_CMD_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
+  TX_CMD_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   TX_CMD_TASK.offset.secs = 0;
   TX_CMD_TASK.offset.nano_secs = 0;
-  nrk_activate_task(&TX_CMD_TASK);
 
-  // PRIORITY 2 - SECOND LOWEST PRIORITY
+  // PRIORITY 2
+  SAMPLE_TASK.task = sample_task;
+  nrk_task_set_stk(&SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
+  SAMPLE_TASK.prio = 2;
+  SAMPLE_TASK.FirstActivation = TRUE;
+  SAMPLE_TASK.Type = BASIC_TASK;
+  SAMPLE_TASK.SchType = PREEMPTIVE;
+  SAMPLE_TASK.period.secs = 1;
+  SAMPLE_TASK.period.nano_secs = 0;
+  SAMPLE_TASK.cpu_reserve.secs = 0;
+  SAMPLE_TASK.cpu_reserve.nano_secs = 200*NANOS_PER_MS;
+  SAMPLE_TASK.offset.secs = 0;
+  SAMPLE_TASK.offset.nano_secs = 0;
+
+  // PRIORITY 1
   TX_DATA_TASK.task = tx_data_task;
   nrk_task_set_stk(&TX_DATA_TASK, tx_data_task_stack, NRK_APP_STACKSIZE);
-  TX_DATA_TASK.prio = 2;
+  TX_DATA_TASK.prio = 1;
   TX_DATA_TASK.FirstActivation = TRUE;
   TX_DATA_TASK.Type = BASIC_TASK;
   TX_DATA_TASK.SchType = PREEMPTIVE;
@@ -445,8 +730,13 @@ void nrk_create_taskset () {
   TX_DATA_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   TX_DATA_TASK.offset.secs = 0;
   TX_DATA_TASK.offset.nano_secs = 0;
+
+  nrk_activate_task(&RX_MSG_TASK); 
+  nrk_activate_task(&TX_CMD_TASK);
   nrk_activate_task(&TX_DATA_TASK);
-  
+  nrk_activate_task(&SAMPLE_TASK);
+  nrk_activate_task(&ACTUATE_TASK);
+
   nrk_kprintf(PSTR("Create done.\r\n"));
 }
 

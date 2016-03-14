@@ -37,6 +37,9 @@
 #define BLINKLEDS 1
 #define SERV_MSG_RECEIVED 1
 #define SERV_MSG_INCOMPLETE 0
+#define SAMPLE_SENSOR 0
+#define ON 1
+#define OFF 0
 
 // rates/timers
 #define DEFAULT_SENSOR_RATE 2
@@ -46,9 +49,10 @@
 
 // buffers/messages
 #define MAX_BUF_SIZE 24
+#define MAX_PAYLOAD_SIZE 8
 #define MAX_NEIGHBOR_BUF_SIZE 4
 #define MAX_NUM_HOPS 3
-#define MAX_PACKET_BUFFER 4
+#define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
 
 // tables/pools
@@ -57,13 +61,19 @@
 #define MAX_GRAPH 8
 
 // payload indexes
-#define CMD_ID 0
-#define CMD_NODE_ID 2
-#define CMD_ACTION 3
+#define CMD_ID_INDEX 0
+#define CMD_NODE_ID_INDEX 2
+#define CMD_ACT_INDEX 3
+#define CMDG_ID_INDEX 0
+#define CMDG_GROUP_INDEX 2
+#define CMDG_ACTION_INDEX 3
+#define CMDACK_ID_INDEX 0
+#define DATA_PWR_INDEX 0
+#define DATA_TEMP_INDEX 2
+#define DATA_LIGHT_INDEX 4
 
 /*** ENUMERATIONS ***/
-typedef enum
-{
+typedef enum {
   // NOTE: These are old messages and should eventually be removed
   //  when parser.c and assembler.c are updated.
   MSG_NODE_SENSOR_VALUE = 1,
@@ -154,17 +164,15 @@ typedef struct {
  * 
  */
 typedef struct{
-  msg_type type;
   uint8_t source_id;
+  msg_type type;
   uint16_t seq_num;
   uint8_t num_hops;
   
-  // if msg_type is NODE_NEIGHBORS
-  uint16_t light_value; // just in case
-  
-  // if msg_type is GATEWAY2NODE
-  uint16_t sensor_sample_rate;
-  uint16_t neighbor_update_rate;
+  uint16_t light_value;
+  uint8_t sensor_sample_rate;
+  uint8_t neighbor_update_rate;
+  uint8_t payload[MAX_PAYLOAD_SIZE];
 } packet;
 
 typedef struct{
@@ -172,5 +180,11 @@ typedef struct{
   uint8_t front;
   uint8_t size;
 } packet_queue;
+
+typedef struct {
+  uint16_t pwr_val;
+  uint16_t temp_val;
+  uint16_t light_val;
+} sensor_packet;
 
 #endif
