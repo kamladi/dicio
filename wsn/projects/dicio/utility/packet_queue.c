@@ -9,8 +9,6 @@ void packet_queue_init(packet_queue* pq) {
 void push(packet_queue* pq, packet* p) {
 	if(pq->size < MAX_PACKET_BUFFER) {
 		pq->size++;
-		pq->front++;
-		pq->front %= MAX_PACKET_BUFFER;
 
 		pq->buffer[pq->front].type 			= p->type;
 		pq->buffer[pq->front].source_id 	= p->source_id;
