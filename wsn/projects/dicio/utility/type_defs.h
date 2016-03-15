@@ -180,6 +180,7 @@ typedef struct{
 typedef struct{
   packet buffer[MAX_PACKET_BUFFER];
   uint8_t front;
+  uint8_t back;
   uint8_t size;
 } packet_queue;
 
