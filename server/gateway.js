@@ -1,10 +1,10 @@
-var SP = require('serialport');
+var SP         = require('serialport');
 var SerialPort = SP.SerialPort;
-var Outlet = require('./models/Outlet');
-var Event = require('./models/Event');
+var Outlet     = require('./models/Outlet');
+var Event      = require('./models/Event');
 
 // Constants
-const SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
+const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE = 0;
 const OUTLET_ACTION_MESSAGE = 1;
@@ -16,8 +16,8 @@ var seqNum = 1;
 
 // Parse and handle data packet.
 // TODO:
-// 2) Update time series sensor data
-// 3) Iterate over events involving this outlet, and
+// 1) Update time series sensor data
+// 2) Iterate over events involving this outlet, and
 // 			execute any actions is applicable
 function handleData(data) {
   console.log("RX: ", data);
@@ -26,7 +26,7 @@ function handleData(data) {
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
 	var components = data.split(':');
 	if (components.length !== 4) {
-		console.error("Invalid minimum packet length");
+		console.trace("Invalid minimum packet length");
 		return;
 	}
 	var macAddress = components[0],
@@ -61,7 +61,7 @@ function handleData(data) {
 	    outlet.cur_light = cur_light;
 	    outlet.cur_power = cur_power;
 	    return outlet.save();
-	  }).catch(console.error);
+	  }).catch(console.trace);
 }
 
 /*
@@ -70,7 +70,7 @@ function handleData(data) {
  * Returns a promise which will be fulfilled when the packet is sent.
  * Packet format: "mac_addr:seq_num:msg_id:payload"
  */
-exports.sendAction = function sendAction(outletMacAddress, action) {
+function sendAction(outletMacAddress, action) {
   return new Promise( (resolve, reject) => {
     if (!hasStarted) {
       reject(new Error("Connection to gateway has not started yet"));
@@ -91,13 +91,21 @@ exports.sendAction = function sendAction(outletMacAddress, action) {
   });
 };
 
-exports.isConnected = function isConnected() {
-	return hasStarted;
+/*
+ * Returns True if we have made a successful connection to the gateway,
+ * False otherwise.
+ */
+function isConnected() {
+	return serialPort && serialport.isOpen();
 }
 
-exports.start = function start(port) {
+/*
+ * Starts the connection to the gateway node. If a port was not given as an
+ * argument, it assumed a constant defined above
+ */
+function start(port) {
 	if (!port) {
-		port = SERIAL_PORT;
+		port = DEFAULT_SERIAL_PORT;
 	}
 	// Init serial port connection
 	var serialPort = new SerialPort(port, {
@@ -119,4 +127,9 @@ exports.start = function start(port) {
 		console.error('Serial Port Error: ', err);
 	});
 };
+
+// export functions to make them public
+exports.sendAction = sendAction;
+exports.isConnected = isConnected;
+exports.start = start;
 
