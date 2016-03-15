@@ -1,6 +1,6 @@
-var db = require('./db');
+var db      = require('./db');
 var gateway = require('./gateway');
-var app = require('./app');
+var app     = require('./app');
 
 // Connect to database
 db.connect();

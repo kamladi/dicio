@@ -1,11 +1,11 @@
-var express = require('express');
+var express          = require('express');
 var expressValidator = require('express-validator');
-var ObjectId = require('mongoose').Types.ObjectId;
-var path = require('path');
-var logger = require('morgan');
-var bodyParser = require('body-parser');
-var outletsCtrl = require('./controllers/Outlets');
-var eventsCtrl = require('./controllers/Events');
+var ObjectId         = require('mongoose').Types.ObjectId;
+var path             = require('path');
+var logger           = require('morgan');
+var bodyParser       = require('body-parser');
+var outletsCtrl      = require('./controllers/Outlets');
+var eventsCtrl       = require('./controllers/Events');
 
 var app = express();
 
