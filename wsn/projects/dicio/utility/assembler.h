@@ -11,6 +11,7 @@
 
 #include <type_defs.h>
 
-void assemble_packet(uint8_t *tx_buf, packet *tx);
+void assemble_serv_packet(uint8_t *tx_buf, packet *tx);
+uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
 
 #endif

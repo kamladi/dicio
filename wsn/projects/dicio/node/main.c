@@ -1,4 +1,4 @@
-/**
+/*
  * 18-748 Wireless Sensor Networks
  * Spring 2016
  * Lab 3: Multi-Hop Communication
@@ -28,7 +28,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 1
+#define MAC_ADDR 2
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -65,6 +65,7 @@ act_state curr_state = STATE_OFF;
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
+uint8_t net_tx_index = 0;
 nrk_sem_t* net_tx_buf_mux;
 
 // QUEUES / MUTEXES
@@ -123,10 +124,10 @@ int main () {
   hand_rx_queue_mux = nrk_sem_create(1, 6);
   seq_num_mux       = nrk_sem_create(1, 6);
 
-  // sensor periods
-  pwr_period = 1;
-  temp_period = 2;
-  light_period = 3;
+  // sensor periods (in seconds)
+  pwr_period = 30;
+  temp_period = 35;
+  light_period = 40;
 
   // packet queues
   packet_queue_init(&act_queue);
@@ -143,11 +144,19 @@ int main () {
   return 0;
 }
 
+void clear_tx_buf(){
+  for(uint8_t i = 0; i < net_tx_index; i++)
+  {
+    net_tx_buf[i] = 0;
+  }
+  net_tx_index = 0;
+}
+
 /**
  * rx_msg_task() - 
  *  receive messages from the network
  */
-void rx_msg_task() {  
+void rx_msg_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
   packet rx_packet;
@@ -187,10 +196,8 @@ void rx_msg_task() {
       
       // print incoming packet if appropriate
       if(print_incoming == 1) {
-        printf ("RX: ");
-        for (uint8_t j = 0; j < len; j++)
-          printf ("%c", local_buf[j]);
-        printf("\r\n");        
+        nrk_kprintf (PSTR ("rx pkt:\r\n"));
+        print_packet(&rx_packet);     
       }
       
       // only receive the message if it's not from the gateway
@@ -215,40 +222,66 @@ void rx_msg_task() {
           
           // put the message in the right queue based on the type
           switch(rx_packet.type) {
-            // command received -- either act or forward
-            case MSG_CMD:
-              // if command is for this node and hasn't been received yet, add it
-              //  to the action queue. Otherwise, add it to the cmd_tx queue for 
-              //  forwarding to other nodes.
+            case MSG_CMD: {
+              /*
+              command received -- either act or forward
+              Payload format: [NN][D][A]
+              NN: Command ID
+              D: Destination Address
+              A: Action!!!
+              
+              if command is for this node and hasn't been received yet, add it
+              to the action queue. Otherwise, add it to the cmd_tx queue for 
+              forwarding to other nodes.
+                */
               if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
-                  (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) {
-                last_command = rx_packet.payload[CMD_ID_INDEX];
+                  (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) 
+              {
+                nrk_kprintf (PSTR ("packet for me!\r\n"));
+                last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
                 nrk_sem_pend(act_queue_mux);
                 push(&act_queue, &rx_packet);
                 nrk_sem_post(act_queue_mux);
-              } else {
+              } 
+              else 
+              {
+                rx_packet.num_hops++;
                 nrk_sem_pend(cmd_tx_queue_mux);
                 push(&cmd_tx_queue, &rx_packet);
                 nrk_sem_post(cmd_tx_queue_mux);
               }
               break;
-            // command act received -- forward to the server
-            case MSG_CMDACK:
+            }
+            // command ack received -- forward to the server
+            case MSG_CMDACK: {
+              rx_packet.num_hops++;
               nrk_sem_pend(cmd_tx_queue_mux);
               push(&cmd_tx_queue, &rx_packet);
               nrk_sem_post(cmd_tx_queue_mux);
               break;
-            // data received or command ack received -> forward to server
-            case MSG_DATA:
+            }
+            // data received -> forward to server
+            case MSG_DATA: {
+              rx_packet.num_hops++;
               nrk_sem_pend(data_tx_queue_mux);
               push(&data_tx_queue, &rx_packet);
               nrk_sem_post(data_tx_queue_mux);
-            // handshake message recieved -> deal with in handshake function
-            case MSG_HAND:
-              nrk_sem_pend(hand_rx_queue_mux);
-              push(&hand_rx_queue, &rx_packet);
-              nrk_sem_post(hand_rx_queue_mux);
               break;
+            }
+            // handshake message recieved -> deal with in handshake function or forward
+            case MSG_HAND: {
+              if(rx_packet.payload[HAND_NODE_ID_INDEX] == MAC_ADDR) {
+                nrk_sem_pend(hand_rx_queue_mux);
+                push(&hand_rx_queue, &rx_packet);
+                nrk_sem_post(hand_rx_queue_mux);                
+              } else {
+                rx_packet.num_hops++;
+                nrk_sem_pend(data_tx_queue_mux);
+                push(&data_tx_queue, &rx_packet);
+                nrk_sem_post(data_tx_queue_mux);                 
+              }
+              break;
+            }
             // gateway message -> for future expansion
             case MSG_GATEWAY:
               // do nothing...no messages have been defined with this type yet
@@ -335,16 +368,21 @@ void tx_cmd_task() {
       // NOTE: a mutex is required around the network transmit buffer because 
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux);
-      assemble_packet(&net_tx_buf, &tx_packet);
+      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
 
       // send the packet
-      val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
+      val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
       ret = nrk_event_wait (SIG(tx_done_signal));
+
+      printf("tx pkt: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n",
+        net_tx_buf[0],net_tx_buf[1],net_tx_buf[2],net_tx_buf[3],net_tx_buf[4],
+        net_tx_buf[5],net_tx_buf[6],net_tx_buf[7],net_tx_buf[8],net_tx_buf[9]);
       
       // Just check to be sure signal is okay
       if(ret & (SIG(tx_done_signal) == 0)) {
         nrk_kprintf (PSTR ("TX done signal error\r\n"));
       }
+      clear_tx_buf();
       nrk_sem_post(net_tx_buf_mux);     
     }
     nrk_wait_until_next_period();
@@ -407,21 +445,35 @@ void tx_data_task() {
     for(uint8_t i = 0; i < tx_data_queue_size; i++) {
       // get a packet out of the queue.
       nrk_sem_pend(data_tx_queue_mux);
+     // printf("Q front:%d\r\n", data_tx_queue.front);// for debug
       pop(&data_tx_queue, &tx_packet);
       nrk_sem_post(data_tx_queue_mux);
+
+      if(print_incoming == 1){
+        //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
+        //print_packet(&tx_packet);
+      }
 
       // NOTE: a mutex is required around the network transmit buffer because 
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux);
-      assemble_packet(&net_tx_buf, &tx_packet);
+      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+
       // send the packet
-      val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
+      val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
       ret = nrk_event_wait (SIG(tx_done_signal));
-      
+
+      /*printf("tx pkt: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n",
+        net_tx_buf[0],net_tx_buf[1],net_tx_buf[2],net_tx_buf[3],net_tx_buf[4],
+        net_tx_buf[5],net_tx_buf[6],net_tx_buf[7],net_tx_buf[8],net_tx_buf[9]);*/
+
+        //printf("index: %d\r\n", net_tx_index);
+
       // Just check to be sure signal is okay
       if(ret & (SIG(tx_done_signal) == 0)) {
         nrk_kprintf (PSTR ("TX done signal error\r\n"));
       }
+      clear_tx_buf();
       nrk_sem_post(net_tx_buf_mux);     
     }
     nrk_wait_until_next_period();
@@ -462,7 +514,7 @@ void sample_task() {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        nrk_led_set(2);
+        //nrk_led_set(2);
       } else {
         nrk_led_clr(2);
       }      
@@ -482,6 +534,7 @@ void sample_task() {
       local_pwr_val++;
       sensor_pkt.pwr_val = local_pwr_val;
       sensor_sampled = TRUE;
+      pwr_period_count = 0;
     }
 
     // sample temperature sensor if appropriate
@@ -490,6 +543,7 @@ void sample_task() {
       local_temp_val++;
       sensor_pkt.temp_val = local_temp_val;
       sensor_sampled = TRUE;
+      temp_period_count = 0;
     }
 
     // sample light sensor if appropriate
@@ -498,6 +552,7 @@ void sample_task() {
       local_light_val++;
       sensor_pkt.light_val = local_light_val;
       sensor_sampled = TRUE;
+      light_period_count = 0;
     }
 
     // if a sensor has been sampled, send a packet out
@@ -517,6 +572,13 @@ void sample_task() {
       nrk_sem_pend(data_tx_queue_mux);
       push(&data_tx_queue, &tx_packet);
       nrk_sem_post(data_tx_queue_mux);
+
+      //nrk_sem_pend(cmd_tx_queue_mux);
+      //push(&cmd_tx_queue, &tx_packet);
+      //nrk_sem_post(data_tx_queue_mux);
+
+      // reset FLAG
+      sensor_sampled = FALSE;
     }
     nrk_wait_until_next_period();
   }
@@ -545,7 +607,7 @@ void actuate_task() {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        nrk_led_set(1);
+        //nrk_led_set(1);
       } else {
         nrk_led_clr(1);
       }   

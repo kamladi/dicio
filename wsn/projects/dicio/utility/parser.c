@@ -10,57 +10,151 @@
 
 void print_packet(packet *p)
 {
-    printf("msg_type: %d\r\n", p->type);
-    printf("source_id: %d\r\n", p->source_id);
-    printf("seq_num: %d\r\n", p->seq_num);
-    printf("num_hops: %d\r\n", p->num_hops);
+    printf("[source_id: %d]", p->source_id);
+    printf("[seq_num: %d]", p->seq_num);
+    printf("[msg_type: %d]", p->type);
+    printf("[num_hops: %d]", p->num_hops);
     switch(p->type)
     {
-        case MSG_NODE_SENSOR_VALUE:
+        case MSG_CMD:
         {
-            printf("light value: %d\r\n", p->light_value);
+            printf("[payload:%d,%d,%d]\r\n", (uint16_t)p->payload[0], p->payload[2], p->payload[3]);
             break;
         }
-        case MSG_GATEWAY:
+
+        case MSG_DATA:
         {
-            printf("sample_rate: %d\r\n", p->sensor_sample_rate);
-            printf("neighbor_rate: %d\r\n", p->neighbor_update_rate);
+            printf("[payload:%d, %d, %d]\r\n", (uint16_t)p->payload[DATA_PWR_INDEX], 
+                (uint16_t)p->payload[DATA_TEMP_INDEX],(uint16_t)p->payload[DATA_LIGHT_INDEX]);
             break;
+        }
+
+        case MSG_CMDACK:
+        {
+            break;
+        }
+
+        case MSG_HAND:
+        {
+            // what is the payload going to look like here?
+            break;
+        }
+
+        default:{
         }
     }
 }
 
-// start_index is index in input of location after opening bracket.
-uint8_t parse_comma(char *output, char *input, uint8_t start_index)
+/*
+Function : parse_serv_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
+
+Input parameters:
+parsed_packet - pointer to the output packet struct.
+src - the pointer to the received data buffer
+len - the length of the received data buffer
+msg_type - the type of message
+
+packet format:
+mac_addr:seq_num:msg_id:hop_num:payload
+*/
+void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
-    memset(output, 0, MAX_NEIGHBOR_BUF_SIZE);
-    uint8_t pos = start_index;
-    uint8_t item_length = 0;
-    while(pos < MAX_BUF_SIZE && input[pos] != ',' && input[pos] != '\0')
-    {
-        item_length ++;
-        pos ++;
+    uint8_t pos = 0;
+    uint8_t item = 0;
+    uint8_t temp_buf[MAX_BUF_SIZE];
+    uint16_t value = 0;
+    for (int x = 0; x < len; x ++){
+        if(src[x] == ':')
+        {
+            value = atoi(temp_buf);
+            //printf("parsed value = %d \r\n", value);
+            switch(item)
+            {
+                case 0: // mac_addr
+                {
+                    parsed_packet->source_id = value;
+                    break;
+                }
+
+                case 1: // seq_num
+                {              
+                     // get seq_num
+                     parsed_packet->seq_num = value;
+                    break;
+                }
+
+                case 2: // msg_id
+                {
+                    // get message type
+                    parsed_packet->type = value;
+                    break;
+                }
+
+                case 3: // hop_num
+                {
+                    // get message hop number
+                     parsed_packet->num_hops = value;
+                    break;
+                }
+            }
+            // clear buffer
+            for(uint8_t i = 0; i < pos; i ++)
+            {
+                temp_buf[i] = 0;
+            }
+            item += 1;
+            pos = 0;
+        }
+        else{
+            temp_buf[pos] = src[x];
+            pos += 1;
+        }
+
     }
-    //memcpy(output, input + start_index, item_length);
-    strncpy(output, input + start_index, item_length);
-    return pos;
+
+    /*
+    Payload has not been parsed into packet.
+    Once the loop has gone through the length of the message, 
+    the payload will be stored in temp_buf. 
+    Need to parse payload depending on message type
+    */
+    switch(parsed_packet->type)
+    {
+        case MSG_CMD:
+        {
+            parsed_packet->payload[0] = temp_buf[0] - '0';
+            parsed_packet->payload[1] = temp_buf[1] - '0';
+            parsed_packet->payload[2] = temp_buf[2] - '0';
+            parsed_packet->payload[3] = temp_buf[3] - '0';
+            break;
+        }
+
+        case MSG_DATA:
+        {
+            // should not be getting DATA type messages from server
+            break;
+        }
+
+        case MSG_CMDACK:
+        {
+            // should not be getting command ack messages from server
+            break;
+        }
+
+        case MSG_HAND:
+        {
+            // what is the payload going to look like here?
+            break;
+        }
+
+        default:{
+            printf("invalid msg_type \r\n");
+        }
+    }
 }
 
-// start_index is index in input of location after opening bracket.
-uint8_t parse_bracket(char *output, char *input, uint8_t start_index)
-{
-    memset(output, 0, MAX_BUF_SIZE);
-    uint8_t pos = start_index;
-    uint8_t item_length = 0;
-    while(pos < MAX_BUF_SIZE && input[pos] != ']' && input[pos] != '\0')
-    {
-        item_length ++;
-        pos ++;
-    }
-    //memcpy(output, input + start_index, item_length);
-    strncpy(output, input + start_index, item_length);
-    return pos;
-}
+
+
 
 /*
 Function : parse_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
@@ -71,56 +165,56 @@ src - the pointer to the received data buffer
 len - the length of the received data buffer
 msg_type - the type of message
 */
-void parse_msg(packet *parsed_packet, char *src, uint8_t len)
+void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
     uint8_t pos = 0;
-    uint8_t item_length = 0;
-    char temp_buf[MAX_BUF_SIZE];
-    msg_type type = src[1] - '0';
-    parsed_packet->type = type;
-    
-    // parse source id
-    parsed_packet->source_id = (src[4] - '0');
+    uint8_t item = 0;
+    uint8_t temp_buf[MAX_BUF_SIZE];
 
-    // parse sequence number
-    pos = 6;
-    item_length = 0;
-    pos = parse_bracket(temp_buf, src, 7);
-    parsed_packet->seq_num = atoi(temp_buf);
+    parsed_packet->source_id = src[0];
+    parsed_packet->seq_num = src[1];
+    parsed_packet->type = src[2];
+    parsed_packet->num_hops = src[3];
 
-    // parse num_hops
-    pos += 2; // skip ']['
-    pos = parse_bracket(temp_buf, src, pos);
-    parsed_packet->num_hops = atoi(temp_buf);
-    
-    switch(type)
+    /*
+    Payload has not been parsed into packet.
+    Once the loop has gone through the length of the message, 
+    the payload will be stored in temp_buf. 
+    Need to parse payload depending on message type
+    */
+    switch(parsed_packet->type)
     {
-        case MSG_NODE_SENSOR_VALUE:
+        case MSG_CMD:
         {
-            // parse light value
-            pos += 2; // skip
-            pos = parse_bracket(temp_buf, src, pos);
-            parsed_packet->light_value = atoi(temp_buf);
+            parsed_packet->payload[0] = src[4];
+            parsed_packet->payload[1] = src[5];
+            parsed_packet->payload[2] = src[6];
+            parsed_packet->payload[3] = src[7];
             break;
         }
 
-        case MSG_GATEWAY:
+        case MSG_DATA:
         {
-            // parse sample_rate
-            pos += 2;
-            pos = parse_bracket(temp_buf, src, pos);
-           // printf("sample_rate string %s \r\n", temp_buf);
-            parsed_packet->sensor_sample_rate = atoi(temp_buf);
-            
-            // parse neighbor_rate
-            pos += 2; // skip ']['
-            pos = parse_bracket(temp_buf, src, pos);
-            //printf("neighbor_rate string %s \r\n", temp_buf);
-            parsed_packet->neighbor_update_rate = atoi(temp_buf);
-            
+            parsed_packet->payload[DATA_PWR_INDEX] = (uint16_t)src[4];
+            parsed_packet->payload[DATA_TEMP_INDEX] = (uint16_t)src[6];
+            parsed_packet->payload[DATA_LIGHT_INDEX] = (uint16_t)src[8];
+            //printf("payload:%d,%d,%d\r\n", src[4],src[6],src[8]);
             break;
         }
 
-        default:{printf("invalid type\r\n");}
+        case MSG_CMDACK:
+        {
+            break;
+        }
+
+        case MSG_HAND:
+        {
+            // what is the payload going to look like here?
+            break;
+        }
+
+        default:{
+            printf("invalid msg_type \r\n");
+        }
     }
 }

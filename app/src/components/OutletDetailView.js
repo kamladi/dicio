@@ -12,6 +12,7 @@ import React, {
   AlertIOS
 } from 'react-native';
 
+import {EditableTextField} from './EditableTextField';
 import {API_OUTLETS_URL} from '../lib/Constants';
 import OutletStore from '../stores/OutletStore';
 import OutletActions from '../actions/OutletActions';
@@ -61,36 +62,6 @@ class OutletActionButton extends Component {
 	}
 }
 
-class OutletNameTextField extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {name: props.name};
-    this.onSubmit = this.onSubmit.bind(this);
-    this.onChange = this.onChange.bind(this);
-  }
-  onSubmit() {
-    var name = this.state.name.trim();
-    if (name.length === 0) {
-      AlertIOS.alert(`"Invalid outlet name`);
-      return;
-    }
-    OutletActions.updateOutletName(this.props.outlet_id, name);
-  }
-  onChange(name) {
-    this.setState({name: name})
-  }
-  render() {
-    return (
-      <TextInput
-          style={styles.nameTextField}
-          onChangeText={this.onChange}
-          onSubmitEditing={this.onSubmit}
-          value={this.state.name}
-        />
-    );
-  }
-}
-
 export class OutletDetailView extends Component {
 	constructor(props) {
 		super(props);
@@ -99,6 +70,7 @@ export class OutletDetailView extends Component {
       loaded: false
     };
     this.onChange = this.onChange.bind(this);
+    this.onNameChange = this.onNameChange.bind(this);
 	}
 
 	componentDidMount() {
@@ -122,6 +94,15 @@ export class OutletDetailView extends Component {
     });
   }
 
+  onNameChange(newName) {
+    var name = newName.trim();
+    if (name.length === 0) {
+      AlertIOS.alert("Invalid outlet name");
+      return false;
+    }
+    OutletActions.updateOutletName(this.props.outlet_id, name);
+    return true;
+  }
 
 
   renderLoadingView() {
@@ -143,7 +124,7 @@ export class OutletDetailView extends Component {
 			<View style={styles.container}>
         <View style={styles.row}>
 				  <Text style={styles.label}>Change name:</Text>
-          <OutletNameTextField name={outlet.name} outlet_id={outlet._id} />
+          <EditableTextField value={outlet.name} onSubmit={this.onNameChange} />
 				</View>
         <View style={styles.row}>
           <Text style={styles.label}>Temp:</Text>
@@ -214,16 +195,5 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     backgroundColor: '#51C6ED'
-  },
-  nameTextField: {
-    height: 50,
-    width: 175,
-    borderColor: '#CCCCCC',
-    borderWidth: 1,
-    padding: 10,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    marginTop: 15,
-    marginBottom: 15
   }
 });

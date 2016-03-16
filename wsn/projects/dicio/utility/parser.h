@@ -13,6 +13,7 @@
 #include <type_defs.h>
 
 void print_packet(packet *p);
-void parse_msg(packet *parsed_packet, char *src, uint8_t len);
+void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
+void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
 
 #endif

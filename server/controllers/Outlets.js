@@ -1,17 +1,17 @@
-var Outlet = require('../models/Outlet');
-var ObjectId = require('mongoose').Types.ObjectId;
-var utils = require('../lib/utils');
+var Outlet          = require('../models/Outlet');
+var ObjectId        = require('mongoose').Types.ObjectId;
+var utils           = require('../lib/utils');
 var BadRequestError = utils.BadRequestError;
-var Gateway = require('../gateway');
+var Gateway         = require('../gateway');
 
 /*
  * Returns a list of all outlet names and id's
  */
-exports.getOutlets = (req, res) => {
+exports.getOutlets = (req, res, next) => {
 	return Outlet.find({}).exec()
 		.then( outlets => {
 			return res.json(outlets);
-		});
+		}).catch(next);
 };
 
 /*
@@ -35,11 +35,15 @@ exports.getOutletDetails = (req, res, next) => {
 		.catch(next);
 };
 
-exports.clearOutlets = (req, res) => {
+/*
+ * Removes all outlets from the database
+ * (useful for development purposes)
+ */
+exports.clearOutlets = (req, res, next) => {
 	return Outlet.remove({}).exec()
 		.then( () => {
 			return res.send('outlets reset');
-		});
+		}).catch(next);
 };
 
 exports.sendOutletAction = (req, res, next) => {
