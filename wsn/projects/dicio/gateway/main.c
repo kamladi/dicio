@@ -268,7 +268,8 @@ void rx_node_task() {
             }
             case MSG_CMDACK:
             {
-              rx_packet.num_hops ++;
+
+              rx_packet.num_hops++;
               nrk_sem_pend(serv_tx_queue_mux);
               push(&serv_tx_queue, &rx_packet);
               nrk_sem_post(serv_tx_queue_mux);
@@ -356,7 +357,7 @@ void rx_serv_task() {
           // if a command
           case MSG_CMD:
           {
-            //nrk_kprintf (PSTR ("push to Q\r\n")); // for debugging
+            rx_packet.num_hops++;
             nrk_sem_pend(cmd_tx_queue_mux);
             push(&cmd_tx_queue, &rx_packet);
             nrk_sem_post(cmd_tx_queue_mux);

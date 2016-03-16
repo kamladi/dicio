@@ -1,5 +1,6 @@
 var Outlet = require('./models/Outlet');
-var Event = require('./models/Event');
+var Event  = require('./models/Event');
+
 var outlets = [
 	{
 		name: 'Outlet 1',
@@ -36,7 +37,7 @@ var events = [
 	{ name: 'Event 3', input_threshold: 'below', input_value: 150 },
 ];
 
-exports.init = () => {
+function init() {
 	// query all outlets
 	return Outlet.find({}).exec()
 		.then( result => {
@@ -51,10 +52,12 @@ exports.init = () => {
 							newEvent.input_outlet_id = savedOutlet._id;
 							newEvent.output_outlet_id = savedOutlet._id;
 							return newEvent.save();
-						}).catch(console.error);
+						}).catch(console.trace);
 				});
 			}
 		})
-		.catch(console.error);
+		.catch(console.trace);
 };
+
+exports.init = init;
 

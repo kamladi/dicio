@@ -222,8 +222,7 @@ void rx_msg_task() {
           
           // put the message in the right queue based on the type
           switch(rx_packet.type) {
-            case MSG_CMD:
-            {
+            case MSG_CMD: {
               /*
               command received -- either act or forward
               Payload format: [NN][D][A]
@@ -246,38 +245,41 @@ void rx_msg_task() {
               } 
               else 
               {
-                rx_packet.num_hops ++;
+                rx_packet.num_hops++;
                 nrk_sem_pend(cmd_tx_queue_mux);
                 push(&cmd_tx_queue, &rx_packet);
                 nrk_sem_post(cmd_tx_queue_mux);
               }
               break;
             }
-            // command act received -- forward to the server
-            case MSG_CMDACK:
-            {
-              rx_packet.num_hops ++;
+            // command ack received -- forward to the server
+            case MSG_CMDACK: {
+              rx_packet.num_hops++;
               nrk_sem_pend(cmd_tx_queue_mux);
               push(&cmd_tx_queue, &rx_packet);
               nrk_sem_post(cmd_tx_queue_mux);
               break;
             }
-            // data received or command ack received -> forward to server
-            case MSG_DATA:
-            {
-              rx_packet.num_hops ++;
+            // data received -> forward to server
+            case MSG_DATA: {
+              rx_packet.num_hops++;
               nrk_sem_pend(data_tx_queue_mux);
               push(&data_tx_queue, &rx_packet);
               nrk_sem_post(data_tx_queue_mux);
               break;
             }
-            // handshake message recieved -> deal with in handshake function
-            // still need to DEVELOP
-            case MSG_HAND:
-            {
-              nrk_sem_pend(hand_rx_queue_mux);
-              push(&hand_rx_queue, &rx_packet);
-              nrk_sem_post(hand_rx_queue_mux);
+            // handshake message recieved -> deal with in handshake function or forward
+            case MSG_HAND: {
+              if(rx_packet.payload[HAND_NODE_ID_INDEX] == MAC_ADDR) {
+                nrk_sem_pend(hand_rx_queue_mux);
+                push(&hand_rx_queue, &rx_packet);
+                nrk_sem_post(hand_rx_queue_mux);                
+              } else {
+                rx_packet.num_hops++;
+                nrk_sem_pend(data_tx_queue_mux);
+                push(&data_tx_queue, &rx_packet);
+                nrk_sem_post(data_tx_queue_mux);                 
+              }
               break;
             }
             // gateway message -> for future expansion

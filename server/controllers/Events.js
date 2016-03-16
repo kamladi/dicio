@@ -1,6 +1,6 @@
-var Event = require('../models/Event');
-var ObjectId = require('mongoose').Types.ObjectId;
-var utils = require('../lib/utils');
+var Event           = require('../models/Event');
+var ObjectId        = require('mongoose').Types.ObjectId;
+var utils           = require('../lib/utils');
 var BadRequestError = utils.BadRequestError;
 
 /*
@@ -98,6 +98,10 @@ exports.createEvent = (req, res, next) => {
 		.catch(next);
 };
 
+/*
+ * Removes all events from the database
+ * (useful for development purposes)
+ */
 exports.clearEvents = (req, res) => {
 	return Event.remove({}).exec()
 		.then( () => {

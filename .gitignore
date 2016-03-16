@@ -31,6 +31,14 @@
 # Debug files
 *.dSYM/
 
+# Misc Nano-RK build files
+**/*.d
+**/*.eep
+**/*.lss
+**/*.lst
+**/*.map
+**/*.sym
+
 # Node.js dependencies
 **/node_modules
 **/npm-debug.log*

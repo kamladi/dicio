@@ -26,6 +26,7 @@ void push(packet_queue* pq, packet* p) {
 		pq->buffer[pq->back].payload[6]	= p->payload[6];
 		pq->buffer[pq->back].payload[7]	= p->payload[7];
 
+
 		pq->back++;
 		pq->back %= MAX_PACKET_BUFFER;
 	}
