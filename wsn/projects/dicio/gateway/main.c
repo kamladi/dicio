@@ -60,6 +60,7 @@ uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_index = 0;
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
+uint8_t net_tx_index = 0;
 nrk_sem_t* net_tx_buf_mux;
 uint8_t serv_tx_buf[RF_MAX_PAYLOAD_SIZE];
 
@@ -115,8 +116,8 @@ int main () {
   packet_queue_init(&hand_rx_queue);
 
   nrk_time_set (0, 0);
-  bmac_task_config ();
-  nrk_create_taskset ();
+  bmac_task_config();
+  nrk_create_taskset();
   bmac_init (13);
   nrk_start ();
   return 0;
@@ -176,11 +177,18 @@ void clear_serv_buf() {
   serv_rx_index = 0;
 }
 
+void clear_tx_buf(){
+  for(uint8_t i = 0; i < net_tx_index; i++){
+    net_tx_buf[i] = 0;
+  }
+  net_tx_index = 0;
+}
+
 /**
  * rx_node_task() - 
  *  receive messages from the network
  */
-void rx_node_task() {  
+void rx_node_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
   packet rx_packet;
@@ -194,8 +202,9 @@ void rx_node_task() {
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
   
   // Wait until bmac has started. This should be called by all tasks using bmac that do not call bmac_init()
-  while (!bmac_started ())
+  while (!bmac_started ()){
     nrk_wait_until_next_period ();
+  }
   
   // loop forever
   while(1) {
@@ -212,17 +221,18 @@ void rx_node_task() {
 
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
+      nrk_kprintf (PSTR ("pkt ready:\r\n"));
       // get the packet, parse and release
       parse_msg(&rx_packet, &net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
-      bmac_rx_pkt_release ();  
       
+      // print incoming packet if appropriate
       if(print_incoming == 1) {
-        printf ("RX: ");
-        for (uint8_t j = 0; j < len; j++)
-          printf ("%c", local_buf[j]);
-        printf("\r\n");        
+        nrk_kprintf (PSTR ("rx:\r\n"));
+        print_packet(&rx_packet);     
       }
+
+       bmac_rx_pkt_release ();  
       
       // only receive the message if it's not from the gateway
       //  NOTE: this is required because the gateway will hear re-transmitted packets 
@@ -248,11 +258,20 @@ void rx_node_task() {
           switch(rx_packet.type) {
             // data received or command ack received -> forward to server
             case MSG_DATA:
-            case MSG_CMDACK:
+            {
               nrk_sem_pend(serv_tx_queue_mux);
               push(&serv_tx_queue, &rx_packet);
               nrk_sem_post(serv_tx_queue_mux);
               break;
+            }
+            case MSG_CMDACK:
+            {
+              rx_packet.num_hops ++;
+              nrk_sem_pend(serv_tx_queue_mux);
+              push(&serv_tx_queue, &rx_packet);
+              nrk_sem_post(serv_tx_queue_mux);
+              break;
+            }
             // handshake message recieved -> deal with in handshake function
             case MSG_HAND:
               nrk_sem_pend(hand_rx_queue_mux);
@@ -316,7 +335,7 @@ void rx_serv_task() {
       }
 
       // parse message
-      parse_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
+      parse_serv_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
       clear_serv_buf();
 
       // check sequence number to determine if the packet should be received
@@ -334,10 +353,13 @@ void rx_serv_task() {
         switch(rx_packet.type) {
           // if a command
           case MSG_CMD:
+          {
+            //nrk_kprintf (PSTR ("push to Q\r\n")); // for debugging
             nrk_sem_pend(cmd_tx_queue_mux);
             push(&cmd_tx_queue, &rx_packet);
             nrk_sem_post(cmd_tx_queue_mux);
             break;
+          }
           case MSG_NO_MESSAGE:
             // do nothing. 
             // NOTE: this is a valid case. If the message is not 'parsible' then it can be
@@ -424,10 +446,13 @@ void tx_cmd_task() {
       // NOTE: a mutex is required around the network transmit buffer because 
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux);
-      assemble_packet(&net_tx_buf, &tx_packet);
+      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+      if(print_incoming == 1){
+       nrk_kprintf (PSTR ("asm pkt:\r\n"));
+      }
 
       // send the packet
-      val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
+      val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
       ret = nrk_event_wait (SIG(tx_done_signal));
       
       // Just check to be sure signal is okay
@@ -528,6 +553,7 @@ void tx_serv_task() {
   packet tx_packet;
 
   while(1) {
+
     if(blink_leds == BLINKLEDS) {
       LED_FLAG++;
       LED_FLAG%=2;
@@ -565,10 +591,10 @@ void tx_serv_task() {
       // NOTE: unlike tx_cmd_task() and tx_node_task(), no mutex is required around
       //  the sending buffer here because tx_serv_task() is the only task to use
       //  the serial transmitting buffer (serv_tx_buff);
-      assemble_packet(&serv_tx_buf, &tx_packet);
+      assemble_serv_packet(&serv_tx_buf, &tx_packet);
 
       // send the packet
-      printf("%s", serv_tx_buf);
+      printf("%s\r\n", serv_tx_buf);
     }
     nrk_wait_until_next_period();
   }
@@ -593,7 +619,7 @@ void nrk_create_taskset () {
   RX_NODE_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
   RX_NODE_TASK.offset.secs = 0;
   RX_NODE_TASK.offset.nano_secs = 0;
-  nrk_activate_task (&RX_NODE_TASK);
+  nrk_activate_task(&RX_NODE_TASK);
 
   // PRIORITY 4 - SECOND HIGHEST PRIORITY
   RX_SERV_TASK.task = rx_serv_task;
@@ -608,7 +634,7 @@ void nrk_create_taskset () {
   RX_SERV_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
   RX_SERV_TASK.offset.secs = 0;
   RX_SERV_TASK.offset.nano_secs = 0;
-  nrk_activate_task (&RX_SERV_TASK);
+  nrk_activate_task(&RX_SERV_TASK);
   
   // PRIORITY 3 - MIDDLE PRIORITY
   TX_CMD_TASK.task = tx_cmd_task;
@@ -624,6 +650,7 @@ void nrk_create_taskset () {
   TX_CMD_TASK.offset.secs = 0;
   TX_CMD_TASK.offset.nano_secs = 0;
   nrk_activate_task(&TX_CMD_TASK);
+
 
   // PRIORITY 2 - SECOND LOWEST PRIORITY
   TX_NODE_TASK.task = tx_node_task;
@@ -654,6 +681,7 @@ void nrk_create_taskset () {
   TX_SERV_TASK.offset.secs = 0;
   TX_SERV_TASK.offset.nano_secs = 0;
   nrk_activate_task(&TX_SERV_TASK);
+  
   
   nrk_kprintf(PSTR("Create done.\r\n"));
 }

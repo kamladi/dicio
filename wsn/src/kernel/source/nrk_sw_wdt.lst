@@ -1,0 +1,33 @@
+   1               		.file	"nrk_sw_wdt.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 318               		.comm	error_num,1,1
+ 319               		.comm	error_task,1,1
+ 320               		.comm	nrk_kernel_stk_ptr,2,1
+ 321               		.comm	nrk_idle_task_stk,512,1
+ 322               		.comm	_nrk_signal_list,4,1
+ 329               	.Letext0:
+ 330               		.ident	"GCC: (GNU) 4.9.1"
+ 331               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 nrk_sw_wdt.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc4e93ef.s:7      *ABS*:0000000000000001 __zero_reg__
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+__do_clear_bss

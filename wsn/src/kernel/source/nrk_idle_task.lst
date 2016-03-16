@@ -1,0 +1,161 @@
+   1               		.file	"nrk_idle_task.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 322               	.global	nrk_idle_task
+ 324               	nrk_idle_task:
+ 325               		.stabd	46,0,0
+   1:../../../src/kernel/source/nrk_idle_task.c **** /******************************************************************************
+   2:../../../src/kernel/source/nrk_idle_task.c **** *  Nano-RK, a real-time operating system for sensor networks.
+   3:../../../src/kernel/source/nrk_idle_task.c **** *  Copyright (C) 2007, Real-Time and Multimedia Lab, Carnegie Mellon University
+   4:../../../src/kernel/source/nrk_idle_task.c **** *  All rights reserved.
+   5:../../../src/kernel/source/nrk_idle_task.c **** *
+   6:../../../src/kernel/source/nrk_idle_task.c **** *  This is the Open Source Version of Nano-RK included as part of a Dual
+   7:../../../src/kernel/source/nrk_idle_task.c **** *  Licensing Model. If you are unsure which license to use please refer to:
+   8:../../../src/kernel/source/nrk_idle_task.c **** *  http://www.nanork.org/nano-RK/wiki/Licensing
+   9:../../../src/kernel/source/nrk_idle_task.c **** *
+  10:../../../src/kernel/source/nrk_idle_task.c **** *  This program is free software: you can redistribute it and/or modify
+  11:../../../src/kernel/source/nrk_idle_task.c **** *  it under the terms of the GNU General Public License as published by
+  12:../../../src/kernel/source/nrk_idle_task.c **** *  the Free Software Foundation, version 2.0 of the License.
+  13:../../../src/kernel/source/nrk_idle_task.c **** *
+  14:../../../src/kernel/source/nrk_idle_task.c **** *  This program is distributed in the hope that it will be useful,
+  15:../../../src/kernel/source/nrk_idle_task.c **** *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  16:../../../src/kernel/source/nrk_idle_task.c **** *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  17:../../../src/kernel/source/nrk_idle_task.c **** *  GNU General Public License for more details.
+  18:../../../src/kernel/source/nrk_idle_task.c **** *
+  19:../../../src/kernel/source/nrk_idle_task.c **** *  You should have received a copy of the GNU General Public License
+  20:../../../src/kernel/source/nrk_idle_task.c **** *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  21:../../../src/kernel/source/nrk_idle_task.c **** *
+  22:../../../src/kernel/source/nrk_idle_task.c **** *  Contributing Authors (specific to this file):
+  23:../../../src/kernel/source/nrk_idle_task.c **** *  Anthony Rowe
+  24:../../../src/kernel/source/nrk_idle_task.c **** *******************************************************************************/
+  25:../../../src/kernel/source/nrk_idle_task.c **** 
+  26:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk.h>
+  27:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_idle_task.h>
+  28:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_cpu.h>
+  29:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_cfg.h>
+  30:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_stack_check.h>
+  31:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_error.h>
+  32:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_timer.h>
+  33:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_platform_time.h>
+  34:../../../src/kernel/source/nrk_idle_task.c **** #include <nrk_scheduler.h>
+  35:../../../src/kernel/source/nrk_idle_task.c **** #include <stdio.h>
+  36:../../../src/kernel/source/nrk_idle_task.c **** 
+  37:../../../src/kernel/source/nrk_idle_task.c **** void nrk_idle_task()
+  38:../../../src/kernel/source/nrk_idle_task.c **** {
+ 327               	.LM0:
+ 328               	.LFBB1:
+ 329               	/* prologue: function */
+ 330               	/* frame size = 0 */
+ 331               	/* stack size = 0 */
+ 332               	.L__stack_usage = 0
+  39:../../../src/kernel/source/nrk_idle_task.c **** volatile unsigned char *stkc;
+  40:../../../src/kernel/source/nrk_idle_task.c **** // unsigned int *stk ;  // 2 bytes
+  41:../../../src/kernel/source/nrk_idle_task.c **** while(1)
+  42:../../../src/kernel/source/nrk_idle_task.c **** {
+  43:../../../src/kernel/source/nrk_idle_task.c **** 
+  44:../../../src/kernel/source/nrk_idle_task.c ****   nrk_stack_check(); 
+  45:../../../src/kernel/source/nrk_idle_task.c ****   
+  46:../../../src/kernel/source/nrk_idle_task.c ****   if(_nrk_get_next_wakeup()<=NRK_SLEEP_WAKEUP_TIME) 
+  47:../../../src/kernel/source/nrk_idle_task.c ****     {
+  48:../../../src/kernel/source/nrk_idle_task.c **** 	    _nrk_cpu_state=CPU_IDLE;
+ 334               	.LM1:
+ 335 0000 C1E0      		ldi r28,lo8(1)
+ 336               	.L5:
+  44:../../../src/kernel/source/nrk_idle_task.c ****   
+ 338               	.LM2:
+ 339 0002 0E94 0000 		call nrk_stack_check
+  46:../../../src/kernel/source/nrk_idle_task.c ****     {
+ 341               	.LM3:
+ 342 0006 0E94 0000 		call _nrk_get_next_wakeup
+ 343 000a 8430      		cpi r24,lo8(4)
+ 344 000c 00F4      		brsh .L2
+ 346               	.LM4:
+ 347 000e C093 0000 		sts _nrk_cpu_state,r28
+ 348               	.L2:
+  49:../../../src/kernel/source/nrk_idle_task.c **** 	    nrk_idle();
+  50:../../../src/kernel/source/nrk_idle_task.c ****     }
+  51:../../../src/kernel/source/nrk_idle_task.c ****     else {
+  52:../../../src/kernel/source/nrk_idle_task.c **** 	#ifndef NRK_NO_POWER_DOWN
+  53:../../../src/kernel/source/nrk_idle_task.c **** 	    // Allow last UART byte to get out
+  54:../../../src/kernel/source/nrk_idle_task.c ****     	    nrk_spin_wait_us(10);  
+  55:../../../src/kernel/source/nrk_idle_task.c **** 	    _nrk_cpu_state=CPU_SLEEP;
+  56:../../../src/kernel/source/nrk_idle_task.c **** 	    nrk_sleep();
+  57:../../../src/kernel/source/nrk_idle_task.c **** 	#else
+  58:../../../src/kernel/source/nrk_idle_task.c **** 	    nrk_idle();
+ 350               	.LM5:
+ 351 0012 0E94 0000 		call nrk_idle
+  59:../../../src/kernel/source/nrk_idle_task.c **** 	#endif
+  60:../../../src/kernel/source/nrk_idle_task.c ****     }
+  61:../../../src/kernel/source/nrk_idle_task.c ****  
+  62:../../../src/kernel/source/nrk_idle_task.c **** #ifdef NRK_STACK_CHECK
+  63:../../../src/kernel/source/nrk_idle_task.c ****    if(nrk_idle_task_stk[0]!=STK_CANARY_VAL) nrk_error_add(NRK_STACK_SMASH);
+ 353               	.LM6:
+ 354 0016 8091 0000 		lds r24,nrk_idle_task_stk
+ 355 001a 8535      		cpi r24,lo8(85)
+ 356 001c 01F0      		breq .L4
+ 358               	.LM7:
+ 359 001e 88E0      		ldi r24,lo8(8)
+ 360 0020 0E94 0000 		call nrk_error_add
+ 361               	.L4:
+  64:../../../src/kernel/source/nrk_idle_task.c ****    #ifdef KERNEL_STK_ARRAY
+  65:../../../src/kernel/source/nrk_idle_task.c ****    	if(nrk_kernel_stk[0]!=STK_CANARY_VAL) nrk_error_add(NRK_STACK_SMASH);
+  66:../../../src/kernel/source/nrk_idle_task.c ****    #else
+  67:../../../src/kernel/source/nrk_idle_task.c ****    	stkc=(unsigned char*)(NRK_KERNEL_STK_TOP-NRK_KERNEL_STACKSIZE);
+  68:../../../src/kernel/source/nrk_idle_task.c ****    	if(*stkc!=STK_CANARY_VAL) nrk_error_add(NRK_STACK_SMASH);
+ 363               	.LM8:
+ 364 0024 8091 FE3F 		lds r24,16382
+ 365 0028 8535      		cpi r24,lo8(85)
+ 366 002a 01F0      		breq .L5
+ 368               	.LM9:
+ 369 002c 88E0      		ldi r24,lo8(8)
+ 370 002e 0E94 0000 		call nrk_error_add
+ 371 0032 00C0      		rjmp .L5
+ 373               	.Lscope1:
+ 375               		.stabd	78,0,0
+ 376               		.comm	next_next_wakeup,2,1
+ 377               		.comm	_nrk_cpu_state,1,1
+ 378               		.comm	app_timer0_prescale,1,1
+ 379               		.comm	app_timer0_callback,2,1
+ 380               		.comm	_nrk_time_trigger,1,1
+ 381               		.comm	_nrk_prev_timer_val,1,1
+ 382               		.comm	error_num,1,1
+ 383               		.comm	error_task,1,1
+ 384               		.comm	nrk_kernel_stk_ptr,2,1
+ 385               		.comm	nrk_idle_task_stk,512,1
+ 386               		.comm	_nrk_signal_list,4,1
+ 399               	.Letext0:
+ 400               		.ident	"GCC: (GNU) 4.9.1"
+ 401               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 nrk_idle_task.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccfognsv.s:324    .text:0000000000000000 nrk_idle_task
+                            *COM*:0000000000000001 _nrk_cpu_state
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000002 next_next_wakeup
+                            *COM*:0000000000000001 app_timer0_prescale
+                            *COM*:0000000000000002 app_timer0_callback
+                            *COM*:0000000000000001 _nrk_time_trigger
+                            *COM*:0000000000000001 _nrk_prev_timer_val
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+nrk_stack_check
+_nrk_get_next_wakeup
+nrk_idle
+nrk_error_add
+__do_clear_bss

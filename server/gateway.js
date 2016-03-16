@@ -4,7 +4,7 @@ var Outlet = require('./models/Outlet');
 var Event = require('./models/Event');
 
 // Constants
-const SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
+const SERIAL_PORT = '/dev/tty.usbserial-AE00BUO5';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE = 0;
 const OUTLET_ACTION_MESSAGE = 1;
@@ -79,12 +79,20 @@ exports.sendAction = function sendAction(outletMacAddress, action) {
     } else {
       // Convert action string to enum value
       action = (action === 'ON') ? 1 : 0;
-      var packet = `${outletMacAddress}:${seqNum}:${OUTLET_ACTION_MESSAGE}:${action}`;
+      //var packet = `${outletMacAddress}:${seqNum}:${OUTLET_ACTION_MESSAGE}:${action}`;
+      var packet = outletMacAddress.toString(16) + ":" + seqNum.toString(16) + ":" + OUTLET_ACTION_MESSAGE.toString(16) + ":" + action.toString(16) + "\r";
+      console.log("packet sent is..." + packet);
       serialPort.write(packet, (err) => {
         if (err) {
           reject(err);
         } else {
-          resolve(outletMacAddress, action);
+        	serialPort.drain((err) => {
+        	 if(err){
+        	 	reject(err);
+        		}else{
+        			resolve(packet);
+        		}
+       		 });
         }
       });
     }
@@ -102,7 +110,7 @@ exports.start = function start(port) {
 	// Init serial port connection
 	var serialPort = new SerialPort(port, {
 	    baudRate: BAUD_RATE,
-	    parser: SP.parsers.readline("\n")
+	    parser: SP.parsers.readline("\r")
 	});
 
 	// Listen for "open" event form serial port

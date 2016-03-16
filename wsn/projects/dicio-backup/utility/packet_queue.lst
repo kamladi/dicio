@@ -1,0 +1,413 @@
+   1               		.file	"packet_queue.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 353               	.global	packet_queue_init
+ 355               	packet_queue_init:
+ 356               		.stabd	46,0,0
+   1:../../../projects/dicio/utility/packet_queue.c **** 
+   2:../../../projects/dicio/utility/packet_queue.c **** #include <packet_queue.h>
+   3:../../../projects/dicio/utility/packet_queue.c **** 
+   4:../../../projects/dicio/utility/packet_queue.c **** void packet_queue_init(packet_queue* pq) {
+ 358               	.LM0:
+ 359               	.LFBB1:
+ 360               	/* prologue: function */
+ 361               	/* frame size = 0 */
+ 362               	/* stack size = 0 */
+ 363               	.L__stack_usage = 0
+   5:../../../projects/dicio/utility/packet_queue.c **** 	pq->front = 0;
+ 365               	.LM1:
+ 366 0000 FC01      		movw r30,r24
+ 367 0002 E857      		subi r30,120
+ 368 0004 FF4F      		sbci r31,-1
+ 369 0006 1082      		st Z,__zero_reg__
+   6:../../../projects/dicio/utility/packet_queue.c **** 	pq->back = 0;
+ 371               	.LM2:
+ 372 0008 3196      		adiw r30,1
+ 373 000a 1082      		st Z,__zero_reg__
+   7:../../../projects/dicio/utility/packet_queue.c **** 	pq->size = 0;
+ 375               	.LM3:
+ 376 000c 3196      		adiw r30,1
+ 377 000e 1082      		st Z,__zero_reg__
+ 378 0010 0895      		ret
+ 380               	.Lscope1:
+ 382               		.stabd	78,0,0
+ 386               	.global	push
+ 388               	push:
+ 389               		.stabd	46,0,0
+   8:../../../projects/dicio/utility/packet_queue.c **** }
+   9:../../../projects/dicio/utility/packet_queue.c **** 
+  10:../../../projects/dicio/utility/packet_queue.c **** // NEED TO test for all types of payload
+  11:../../../projects/dicio/utility/packet_queue.c **** void push(packet_queue* pq, packet* p) {
+ 391               	.LM4:
+ 392               	.LFBB2:
+ 393 0012 CF93      		push r28
+ 394 0014 DF93      		push r29
+ 395               	/* prologue: function */
+ 396               	/* frame size = 0 */
+ 397               	/* stack size = 2 */
+ 398               	.L__stack_usage = 2
+ 399 0016 FC01      		movw r30,r24
+ 400 0018 DB01      		movw r26,r22
+  12:../../../projects/dicio/utility/packet_queue.c **** 	if(pq->size < MAX_PACKET_BUFFER) {
+ 402               	.LM5:
+ 403 001a EC01      		movw r28,r24
+ 404 001c C657      		subi r28,118
+ 405 001e DF4F      		sbci r29,-1
+ 406 0020 9881      		ld r25,Y
+ 407 0022 9830      		cpi r25,lo8(8)
+ 408 0024 00F4      		brsh .L2
+  13:../../../projects/dicio/utility/packet_queue.c **** 		pq->size++;
+ 410               	.LM6:
+ 411 0026 9F5F      		subi r25,lo8(-(1))
+ 412 0028 9883      		st Y,r25
+  14:../../../projects/dicio/utility/packet_queue.c **** 
+  15:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].type 			= p->type;
+ 414               	.LM7:
+ 415 002a 2197      		sbiw r28,1
+ 416 002c 9881      		ld r25,Y
+ 417 002e 1196      		adiw r26,1
+ 418 0030 8C91      		ld r24,X
+ 419 0032 1197      		sbiw r26,1
+ 420 0034 21E1      		ldi r18,lo8(17)
+ 421 0036 929F      		mul r25,r18
+ 422 0038 E00D      		add r30,r0
+ 423 003a F11D      		adc r31,r1
+ 424 003c 1124      		clr __zero_reg__
+ 425 003e 8183      		std Z+1,r24
+  16:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].source_id 		= p->source_id;
+ 427               	.LM8:
+ 428 0040 8C91      		ld r24,X
+ 429 0042 8083      		st Z,r24
+  17:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].seq_num 		= p->seq_num;
+ 431               	.LM9:
+ 432 0044 1296      		adiw r26,2
+ 433 0046 2D91      		ld r18,X+
+ 434 0048 3C91      		ld r19,X
+ 435 004a 1397      		sbiw r26,2+1
+ 436 004c 3383      		std Z+3,r19
+ 437 004e 2283      		std Z+2,r18
+  18:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].num_hops 		= p->num_hops;
+ 439               	.LM10:
+ 440 0050 1496      		adiw r26,4
+ 441 0052 8C91      		ld r24,X
+ 442 0054 1497      		sbiw r26,4
+ 443 0056 8483      		std Z+4,r24
+  19:../../../projects/dicio/utility/packet_queue.c **** 
+  20:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[0]	= p->payload[0];
+ 445               	.LM11:
+ 446 0058 1996      		adiw r26,9
+ 447 005a 8C91      		ld r24,X
+ 448 005c 1997      		sbiw r26,9
+ 449 005e 8187      		std Z+9,r24
+  21:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[1]	= p->payload[1];
+ 451               	.LM12:
+ 452 0060 1A96      		adiw r26,10
+ 453 0062 8C91      		ld r24,X
+ 454 0064 1A97      		sbiw r26,10
+ 455 0066 8287      		std Z+10,r24
+  22:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[2]	= p->payload[2];
+ 457               	.LM13:
+ 458 0068 1B96      		adiw r26,11
+ 459 006a 8C91      		ld r24,X
+ 460 006c 1B97      		sbiw r26,11
+ 461 006e 8387      		std Z+11,r24
+  23:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[3]	= p->payload[3];
+ 463               	.LM14:
+ 464 0070 1C96      		adiw r26,12
+ 465 0072 8C91      		ld r24,X
+ 466 0074 1C97      		sbiw r26,12
+ 467 0076 8487      		std Z+12,r24
+  24:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[4]	= p->payload[4];
+ 469               	.LM15:
+ 470 0078 1D96      		adiw r26,13
+ 471 007a 8C91      		ld r24,X
+ 472 007c 1D97      		sbiw r26,13
+ 473 007e 8587      		std Z+13,r24
+  25:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[5]	= p->payload[5];
+ 475               	.LM16:
+ 476 0080 1E96      		adiw r26,14
+ 477 0082 8C91      		ld r24,X
+ 478 0084 1E97      		sbiw r26,14
+ 479 0086 8687      		std Z+14,r24
+  26:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[6]	= p->payload[6];
+ 481               	.LM17:
+ 482 0088 1F96      		adiw r26,15
+ 483 008a 8C91      		ld r24,X
+ 484 008c 1F97      		sbiw r26,15
+ 485 008e 8787      		std Z+15,r24
+  27:../../../projects/dicio/utility/packet_queue.c **** 		pq->buffer[pq->back].payload[7]	= p->payload[7];
+ 487               	.LM18:
+ 488 0090 5096      		adiw r26,16
+ 489 0092 8C91      		ld r24,X
+ 490 0094 808B      		std Z+16,r24
+  28:../../../projects/dicio/utility/packet_queue.c **** 
+  29:../../../projects/dicio/utility/packet_queue.c **** 		pq->back++;
+ 492               	.LM19:
+ 493 0096 9F5F      		subi r25,lo8(-(1))
+  30:../../../projects/dicio/utility/packet_queue.c **** 		pq->back %= MAX_PACKET_BUFFER;
+ 495               	.LM20:
+ 496 0098 9770      		andi r25,lo8(7)
+ 497 009a 9883      		st Y,r25
+ 498               	.L2:
+ 499               	/* epilogue start */
+  31:../../../projects/dicio/utility/packet_queue.c **** 	}
+  32:../../../projects/dicio/utility/packet_queue.c **** 	return;
+  33:../../../projects/dicio/utility/packet_queue.c **** }
+ 501               	.LM21:
+ 502 009c DF91      		pop r29
+ 503 009e CF91      		pop r28
+ 504 00a0 0895      		ret
+ 506               	.Lscope2:
+ 508               		.stabd	78,0,0
+ 512               	.global	pop
+ 514               	pop:
+ 515               		.stabd	46,0,0
+  34:../../../projects/dicio/utility/packet_queue.c **** 
+  35:../../../projects/dicio/utility/packet_queue.c **** // NEED To test for all types of payload
+  36:../../../projects/dicio/utility/packet_queue.c **** void pop(packet_queue* pq, packet* p) {
+ 517               	.LM22:
+ 518               	.LFBB3:
+ 519 00a2 CF93      		push r28
+ 520 00a4 DF93      		push r29
+ 521               	/* prologue: function */
+ 522               	/* frame size = 0 */
+ 523               	/* stack size = 2 */
+ 524               	.L__stack_usage = 2
+ 525 00a6 DB01      		movw r26,r22
+  37:../../../projects/dicio/utility/packet_queue.c **** 	if(pq->size > 0) {
+ 527               	.LM23:
+ 528 00a8 BC01      		movw r22,r24
+ 529 00aa 6657      		subi r22,118
+ 530 00ac 7F4F      		sbci r23,-1
+ 531 00ae EB01      		movw r28,r22
+ 532 00b0 2881      		ld r18,Y
+ 533 00b2 2223      		tst r18
+ 534 00b4 01F4      		brne .+2
+ 535 00b6 00C0      		rjmp .L5
+  38:../../../projects/dicio/utility/packet_queue.c **** 		p->type 		= pq->buffer[pq->front].type;
+ 537               	.LM24:
+ 538 00b8 FC01      		movw r30,r24
+ 539 00ba E857      		subi r30,120
+ 540 00bc FF4F      		sbci r31,-1
+ 541 00be 3081      		ld r19,Z
+ 542 00c0 21E1      		ldi r18,lo8(17)
+ 543 00c2 AC01      		movw r20,r24
+ 544 00c4 239F      		mul r18,r19
+ 545 00c6 400D      		add r20,r0
+ 546 00c8 511D      		adc r21,r1
+ 547 00ca 1124      		clr __zero_reg__
+ 548 00cc EA01      		movw r28,r20
+ 549 00ce 3981      		ldd r19,Y+1
+ 550 00d0 1196      		adiw r26,1
+ 551 00d2 3C93      		st X,r19
+ 552 00d4 1197      		sbiw r26,1
+  39:../../../projects/dicio/utility/packet_queue.c **** 		p->source_id 	= pq->buffer[pq->front].source_id;
+ 554               	.LM25:
+ 555 00d6 3081      		ld r19,Z
+ 556 00d8 AC01      		movw r20,r24
+ 557 00da 239F      		mul r18,r19
+ 558 00dc 400D      		add r20,r0
+ 559 00de 511D      		adc r21,r1
+ 560 00e0 1124      		clr __zero_reg__
+ 561 00e2 EA01      		movw r28,r20
+ 562 00e4 3881      		ld r19,Y
+ 563 00e6 3C93      		st X,r19
+  40:../../../projects/dicio/utility/packet_queue.c **** 		p->seq_num 		= pq->buffer[pq->front].seq_num;
+ 565               	.LM26:
+ 566 00e8 3081      		ld r19,Z
+ 567 00ea AC01      		movw r20,r24
+ 568 00ec 239F      		mul r18,r19
+ 569 00ee 400D      		add r20,r0
+ 570 00f0 511D      		adc r21,r1
+ 571 00f2 1124      		clr __zero_reg__
+ 572 00f4 EA01      		movw r28,r20
+ 573 00f6 4A81      		ldd r20,Y+2
+ 574 00f8 5B81      		ldd r21,Y+3
+ 575 00fa 1396      		adiw r26,2+1
+ 576 00fc 5C93      		st X,r21
+ 577 00fe 4E93      		st -X,r20
+ 578 0100 1297      		sbiw r26,2
+  41:../../../projects/dicio/utility/packet_queue.c **** 		p->num_hops 	= pq->buffer[pq->front].num_hops;
+ 580               	.LM27:
+ 581 0102 3081      		ld r19,Z
+ 582 0104 AC01      		movw r20,r24
+ 583 0106 239F      		mul r18,r19
+ 584 0108 400D      		add r20,r0
+ 585 010a 511D      		adc r21,r1
+ 586 010c 1124      		clr __zero_reg__
+ 587 010e EA01      		movw r28,r20
+ 588 0110 3C81      		ldd r19,Y+4
+ 589 0112 1496      		adiw r26,4
+ 590 0114 3C93      		st X,r19
+ 591 0116 1497      		sbiw r26,4
+  42:../../../projects/dicio/utility/packet_queue.c **** 
+  43:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[0]	= pq->buffer[pq->front].payload[0];
+ 593               	.LM28:
+ 594 0118 3081      		ld r19,Z
+ 595 011a AC01      		movw r20,r24
+ 596 011c 239F      		mul r18,r19
+ 597 011e 400D      		add r20,r0
+ 598 0120 511D      		adc r21,r1
+ 599 0122 1124      		clr __zero_reg__
+ 600 0124 EA01      		movw r28,r20
+ 601 0126 3985      		ldd r19,Y+9
+ 602 0128 1996      		adiw r26,9
+ 603 012a 3C93      		st X,r19
+ 604 012c 1997      		sbiw r26,9
+  44:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[1]	= pq->buffer[pq->front].payload[1];
+ 606               	.LM29:
+ 607 012e 3081      		ld r19,Z
+ 608 0130 AC01      		movw r20,r24
+ 609 0132 239F      		mul r18,r19
+ 610 0134 400D      		add r20,r0
+ 611 0136 511D      		adc r21,r1
+ 612 0138 1124      		clr __zero_reg__
+ 613 013a EA01      		movw r28,r20
+ 614 013c 3A85      		ldd r19,Y+10
+ 615 013e 1A96      		adiw r26,10
+ 616 0140 3C93      		st X,r19
+ 617 0142 1A97      		sbiw r26,10
+  45:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[2]	= pq->buffer[pq->front].payload[2];
+ 619               	.LM30:
+ 620 0144 3081      		ld r19,Z
+ 621 0146 AC01      		movw r20,r24
+ 622 0148 239F      		mul r18,r19
+ 623 014a 400D      		add r20,r0
+ 624 014c 511D      		adc r21,r1
+ 625 014e 1124      		clr __zero_reg__
+ 626 0150 EA01      		movw r28,r20
+ 627 0152 3B85      		ldd r19,Y+11
+ 628 0154 1B96      		adiw r26,11
+ 629 0156 3C93      		st X,r19
+ 630 0158 1B97      		sbiw r26,11
+  46:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[3]	= pq->buffer[pq->front].payload[3];
+ 632               	.LM31:
+ 633 015a 3081      		ld r19,Z
+ 634 015c AC01      		movw r20,r24
+ 635 015e 239F      		mul r18,r19
+ 636 0160 400D      		add r20,r0
+ 637 0162 511D      		adc r21,r1
+ 638 0164 1124      		clr __zero_reg__
+ 639 0166 EA01      		movw r28,r20
+ 640 0168 3C85      		ldd r19,Y+12
+ 641 016a 1C96      		adiw r26,12
+ 642 016c 3C93      		st X,r19
+ 643 016e 1C97      		sbiw r26,12
+  47:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[4]	= pq->buffer[pq->front].payload[4];
+ 645               	.LM32:
+ 646 0170 3081      		ld r19,Z
+ 647 0172 AC01      		movw r20,r24
+ 648 0174 239F      		mul r18,r19
+ 649 0176 400D      		add r20,r0
+ 650 0178 511D      		adc r21,r1
+ 651 017a 1124      		clr __zero_reg__
+ 652 017c EA01      		movw r28,r20
+ 653 017e 3D85      		ldd r19,Y+13
+ 654 0180 1D96      		adiw r26,13
+ 655 0182 3C93      		st X,r19
+ 656 0184 1D97      		sbiw r26,13
+  48:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[5]	= pq->buffer[pq->front].payload[5];
+ 658               	.LM33:
+ 659 0186 3081      		ld r19,Z
+ 660 0188 AC01      		movw r20,r24
+ 661 018a 239F      		mul r18,r19
+ 662 018c 400D      		add r20,r0
+ 663 018e 511D      		adc r21,r1
+ 664 0190 1124      		clr __zero_reg__
+ 665 0192 EA01      		movw r28,r20
+ 666 0194 3E85      		ldd r19,Y+14
+ 667 0196 1E96      		adiw r26,14
+ 668 0198 3C93      		st X,r19
+ 669 019a 1E97      		sbiw r26,14
+  49:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[6]	= pq->buffer[pq->front].payload[6];
+ 671               	.LM34:
+ 672 019c 3081      		ld r19,Z
+ 673 019e AC01      		movw r20,r24
+ 674 01a0 239F      		mul r18,r19
+ 675 01a2 400D      		add r20,r0
+ 676 01a4 511D      		adc r21,r1
+ 677 01a6 1124      		clr __zero_reg__
+ 678 01a8 EA01      		movw r28,r20
+ 679 01aa 3F85      		ldd r19,Y+15
+ 680 01ac 1F96      		adiw r26,15
+ 681 01ae 3C93      		st X,r19
+ 682 01b0 1F97      		sbiw r26,15
+  50:../../../projects/dicio/utility/packet_queue.c **** 		p->payload[7]	= pq->buffer[pq->front].payload[7];
+ 684               	.LM35:
+ 685 01b2 3081      		ld r19,Z
+ 686 01b4 239F      		mul r18,r19
+ 687 01b6 800D      		add r24,r0
+ 688 01b8 911D      		adc r25,r1
+ 689 01ba 1124      		clr __zero_reg__
+ 690 01bc EC01      		movw r28,r24
+ 691 01be 8889      		ldd r24,Y+16
+ 692 01c0 5096      		adiw r26,16
+ 693 01c2 8C93      		st X,r24
+  51:../../../projects/dicio/utility/packet_queue.c **** 
+  52:../../../projects/dicio/utility/packet_queue.c **** 		pq->size--;
+ 695               	.LM36:
+ 696 01c4 DB01      		movw r26,r22
+ 697 01c6 8C91      		ld r24,X
+ 698 01c8 8150      		subi r24,lo8(-(-1))
+ 699 01ca 8C93      		st X,r24
+  53:../../../projects/dicio/utility/packet_queue.c **** 		pq->front++;
+ 701               	.LM37:
+ 702 01cc 8081      		ld r24,Z
+ 703 01ce 8F5F      		subi r24,lo8(-(1))
+  54:../../../projects/dicio/utility/packet_queue.c **** 		pq->front %= MAX_PACKET_BUFFER;	
+ 705               	.LM38:
+ 706 01d0 8770      		andi r24,lo8(7)
+ 707 01d2 8083      		st Z,r24
+ 708               	.L5:
+ 709               	/* epilogue start */
+  55:../../../projects/dicio/utility/packet_queue.c **** 	}
+  56:../../../projects/dicio/utility/packet_queue.c **** }
+ 711               	.LM39:
+ 712 01d4 DF91      		pop r29
+ 713 01d6 CF91      		pop r28
+ 714 01d8 0895      		ret
+ 716               	.Lscope3:
+ 718               		.stabd	78,0,0
+ 719               		.comm	error_num,1,1
+ 720               		.comm	error_task,1,1
+ 721               		.comm	bmac_rfTxInfo,7,1
+ 722               		.comm	bmac_rfRxInfo,12,1
+ 723               		.comm	bmac_enable_signal,1,1
+ 724               		.comm	bmac_tx_pkt_done_signal,1,1
+ 725               		.comm	bmac_rx_pkt_signal,1,1
+ 726               		.comm	nrk_kernel_stk_ptr,2,1
+ 727               		.comm	nrk_idle_task_stk,512,1
+ 728               		.comm	_nrk_signal_list,4,1
+ 740               	.Letext0:
+ 741               		.ident	"GCC: (GNU) 4.9.1"
+ 742               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 packet_queue.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:355    .text:0000000000000000 packet_queue_init
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:388    .text:0000000000000012 push
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccJxwUA8.s:514    .text:00000000000000a2 pop
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000007 bmac_rfTxInfo
+                            *COM*:000000000000000c bmac_rfRxInfo
+                            *COM*:0000000000000001 bmac_enable_signal
+                            *COM*:0000000000000001 bmac_tx_pkt_done_signal
+                            *COM*:0000000000000001 bmac_rx_pkt_signal
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+__do_clear_bss

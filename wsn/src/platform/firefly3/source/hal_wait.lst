@@ -1,0 +1,112 @@
+   1               		.file	"hal_wait.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 282               	.global	halWait
+ 284               	halWait:
+ 285               		.stabd	46,0,0
+   1:../../../src/platform/firefly3/source/hal_wait.c **** /******************************************************************************
+   2:../../../src/platform/firefly3/source/hal_wait.c **** *  Nano-RK, a real-time operating system for sensor networks.
+   3:../../../src/platform/firefly3/source/hal_wait.c **** *  Copyright (C) 2007, Real-Time and Multimedia Lab, Carnegie Mellon University
+   4:../../../src/platform/firefly3/source/hal_wait.c **** *  All rights reserved.
+   5:../../../src/platform/firefly3/source/hal_wait.c **** *
+   6:../../../src/platform/firefly3/source/hal_wait.c **** *  This is the Open Source Version of Nano-RK included as part of a Dual
+   7:../../../src/platform/firefly3/source/hal_wait.c **** *  Licensing Model. If you are unsure which license to use please refer to:
+   8:../../../src/platform/firefly3/source/hal_wait.c **** *  http://www.nanork.org/nano-RK/wiki/Licensing
+   9:../../../src/platform/firefly3/source/hal_wait.c **** *
+  10:../../../src/platform/firefly3/source/hal_wait.c **** *  This program is free software: you can redistribute it and/or modify
+  11:../../../src/platform/firefly3/source/hal_wait.c **** *  it under the terms of the GNU General Public License as published by
+  12:../../../src/platform/firefly3/source/hal_wait.c **** *  the Free Software Foundation, version 2.0 of the License.
+  13:../../../src/platform/firefly3/source/hal_wait.c **** *
+  14:../../../src/platform/firefly3/source/hal_wait.c **** *  This program is distributed in the hope that it will be useful,
+  15:../../../src/platform/firefly3/source/hal_wait.c **** *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  16:../../../src/platform/firefly3/source/hal_wait.c **** *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  17:../../../src/platform/firefly3/source/hal_wait.c **** *  GNU General Public License for more details.
+  18:../../../src/platform/firefly3/source/hal_wait.c **** *
+  19:../../../src/platform/firefly3/source/hal_wait.c **** *  You should have received a copy of the GNU General Public License
+  20:../../../src/platform/firefly3/source/hal_wait.c **** *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  21:../../../src/platform/firefly3/source/hal_wait.c **** *
+  22:../../../src/platform/firefly3/source/hal_wait.c **** *  Contributing Authors (specific to this file):
+  23:../../../src/platform/firefly3/source/hal_wait.c **** *  Chipcon Development Team 
+  24:../../../src/platform/firefly3/source/hal_wait.c **** *******************************************************************************/
+  25:../../../src/platform/firefly3/source/hal_wait.c **** 
+  26:../../../src/platform/firefly3/source/hal_wait.c **** 
+  27:../../../src/platform/firefly3/source/hal_wait.c **** #include <include.h>
+  28:../../../src/platform/firefly3/source/hal_wait.c **** 
+  29:../../../src/platform/firefly3/source/hal_wait.c **** 
+  30:../../../src/platform/firefly3/source/hal_wait.c **** //-------------------------------------------------------------------------------------------------
+  31:../../../src/platform/firefly3/source/hal_wait.c **** //	void halWait(uint16_t timeout)
+  32:../../../src/platform/firefly3/source/hal_wait.c **** //
+  33:../../../src/platform/firefly3/source/hal_wait.c **** //	DESCRIPTION:
+  34:../../../src/platform/firefly3/source/hal_wait.c **** //		Runs an idle loop for [timeout] microseconds.
+  35:../../../src/platform/firefly3/source/hal_wait.c **** //
+  36:../../../src/platform/firefly3/source/hal_wait.c **** //  ARGUMENTS:
+  37:../../../src/platform/firefly3/source/hal_wait.c **** //      uint16_t timeout
+  38:../../../src/platform/firefly3/source/hal_wait.c **** //          The timeout in microseconds
+  39:../../../src/platform/firefly3/source/hal_wait.c **** //-------------------------------------------------------------------------------------------------
+  40:../../../src/platform/firefly3/source/hal_wait.c **** void halWait(uint16_t timeout) {
+ 287               	.LM0:
+ 288               	.LFBB1:
+ 289               	/* prologue: function */
+ 290               	/* frame size = 0 */
+ 291               	/* stack size = 0 */
+ 292               	.L__stack_usage = 0
+ 293               	.L2:
+  41:../../../src/platform/firefly3/source/hal_wait.c **** 
+  42:../../../src/platform/firefly3/source/hal_wait.c ****     // This sequence uses exactly 8 clock cycle for each round
+  43:../../../src/platform/firefly3/source/hal_wait.c ****     do {
+  44:../../../src/platform/firefly3/source/hal_wait.c ****         NOP();
+ 295               	.LM1:
+ 296               	/* #APP */
+ 297               	 ;  44 "../../../src/platform/firefly3/source/hal_wait.c" 1
+ 298 0000 0000      		nop
+ 299               		
+ 300               	 ;  0 "" 2
+  45:../../../src/platform/firefly3/source/hal_wait.c ****         NOP();
+ 302               	.LM2:
+ 303               	 ;  45 "../../../src/platform/firefly3/source/hal_wait.c" 1
+ 304 0002 0000      		nop
+ 305               		
+ 306               	 ;  0 "" 2
+  46:../../../src/platform/firefly3/source/hal_wait.c ****         NOP();
+ 308               	.LM3:
+ 309               	 ;  46 "../../../src/platform/firefly3/source/hal_wait.c" 1
+ 310 0004 0000      		nop
+ 311               		
+ 312               	 ;  0 "" 2
+  47:../../../src/platform/firefly3/source/hal_wait.c ****         NOP();
+ 314               	.LM4:
+ 315               	 ;  47 "../../../src/platform/firefly3/source/hal_wait.c" 1
+ 316 0006 0000      		nop
+ 317               		
+ 318               	 ;  0 "" 2
+  48:../../../src/platform/firefly3/source/hal_wait.c ****     } while (--timeout);
+ 320               	.LM5:
+ 321               	/* #NOAPP */
+ 322 0008 0197      		sbiw r24,1
+ 323 000a 01F4      		brne .L2
+ 324               	/* epilogue start */
+  49:../../../src/platform/firefly3/source/hal_wait.c **** 
+  50:../../../src/platform/firefly3/source/hal_wait.c **** } // halWait
+ 326               	.LM6:
+ 327 000c 0895      		ret
+ 329               	.Lscope1:
+ 331               		.stabd	78,0,0
+ 333               	.Letext0:
+ 334               		.ident	"GCC: (GNU) 4.9.1"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 hal_wait.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc42lrwL.s:284    .text:0000000000000000 halWait
+
+NO UNDEFINED SYMBOLS

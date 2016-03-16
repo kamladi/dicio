@@ -1,0 +1,363 @@
+   1               		.file	"sequence_pool.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 354               	.global	in_sequence_pool
+ 356               	in_sequence_pool:
+ 357               		.stabd	46,0,0
+   1:../../../projects/dicio/utility/sequence_pool.c **** /**
+   2:../../../projects/dicio/utility/sequence_pool.c ****  * 18-748 Wireless Sensor Networks
+   3:../../../projects/dicio/utility/sequence_pool.c ****  * Spring 2016
+   4:../../../projects/dicio/utility/sequence_pool.c ****  * Lab 3: Multi-Hop Communication
+   5:../../../projects/dicio/utility/sequence_pool.c ****  * sequence_pool.c
+   6:../../../projects/dicio/utility/sequence_pool.c ****  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+   7:../../../projects/dicio/utility/sequence_pool.c ****  */
+   8:../../../projects/dicio/utility/sequence_pool.c **** #include <sequence_pool.h>
+   9:../../../projects/dicio/utility/sequence_pool.c **** 
+  10:../../../projects/dicio/utility/sequence_pool.c **** /*** SEQUENCE POOL OPERATIONS ***/
+  11:../../../projects/dicio/utility/sequence_pool.c **** /**
+  12:../../../projects/dicio/utility/sequence_pool.c ****  * in_sequence_pool:
+  13:../../../projects/dicio/utility/sequence_pool.c ****  *  - determine if node_address is in the sequence pool
+  14:../../../projects/dicio/utility/sequence_pool.c ****  *
+  15:../../../projects/dicio/utility/sequence_pool.c ****  * @param sp - sequence pool to search
+  16:../../../projects/dicio/utility/sequence_pool.c ****  * @param node_address - node to search for
+  17:../../../projects/dicio/utility/sequence_pool.c ****  * @returns '1' if id found, '-1' otherwise
+  18:../../../projects/dicio/utility/sequence_pool.c ****  */
+  19:../../../projects/dicio/utility/sequence_pool.c **** int8_t in_sequence_pool(sequence_pool_t *sp, uint8_t node_address) {
+ 359               	.LM0:
+ 360               	.LFBB1:
+ 361               	/* prologue: function */
+ 362               	/* frame size = 0 */
+ 363               	/* stack size = 0 */
+ 364               	.L__stack_usage = 0
+ 365               	.LBB2:
+  20:../../../projects/dicio/utility/sequence_pool.c ****     for(uint8_t i = 0; i < sp->size; i++) {
+ 367               	.LM1:
+ 368 0000 FC01      		movw r30,r24
+ 369 0002 2191      		ld r18,Z+
+ 370 0004 CF01      		movw r24,r30
+ 371               	.L2:
+ 372 0006 3E2F      		mov r19,r30
+ 373 0008 381B      		sub r19,r24
+ 375               	.LM2:
+ 376 000a 3217      		cp r19,r18
+ 377 000c 00F4      		brsh .L7
+  21:../../../projects/dicio/utility/sequence_pool.c ****         if(sp->node_id[i] == node_address) {
+ 379               	.LM3:
+ 380 000e 3191      		ld r19,Z+
+ 381 0010 3613      		cpse r19,r22
+ 382 0012 00C0      		rjmp .L2
+  22:../../../projects/dicio/utility/sequence_pool.c ****             return (int8_t)1;
+ 384               	.LM4:
+ 385 0014 81E0      		ldi r24,lo8(1)
+ 386               	.LBE2:
+  23:../../../projects/dicio/utility/sequence_pool.c ****         }
+  24:../../../projects/dicio/utility/sequence_pool.c ****     }
+  25:../../../projects/dicio/utility/sequence_pool.c ****     return (int8_t)-1;
+  26:../../../projects/dicio/utility/sequence_pool.c **** }
+ 388               	.LM5:
+ 389 0016 0895      		ret
+ 390               	.L7:
+  25:../../../projects/dicio/utility/sequence_pool.c **** }
+ 392               	.LM6:
+ 393 0018 8FEF      		ldi r24,lo8(-1)
+ 394               	.LBB3:
+ 395 001a 0895      		ret
+ 396               	.LBE3:
+ 398               	.Lscope1:
+ 400               		.stabd	78,0,0
+ 404               	.global	get_sequence_pool_index
+ 406               	get_sequence_pool_index:
+ 407               		.stabd	46,0,0
+  27:../../../projects/dicio/utility/sequence_pool.c **** 
+  28:../../../projects/dicio/utility/sequence_pool.c **** /**
+  29:../../../projects/dicio/utility/sequence_pool.c ****  * get_sequence_pool_index:
+  30:../../../projects/dicio/utility/sequence_pool.c ****  *  - return the index of teh node_address in the sequence pool
+  31:../../../projects/dicio/utility/sequence_pool.c ****  *
+  32:../../../projects/dicio/utility/sequence_pool.c ****  * @param sp - sequence pool to be searched
+  33:../../../projects/dicio/utility/sequence_pool.c ****  * @param node_address - node to search for
+  34:../../../projects/dicio/utility/sequence_pool.c ****  * @returns index of node_address if found, '-1' otherwise
+  35:../../../projects/dicio/utility/sequence_pool.c ****  */
+  36:../../../projects/dicio/utility/sequence_pool.c **** int8_t get_sequence_pool_index(sequence_pool_t *sp, uint8_t node_address) {
+ 409               	.LM7:
+ 410               	.LFBB2:
+ 411               	/* prologue: function */
+ 412               	/* frame size = 0 */
+ 413               	/* stack size = 0 */
+ 414               	.L__stack_usage = 0
+ 415               	.LBB4:
+  37:../../../projects/dicio/utility/sequence_pool.c ****     for(uint8_t i = 0; i < sp->size; i++) {
+ 417               	.LM8:
+ 418 001c FC01      		movw r30,r24
+ 419 001e 8191      		ld r24,Z+
+ 420 0020 90E0      		ldi r25,0
+ 421               	.L9:
+ 423               	.LM9:
+ 424 0022 9817      		cp r25,r24
+ 425 0024 01F0      		breq .L13
+  38:../../../projects/dicio/utility/sequence_pool.c ****         if(sp->node_id[i] == node_address) {
+ 427               	.LM10:
+ 428 0026 2191      		ld r18,Z+
+ 429 0028 2613      		cpse r18,r22
+ 430 002a 00C0      		rjmp .L10
+  39:../../../projects/dicio/utility/sequence_pool.c ****             return i;
+ 432               	.LM11:
+ 433 002c 892F      		mov r24,r25
+ 434 002e 0895      		ret
+ 435               	.L10:
+  37:../../../projects/dicio/utility/sequence_pool.c ****     for(uint8_t i = 0; i < sp->size; i++) {
+ 437               	.LM12:
+ 438 0030 9F5F      		subi r25,lo8(-(1))
+ 439 0032 00C0      		rjmp .L9
+ 440               	.L13:
+ 441               	.LBE4:
+  40:../../../projects/dicio/utility/sequence_pool.c ****         }
+  41:../../../projects/dicio/utility/sequence_pool.c ****     }
+  42:../../../projects/dicio/utility/sequence_pool.c ****     return -1;
+ 443               	.LM13:
+ 444 0034 8FEF      		ldi r24,lo8(-1)
+  43:../../../projects/dicio/utility/sequence_pool.c **** }
+ 446               	.LM14:
+ 447 0036 0895      		ret
+ 452               	.Lscope2:
+ 454               		.stabd	78,0,0
+ 458               	.global	get_sequence_number
+ 460               	get_sequence_number:
+ 461               		.stabd	46,0,0
+  44:../../../projects/dicio/utility/sequence_pool.c **** 
+  45:../../../projects/dicio/utility/sequence_pool.c **** uint16_t get_sequence_number(sequence_pool_t *sp, uint8_t node_address) {
+ 463               	.LM15:
+ 464               	.LFBB3:
+ 465 0038 CF93      		push r28
+ 466 003a DF93      		push r29
+ 467               	/* prologue: function */
+ 468               	/* frame size = 0 */
+ 469               	/* stack size = 2 */
+ 470               	.L__stack_usage = 2
+ 471 003c EC01      		movw r28,r24
+  46:../../../projects/dicio/utility/sequence_pool.c ****     int8_t index = get_sequence_pool_index(sp, node_address);
+ 473               	.LM16:
+ 474 003e 0E94 0000 		call get_sequence_pool_index
+  47:../../../projects/dicio/utility/sequence_pool.c ****     if(index != -1) {
+ 476               	.LM17:
+ 477 0042 8F3F      		cpi r24,lo8(-1)
+ 478 0044 01F0      		breq .L16
+  48:../../../projects/dicio/utility/sequence_pool.c ****         return sp->seq_nums[index];
+ 480               	.LM18:
+ 481 0046 92E0      		ldi r25,lo8(2)
+ 482 0048 8902      		muls r24,r25
+ 483 004a C00D      		add r28,r0
+ 484 004c D11D      		adc r29,r1
+ 485 004e 1124      		clr __zero_reg__
+ 486 0050 8C81      		ldd r24,Y+4
+ 487 0052 9D81      		ldd r25,Y+5
+ 488 0054 00C0      		rjmp .L15
+ 489               	.L16:
+  49:../../../projects/dicio/utility/sequence_pool.c ****     }
+  50:../../../projects/dicio/utility/sequence_pool.c ****     return 0;
+ 491               	.LM19:
+ 492 0056 80E0      		ldi r24,0
+ 493 0058 90E0      		ldi r25,0
+ 494               	.L15:
+ 495               	/* epilogue start */
+  51:../../../projects/dicio/utility/sequence_pool.c **** }
+ 497               	.LM20:
+ 498 005a DF91      		pop r29
+ 499 005c CF91      		pop r28
+ 500 005e 0895      		ret
+ 505               	.Lscope3:
+ 507               		.stabd	78,0,0
+ 512               	.global	add_to_sequence_pool
+ 514               	add_to_sequence_pool:
+ 515               		.stabd	46,0,0
+  52:../../../projects/dicio/utility/sequence_pool.c **** 
+  53:../../../projects/dicio/utility/sequence_pool.c **** /**
+  54:../../../projects/dicio/utility/sequence_pool.c ****  * add_to_sequence_pool:
+  55:../../../projects/dicio/utility/sequence_pool.c ****  *  - add a new item to the sequence pool
+  56:../../../projects/dicio/utility/sequence_pool.c ****  *
+  57:../../../projects/dicio/utility/sequence_pool.c ****  * @param sp - sequence pool to which new entry will be added
+  58:../../../projects/dicio/utility/sequence_pool.c ****  * @param node_address - address of the node to be added
+  59:../../../projects/dicio/utility/sequence_pool.c ****  * @param seq_num - sequence number of node to be added
+  60:../../../projects/dicio/utility/sequence_pool.c ****  * @returns '1' if add was successful, '-1' otherwise
+  61:../../../projects/dicio/utility/sequence_pool.c ****  */
+  62:../../../projects/dicio/utility/sequence_pool.c **** int8_t add_to_sequence_pool(sequence_pool_t *sp, uint8_t node_address, uint16_t seq_num) {
+ 517               	.LM21:
+ 518               	.LFBB4:
+ 519 0060 EF92      		push r14
+ 520 0062 FF92      		push r15
+ 521 0064 0F93      		push r16
+ 522 0066 1F93      		push r17
+ 523 0068 CF93      		push r28
+ 524 006a DF93      		push r29
+ 525               	/* prologue: function */
+ 526               	/* frame size = 0 */
+ 527               	/* stack size = 6 */
+ 528               	.L__stack_usage = 6
+  63:../../../projects/dicio/utility/sequence_pool.c ****     if((sp->size < MAX_POOL) && (in_sequence_pool(sp, node_address) == -1)) {
+ 530               	.LM22:
+ 531 006c FC01      		movw r30,r24
+ 532 006e C081      		ld r28,Z
+ 533 0070 C830      		cpi r28,lo8(8)
+ 534 0072 00F4      		brsh .L20
+ 535 0074 7A01      		movw r14,r20
+ 536 0076 D62F      		mov r29,r22
+ 537 0078 8C01      		movw r16,r24
+ 539               	.LM23:
+ 540 007a 0E94 0000 		call in_sequence_pool
+ 541 007e 8F3F      		cpi r24,lo8(-1)
+ 542 0080 01F4      		brne .L20
+ 543               	.LBB5:
+  64:../../../projects/dicio/utility/sequence_pool.c ****         uint8_t index = sp->size;
+  65:../../../projects/dicio/utility/sequence_pool.c ****         sp->size++;
+ 545               	.LM24:
+ 546 0082 81E0      		ldi r24,lo8(1)
+ 547 0084 8C0F      		add r24,r28
+ 548 0086 F801      		movw r30,r16
+ 549 0088 8083      		st Z,r24
+  66:../../../projects/dicio/utility/sequence_pool.c ****         sp->node_id[index] = node_address;
+ 551               	.LM25:
+ 552 008a 2C2F      		mov r18,r28
+ 553 008c 30E0      		ldi r19,0
+ 554 008e E20F      		add r30,r18
+ 555 0090 F31F      		adc r31,r19
+ 556 0092 D183      		std Z+1,r29
+  67:../../../projects/dicio/utility/sequence_pool.c ****         sp->seq_nums[index] = seq_num;
+ 558               	.LM26:
+ 559 0094 2E5F      		subi r18,-2
+ 560 0096 3F4F      		sbci r19,-1
+ 561 0098 220F      		lsl r18
+ 562 009a 331F      		rol r19
+ 563 009c F801      		movw r30,r16
+ 564 009e E20F      		add r30,r18
+ 565 00a0 F31F      		adc r31,r19
+ 566 00a2 F182      		std Z+1,r15
+ 567 00a4 E082      		st Z,r14
+  68:../../../projects/dicio/utility/sequence_pool.c ****         return 1;
+ 569               	.LM27:
+ 570 00a6 81E0      		ldi r24,lo8(1)
+ 571 00a8 00C0      		rjmp .L18
+ 572               	.L20:
+ 573               	.LBE5:
+  69:../../../projects/dicio/utility/sequence_pool.c ****     }
+  70:../../../projects/dicio/utility/sequence_pool.c ****     return -1;
+ 575               	.LM28:
+ 576 00aa 8FEF      		ldi r24,lo8(-1)
+ 577               	.L18:
+ 578               	/* epilogue start */
+  71:../../../projects/dicio/utility/sequence_pool.c **** }
+ 580               	.LM29:
+ 581 00ac DF91      		pop r29
+ 582 00ae CF91      		pop r28
+ 583 00b0 1F91      		pop r17
+ 584 00b2 0F91      		pop r16
+ 585 00b4 FF90      		pop r15
+ 586 00b6 EF90      		pop r14
+ 587 00b8 0895      		ret
+ 589               	.Lscope4:
+ 591               		.stabd	78,0,0
+ 596               	.global	update_sequence_pool
+ 598               	update_sequence_pool:
+ 599               		.stabd	46,0,0
+  72:../../../projects/dicio/utility/sequence_pool.c **** 
+  73:../../../projects/dicio/utility/sequence_pool.c **** /**
+  74:../../../projects/dicio/utility/sequence_pool.c ****  * update_sequence_pool:
+  75:../../../projects/dicio/utility/sequence_pool.c ****  *  - update the sequence pool with new sequence number
+  76:../../../projects/dicio/utility/sequence_pool.c ****  *
+  77:../../../projects/dicio/utility/sequence_pool.c ****  * @param sp - sequence pool to be updated
+  78:../../../projects/dicio/utility/sequence_pool.c ****  * @param node_address - node whose sequence number needs updating
+  79:../../../projects/dicio/utility/sequence_pool.c ****  * @param seq_num - new sequence number of node_address
+  80:../../../projects/dicio/utility/sequence_pool.c ****  * @returns '1' if update was successful, '-1' otherwise
+  81:../../../projects/dicio/utility/sequence_pool.c ****  */
+  82:../../../projects/dicio/utility/sequence_pool.c **** int8_t update_sequence_pool(sequence_pool_t *sp, uint8_t node_address, uint16_t seq_num) {
+ 601               	.LM30:
+ 602               	.LFBB5:
+ 603 00ba 0F93      		push r16
+ 604 00bc 1F93      		push r17
+ 605 00be CF93      		push r28
+ 606 00c0 DF93      		push r29
+ 607               	/* prologue: function */
+ 608               	/* frame size = 0 */
+ 609               	/* stack size = 4 */
+ 610               	.L__stack_usage = 4
+ 611 00c2 EC01      		movw r28,r24
+ 612 00c4 8A01      		movw r16,r20
+  83:../../../projects/dicio/utility/sequence_pool.c ****     int8_t index = get_sequence_pool_index(sp, node_address);
+ 614               	.LM31:
+ 615 00c6 0E94 0000 		call get_sequence_pool_index
+  84:../../../projects/dicio/utility/sequence_pool.c ****     if(index >= 0) {
+ 617               	.LM32:
+ 618 00ca 87FD      		sbrc r24,7
+ 619 00cc 00C0      		rjmp .L23
+  85:../../../projects/dicio/utility/sequence_pool.c ****         sp->seq_nums[index] = seq_num;
+ 621               	.LM33:
+ 622 00ce 92E0      		ldi r25,lo8(2)
+ 623 00d0 8902      		muls r24,r25
+ 624 00d2 C00D      		add r28,r0
+ 625 00d4 D11D      		adc r29,r1
+ 626 00d6 1124      		clr __zero_reg__
+ 627 00d8 1D83      		std Y+5,r17
+ 628 00da 0C83      		std Y+4,r16
+  86:../../../projects/dicio/utility/sequence_pool.c ****         return 1;
+ 630               	.LM34:
+ 631 00dc 81E0      		ldi r24,lo8(1)
+ 632 00de 00C0      		rjmp .L22
+ 633               	.L23:
+  87:../../../projects/dicio/utility/sequence_pool.c ****     }
+  88:../../../projects/dicio/utility/sequence_pool.c ****     return -1;
+ 635               	.LM35:
+ 636 00e0 8FEF      		ldi r24,lo8(-1)
+ 637               	.L22:
+ 638               	/* epilogue start */
+  89:../../../projects/dicio/utility/sequence_pool.c **** }
+ 640               	.LM36:
+ 641 00e2 DF91      		pop r29
+ 642 00e4 CF91      		pop r28
+ 643 00e6 1F91      		pop r17
+ 644 00e8 0F91      		pop r16
+ 645 00ea 0895      		ret
+ 650               	.Lscope5:
+ 652               		.stabd	78,0,0
+ 653               		.comm	error_num,1,1
+ 654               		.comm	error_task,1,1
+ 655               		.comm	bmac_rfTxInfo,7,1
+ 656               		.comm	bmac_rfRxInfo,12,1
+ 657               		.comm	bmac_enable_signal,1,1
+ 658               		.comm	bmac_tx_pkt_done_signal,1,1
+ 659               		.comm	bmac_rx_pkt_signal,1,1
+ 660               		.comm	nrk_kernel_stk_ptr,2,1
+ 661               		.comm	nrk_idle_task_stk,512,1
+ 662               		.comm	_nrk_signal_list,4,1
+ 674               	.Letext0:
+ 675               		.ident	"GCC: (GNU) 4.9.1"
+ 676               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 sequence_pool.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:356    .text:0000000000000000 in_sequence_pool
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:406    .text:000000000000001c get_sequence_pool_index
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:460    .text:0000000000000038 get_sequence_number
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:514    .text:0000000000000060 add_to_sequence_pool
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//ccrOBdF4.s:598    .text:00000000000000ba update_sequence_pool
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000007 bmac_rfTxInfo
+                            *COM*:000000000000000c bmac_rfRxInfo
+                            *COM*:0000000000000001 bmac_enable_signal
+                            *COM*:0000000000000001 bmac_tx_pkt_done_signal
+                            *COM*:0000000000000001 bmac_rx_pkt_signal
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+__do_clear_bss

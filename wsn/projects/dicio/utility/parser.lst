@@ -1,0 +1,726 @@
+   1               		.file	"parser.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__tmp_reg__ = 0
+   7               	__zero_reg__ = 1
+  10               		.text
+  11               	.Ltext0:
+ 351               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 352               	.LC0:
+ 353 0000 5B73 6F75 		.string	"[source_id: %d]"
+ 353      7263 655F 
+ 353      6964 3A20 
+ 353      2564 5D00 
+ 354               	.LC1:
+ 355 0010 5B73 6571 		.string	"[seq_num: %d]"
+ 355      5F6E 756D 
+ 355      3A20 2564 
+ 355      5D00 
+ 356               	.LC2:
+ 357 001e 5B6D 7367 		.string	"[msg_type: %d]"
+ 357      5F74 7970 
+ 357      653A 2025 
+ 357      645D 00
+ 358               	.LC3:
+ 359 002d 5B6E 756D 		.string	"[num_hops: %d]"
+ 359      5F68 6F70 
+ 359      733A 2025 
+ 359      645D 00
+ 360               	.LC4:
+ 361 003c 5B70 6179 		.string	"[payload:%d,%d,%d]\r\n"
+ 361      6C6F 6164 
+ 361      3A25 642C 
+ 361      2564 2C25 
+ 361      645D 0D0A 
+ 362               	.LC5:
+ 363 0051 5B70 6179 		.string	"[payload:%d, %d, %d]\r\n"
+ 363      6C6F 6164 
+ 363      3A25 642C 
+ 363      2025 642C 
+ 363      2025 645D 
+ 364               		.text
+ 367               	.global	print_packet
+ 369               	print_packet:
+ 370               		.stabd	46,0,0
+   1:../../../projects/dicio/utility/parser.c **** /**
+   2:../../../projects/dicio/utility/parser.c ****  * 18-748 Wireless Sensor Networks
+   3:../../../projects/dicio/utility/parser.c ****  * Spring 2016
+   4:../../../projects/dicio/utility/parser.c ****  * Lab 3: Multi-Hop Communication
+   5:../../../projects/dicio/utility/parser.c ****  * parser.c
+   6:../../../projects/dicio/utility/parser.c ****  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+   7:../../../projects/dicio/utility/parser.c ****  */
+   8:../../../projects/dicio/utility/parser.c ****  
+   9:../../../projects/dicio/utility/parser.c **** #include <parser.h>
+  10:../../../projects/dicio/utility/parser.c **** 
+  11:../../../projects/dicio/utility/parser.c **** void print_packet(packet *p)
+  12:../../../projects/dicio/utility/parser.c **** {
+ 372               	.LM0:
+ 373               	.LFBB1:
+ 374 0000 CF93      		push r28
+ 375 0002 DF93      		push r29
+ 376               	/* prologue: function */
+ 377               	/* frame size = 0 */
+ 378               	/* stack size = 2 */
+ 379               	.L__stack_usage = 2
+ 380 0004 EC01      		movw r28,r24
+  13:../../../projects/dicio/utility/parser.c ****     printf("[source_id: %d]", p->source_id);
+ 382               	.LM1:
+ 383 0006 8881      		ld r24,Y
+ 384 0008 1F92      		push __zero_reg__
+ 385 000a 8F93      		push r24
+ 386 000c 80E0      		ldi r24,lo8(.LC0)
+ 387 000e 90E0      		ldi r25,hi8(.LC0)
+ 388 0010 9F93      		push r25
+ 389 0012 8F93      		push r24
+ 390 0014 0E94 0000 		call printf
+  14:../../../projects/dicio/utility/parser.c ****     printf("[seq_num: %d]", p->seq_num);
+ 392               	.LM2:
+ 393 0018 8B81      		ldd r24,Y+3
+ 394 001a 8F93      		push r24
+ 395 001c 8A81      		ldd r24,Y+2
+ 396 001e 8F93      		push r24
+ 397 0020 80E0      		ldi r24,lo8(.LC1)
+ 398 0022 90E0      		ldi r25,hi8(.LC1)
+ 399 0024 9F93      		push r25
+ 400 0026 8F93      		push r24
+ 401 0028 0E94 0000 		call printf
+  15:../../../projects/dicio/utility/parser.c ****     printf("[msg_type: %d]", p->type);
+ 403               	.LM3:
+ 404 002c 8981      		ldd r24,Y+1
+ 405 002e 1F92      		push __zero_reg__
+ 406 0030 8F93      		push r24
+ 407 0032 80E0      		ldi r24,lo8(.LC2)
+ 408 0034 90E0      		ldi r25,hi8(.LC2)
+ 409 0036 9F93      		push r25
+ 410 0038 8F93      		push r24
+ 411 003a 0E94 0000 		call printf
+  16:../../../projects/dicio/utility/parser.c ****     printf("[num_hops: %d]", p->num_hops);
+ 413               	.LM4:
+ 414 003e 8C81      		ldd r24,Y+4
+ 415 0040 1F92      		push __zero_reg__
+ 416 0042 8F93      		push r24
+ 417 0044 80E0      		ldi r24,lo8(.LC3)
+ 418 0046 90E0      		ldi r25,hi8(.LC3)
+ 419 0048 9F93      		push r25
+ 420 004a 8F93      		push r24
+ 421 004c 0E94 0000 		call printf
+  17:../../../projects/dicio/utility/parser.c ****     switch(p->type)
+ 423               	.LM5:
+ 424 0050 8DB7      		in r24,__SP_L__
+ 425 0052 9EB7      		in r25,__SP_H__
+ 426 0054 4096      		adiw r24,16
+ 427 0056 0FB6      		in __tmp_reg__,__SREG__
+ 428 0058 F894      		cli
+ 429 005a 9EBF      		out __SP_H__,r25
+ 430 005c 0FBE      		out __SREG__,__tmp_reg__
+ 431 005e 8DBF      		out __SP_L__,r24
+ 432 0060 8981      		ldd r24,Y+1
+ 433 0062 8530      		cpi r24,lo8(5)
+ 434 0064 01F0      		breq .L3
+ 435 0066 8630      		cpi r24,lo8(6)
+ 436 0068 01F4      		brne .L1
+  18:../../../projects/dicio/utility/parser.c ****     {
+  19:../../../projects/dicio/utility/parser.c ****         case MSG_CMD:
+  20:../../../projects/dicio/utility/parser.c ****         {
+  21:../../../projects/dicio/utility/parser.c ****             printf("[payload:%d,%d,%d]\r\n", (uint16_t)p->payload[0], p->payload[2], p->payload[3])
+ 438               	.LM6:
+ 439 006a 8C85      		ldd r24,Y+12
+ 440 006c 1F92      		push __zero_reg__
+ 441 006e 8F93      		push r24
+ 442 0070 8B85      		ldd r24,Y+11
+ 443 0072 1F92      		push __zero_reg__
+ 444 0074 8F93      		push r24
+ 445 0076 8985      		ldd r24,Y+9
+ 446 0078 1F92      		push __zero_reg__
+ 447 007a 8F93      		push r24
+ 448 007c 80E0      		ldi r24,lo8(.LC4)
+ 449 007e 90E0      		ldi r25,hi8(.LC4)
+ 450 0080 9F93      		push r25
+ 451 0082 8F93      		push r24
+ 452 0084 0E94 0000 		call printf
+  22:../../../projects/dicio/utility/parser.c ****             break;
+ 454               	.LM7:
+ 455 0088 8DB7      		in r24,__SP_L__
+ 456 008a 9EB7      		in r25,__SP_H__
+ 457 008c 0896      		adiw r24,8
+ 458 008e 0FB6      		in __tmp_reg__,__SREG__
+ 459 0090 F894      		cli
+ 460 0092 9EBF      		out __SP_H__,r25
+ 461 0094 0FBE      		out __SREG__,__tmp_reg__
+ 462 0096 8DBF      		out __SP_L__,r24
+ 463 0098 00C0      		rjmp .L1
+ 464               	.L3:
+  23:../../../projects/dicio/utility/parser.c ****         }
+  24:../../../projects/dicio/utility/parser.c **** 
+  25:../../../projects/dicio/utility/parser.c ****         case MSG_DATA:
+  26:../../../projects/dicio/utility/parser.c ****         {
+  27:../../../projects/dicio/utility/parser.c ****             printf("[payload:%d, %d, %d]\r\n", (uint16_t)p->payload[DATA_PWR_INDEX], 
+ 466               	.LM8:
+ 467 009a 8D85      		ldd r24,Y+13
+ 468 009c 1F92      		push __zero_reg__
+ 469 009e 8F93      		push r24
+ 470 00a0 8B85      		ldd r24,Y+11
+ 471 00a2 1F92      		push __zero_reg__
+ 472 00a4 8F93      		push r24
+ 473 00a6 8985      		ldd r24,Y+9
+ 474 00a8 1F92      		push __zero_reg__
+ 475 00aa 8F93      		push r24
+ 476 00ac 80E0      		ldi r24,lo8(.LC5)
+ 477 00ae 90E0      		ldi r25,hi8(.LC5)
+ 478 00b0 9F93      		push r25
+ 479 00b2 8F93      		push r24
+ 480 00b4 0E94 0000 		call printf
+  28:../../../projects/dicio/utility/parser.c ****                 (uint16_t)p->payload[DATA_TEMP_INDEX],(uint16_t)p->payload[DATA_LIGHT_INDEX]);
+  29:../../../projects/dicio/utility/parser.c ****             break;
+ 482               	.LM9:
+ 483 00b8 8DB7      		in r24,__SP_L__
+ 484 00ba 9EB7      		in r25,__SP_H__
+ 485 00bc 0896      		adiw r24,8
+ 486 00be 0FB6      		in __tmp_reg__,__SREG__
+ 487 00c0 F894      		cli
+ 488 00c2 9EBF      		out __SP_H__,r25
+ 489 00c4 0FBE      		out __SREG__,__tmp_reg__
+ 490 00c6 8DBF      		out __SP_L__,r24
+ 491               	.L1:
+ 492               	/* epilogue start */
+  30:../../../projects/dicio/utility/parser.c ****         }
+  31:../../../projects/dicio/utility/parser.c **** 
+  32:../../../projects/dicio/utility/parser.c ****         case MSG_CMDACK:
+  33:../../../projects/dicio/utility/parser.c ****         {
+  34:../../../projects/dicio/utility/parser.c ****             break;
+  35:../../../projects/dicio/utility/parser.c ****         }
+  36:../../../projects/dicio/utility/parser.c **** 
+  37:../../../projects/dicio/utility/parser.c ****         case MSG_HAND:
+  38:../../../projects/dicio/utility/parser.c ****         {
+  39:../../../projects/dicio/utility/parser.c ****             // what is the payload going to look like here?
+  40:../../../projects/dicio/utility/parser.c ****             break;
+  41:../../../projects/dicio/utility/parser.c ****         }
+  42:../../../projects/dicio/utility/parser.c **** 
+  43:../../../projects/dicio/utility/parser.c ****         default:{
+  44:../../../projects/dicio/utility/parser.c ****         }
+  45:../../../projects/dicio/utility/parser.c ****     }
+  46:../../../projects/dicio/utility/parser.c **** }
+ 494               	.LM10:
+ 495 00c8 DF91      		pop r29
+ 496 00ca CF91      		pop r28
+ 497 00cc 0895      		ret
+ 499               	.Lscope1:
+ 501               		.stabd	78,0,0
+ 502               		.section	.rodata.str1.1
+ 503               	.LC6:
+ 504 0068 696E 7661 		.string	"invalid msg_type \r"
+ 504      6C69 6420 
+ 504      6D73 675F 
+ 504      7479 7065 
+ 504      200D 00
+ 505               		.text
+ 510               	.global	parse_serv_msg
+ 512               	parse_serv_msg:
+ 513               		.stabd	46,0,0
+  47:../../../projects/dicio/utility/parser.c **** 
+  48:../../../projects/dicio/utility/parser.c **** /*
+  49:../../../projects/dicio/utility/parser.c **** Function : parse_serv_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
+  50:../../../projects/dicio/utility/parser.c **** 
+  51:../../../projects/dicio/utility/parser.c **** Input parameters:
+  52:../../../projects/dicio/utility/parser.c **** parsed_packet - pointer to the output packet struct.
+  53:../../../projects/dicio/utility/parser.c **** src - the pointer to the received data buffer
+  54:../../../projects/dicio/utility/parser.c **** len - the length of the received data buffer
+  55:../../../projects/dicio/utility/parser.c **** msg_type - the type of message
+  56:../../../projects/dicio/utility/parser.c **** 
+  57:../../../projects/dicio/utility/parser.c **** packet format:
+  58:../../../projects/dicio/utility/parser.c **** mac_addr:seq_num:msg_id:hop_num:payload
+  59:../../../projects/dicio/utility/parser.c **** */
+  60:../../../projects/dicio/utility/parser.c **** void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
+  61:../../../projects/dicio/utility/parser.c **** {
+ 515               	.LM11:
+ 516               	.LFBB2:
+ 517 00ce 6F92      		push r6
+ 518 00d0 7F92      		push r7
+ 519 00d2 8F92      		push r8
+ 520 00d4 9F92      		push r9
+ 521 00d6 AF92      		push r10
+ 522 00d8 BF92      		push r11
+ 523 00da CF92      		push r12
+ 524 00dc DF92      		push r13
+ 525 00de FF92      		push r15
+ 526 00e0 0F93      		push r16
+ 527 00e2 1F93      		push r17
+ 528 00e4 CF93      		push r28
+ 529 00e6 DF93      		push r29
+ 530 00e8 CDB7      		in r28,__SP_L__
+ 531 00ea DEB7      		in r29,__SP_H__
+ 532 00ec 6997      		sbiw r28,25
+ 533 00ee 0FB6      		in __tmp_reg__,__SREG__
+ 534 00f0 F894      		cli
+ 535 00f2 DEBF      		out __SP_H__,r29
+ 536 00f4 0FBE      		out __SREG__,__tmp_reg__
+ 537 00f6 CDBF      		out __SP_L__,r28
+ 538               	/* prologue: function */
+ 539               	/* frame size = 25 */
+ 540               	/* stack size = 38 */
+ 541               	.L__stack_usage = 38
+ 542 00f8 8C01      		movw r16,r24
+ 543 00fa 3B01      		movw r6,r22
+ 544               	.LBB2:
+  62:../../../projects/dicio/utility/parser.c ****     uint8_t pos = 0;
+  63:../../../projects/dicio/utility/parser.c ****     uint8_t item = 0;
+  64:../../../projects/dicio/utility/parser.c ****     uint8_t temp_buf[MAX_BUF_SIZE];
+  65:../../../projects/dicio/utility/parser.c ****     uint16_t value = 0;
+  66:../../../projects/dicio/utility/parser.c ****     for (int x = 0; x < len; x ++){
+ 546               	.LM12:
+ 547 00fc 4B01      		movw r8,r22
+ 548               	.LBE2:
+  63:../../../projects/dicio/utility/parser.c ****     uint8_t temp_buf[MAX_BUF_SIZE];
+ 550               	.LM13:
+ 551 00fe 20E0      		ldi r18,0
+  62:../../../projects/dicio/utility/parser.c ****     uint8_t pos = 0;
+ 553               	.LM14:
+ 554 0100 F12C      		mov r15,__zero_reg__
+ 555               	.LBB4:
+ 557               	.LM15:
+ 558 0102 A42E      		mov r10,r20
+ 559 0104 B12C      		mov r11,__zero_reg__
+ 560 0106 CE01      		movw r24,r28
+ 561 0108 0196      		adiw r24,1
+ 562 010a 6C01      		movw r12,r24
+ 563               	.L7:
+ 564 010c C401      		movw r24,r8
+ 565 010e 8619      		sub r24,r6
+ 566 0110 9709      		sbc r25,r7
+ 568               	.LM16:
+ 569 0112 8A15      		cp r24,r10
+ 570 0114 9B05      		cpc r25,r11
+ 571 0116 04F4      		brge .L25
+  67:../../../projects/dicio/utility/parser.c ****         if(src[x] == ':')
+ 573               	.LM17:
+ 574 0118 F401      		movw r30,r8
+ 575 011a 8191      		ld r24,Z+
+ 576 011c 4F01      		movw r8,r30
+ 577 011e 8A33      		cpi r24,lo8(58)
+ 578 0120 01F4      		brne .L8
+  68:../../../projects/dicio/utility/parser.c ****         {
+  69:../../../projects/dicio/utility/parser.c ****             value = atoi(temp_buf);
+ 580               	.LM18:
+ 581 0122 C601      		movw r24,r12
+ 582 0124 298F      		std Y+25,r18
+ 583 0126 0E94 0000 		call atoi
+  70:../../../projects/dicio/utility/parser.c ****             //printf("parsed value = %d \r\n", value);
+  71:../../../projects/dicio/utility/parser.c ****             switch(item)
+ 585               	.LM19:
+ 586 012a 298D      		ldd r18,Y+25
+ 587 012c 2130      		cpi r18,lo8(1)
+ 588 012e 01F0      		breq .L10
+ 589 0130 00F0      		brlo .L11
+ 590 0132 2230      		cpi r18,lo8(2)
+ 591 0134 01F0      		breq .L12
+ 592 0136 2330      		cpi r18,lo8(3)
+ 593 0138 01F4      		brne .L9
+  72:../../../projects/dicio/utility/parser.c ****             {
+  73:../../../projects/dicio/utility/parser.c ****                 case 0: // mac_addr
+  74:../../../projects/dicio/utility/parser.c ****                 {
+  75:../../../projects/dicio/utility/parser.c ****                     parsed_packet->source_id = value;
+  76:../../../projects/dicio/utility/parser.c ****                     break;
+  77:../../../projects/dicio/utility/parser.c ****                 }
+  78:../../../projects/dicio/utility/parser.c **** 
+  79:../../../projects/dicio/utility/parser.c ****                 case 1: // seq_num
+  80:../../../projects/dicio/utility/parser.c ****                 {              
+  81:../../../projects/dicio/utility/parser.c ****                      // get seq_num
+  82:../../../projects/dicio/utility/parser.c ****                      parsed_packet->seq_num = value;
+  83:../../../projects/dicio/utility/parser.c ****                     break;
+  84:../../../projects/dicio/utility/parser.c ****                 }
+  85:../../../projects/dicio/utility/parser.c **** 
+  86:../../../projects/dicio/utility/parser.c ****                 case 2: // msg_id
+  87:../../../projects/dicio/utility/parser.c ****                 {
+  88:../../../projects/dicio/utility/parser.c ****                     // get message type
+  89:../../../projects/dicio/utility/parser.c ****                     parsed_packet->type = value;
+  90:../../../projects/dicio/utility/parser.c ****                     break;
+  91:../../../projects/dicio/utility/parser.c ****                 }
+  92:../../../projects/dicio/utility/parser.c **** 
+  93:../../../projects/dicio/utility/parser.c ****                 case 3: // hop_num
+  94:../../../projects/dicio/utility/parser.c ****                 {
+  95:../../../projects/dicio/utility/parser.c ****                     // get message hop number
+  96:../../../projects/dicio/utility/parser.c ****                      parsed_packet->num_hops = value;
+ 595               	.LM20:
+ 596 013a F801      		movw r30,r16
+ 597 013c 8483      		std Z+4,r24
+  97:../../../projects/dicio/utility/parser.c ****                     break;
+ 599               	.LM21:
+ 600 013e 00C0      		rjmp .L9
+ 601               	.L11:
+  75:../../../projects/dicio/utility/parser.c ****                     break;
+ 603               	.LM22:
+ 604 0140 F801      		movw r30,r16
+ 605 0142 8083      		st Z,r24
+  76:../../../projects/dicio/utility/parser.c ****                 }
+ 607               	.LM23:
+ 608 0144 00C0      		rjmp .L9
+ 609               	.L10:
+  82:../../../projects/dicio/utility/parser.c ****                     break;
+ 611               	.LM24:
+ 612 0146 F801      		movw r30,r16
+ 613 0148 8283      		std Z+2,r24
+ 614 014a 9383      		std Z+3,r25
+  83:../../../projects/dicio/utility/parser.c ****                 }
+ 616               	.LM25:
+ 617 014c 00C0      		rjmp .L9
+ 618               	.L12:
+  89:../../../projects/dicio/utility/parser.c ****                     break;
+ 620               	.LM26:
+ 621 014e F801      		movw r30,r16
+ 622 0150 8183      		std Z+1,r24
+ 623               	.L9:
+ 624               	.LBE4:
+  61:../../../projects/dicio/utility/parser.c ****     uint8_t pos = 0;
+ 626               	.LM27:
+ 627 0152 F601      		movw r30,r12
+ 628               	.L14:
+ 629 0154 8E2F      		mov r24,r30
+ 630 0156 8C19      		sub r24,r12
+ 631               	.LBB5:
+ 632               	.LBB3:
+  98:../../../projects/dicio/utility/parser.c ****                 }
+  99:../../../projects/dicio/utility/parser.c ****             }
+ 100:../../../projects/dicio/utility/parser.c ****             // clear buffer
+ 101:../../../projects/dicio/utility/parser.c ****             for(uint8_t i = 0; i < pos; i ++)
+ 634               	.LM28:
+ 635 0158 8F15      		cp r24,r15
+ 636 015a 00F4      		brsh .L26
+ 102:../../../projects/dicio/utility/parser.c ****             {
+ 103:../../../projects/dicio/utility/parser.c ****                 temp_buf[i] = 0;
+ 638               	.LM29:
+ 639 015c 1192      		st Z+,__zero_reg__
+ 640 015e 00C0      		rjmp .L14
+ 641               	.L26:
+ 642               	.LBE3:
+ 104:../../../projects/dicio/utility/parser.c ****             }
+ 105:../../../projects/dicio/utility/parser.c ****             item += 1;
+ 644               	.LM30:
+ 645 0160 2F5F      		subi r18,lo8(-(1))
+ 106:../../../projects/dicio/utility/parser.c ****             pos = 0;
+ 647               	.LM31:
+ 648 0162 F12C      		mov r15,__zero_reg__
+ 649 0164 00C0      		rjmp .L7
+ 650               	.L8:
+ 107:../../../projects/dicio/utility/parser.c ****         }
+ 108:../../../projects/dicio/utility/parser.c ****         else{
+ 109:../../../projects/dicio/utility/parser.c ****             temp_buf[pos] = src[x];
+ 652               	.LM32:
+ 653 0166 F601      		movw r30,r12
+ 654 0168 EF0D      		add r30,r15
+ 655 016a F11D      		adc r31,__zero_reg__
+ 656 016c 8083      		st Z,r24
+ 110:../../../projects/dicio/utility/parser.c ****             pos += 1;
+ 658               	.LM33:
+ 659 016e F394      		inc r15
+ 660 0170 00C0      		rjmp .L7
+ 661               	.L25:
+ 662               	.LBE5:
+ 111:../../../projects/dicio/utility/parser.c ****         }
+ 112:../../../projects/dicio/utility/parser.c **** 
+ 113:../../../projects/dicio/utility/parser.c ****     }
+ 114:../../../projects/dicio/utility/parser.c **** 
+ 115:../../../projects/dicio/utility/parser.c ****     /*
+ 116:../../../projects/dicio/utility/parser.c ****     Payload has not been parsed into packet.
+ 117:../../../projects/dicio/utility/parser.c ****     Once the loop has gone through the length of the message, 
+ 118:../../../projects/dicio/utility/parser.c ****     the payload will be stored in temp_buf. 
+ 119:../../../projects/dicio/utility/parser.c ****     Need to parse payload depending on message type
+ 120:../../../projects/dicio/utility/parser.c ****     */
+ 121:../../../projects/dicio/utility/parser.c ****     switch(parsed_packet->type)
+ 664               	.LM34:
+ 665 0172 F801      		movw r30,r16
+ 666 0174 8181      		ldd r24,Z+1
+ 667 0176 8630      		cpi r24,lo8(6)
+ 668 0178 01F0      		breq .L19
+ 669 017a 00F4      		brsh .L20
+ 670 017c 8530      		cpi r24,lo8(5)
+ 671 017e 01F0      		breq .L6
+ 672 0180 00C0      		rjmp .L18
+ 673               	.L20:
+ 674 0182 8930      		cpi r24,lo8(9)
+ 675 0184 00F4      		brsh .L18
+ 676 0186 00C0      		rjmp .L6
+ 677               	.L19:
+ 122:../../../projects/dicio/utility/parser.c ****     {
+ 123:../../../projects/dicio/utility/parser.c ****         case MSG_CMD:
+ 124:../../../projects/dicio/utility/parser.c ****         {
+ 125:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[0] = temp_buf[0] - '0';
+ 679               	.LM35:
+ 680 0188 8981      		ldd r24,Y+1
+ 681 018a 8053      		subi r24,lo8(-(-48))
+ 682 018c F801      		movw r30,r16
+ 683 018e 8187      		std Z+9,r24
+ 126:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[1] = temp_buf[1] - '0';
+ 685               	.LM36:
+ 686 0190 8A81      		ldd r24,Y+2
+ 687 0192 8053      		subi r24,lo8(-(-48))
+ 688 0194 8287      		std Z+10,r24
+ 127:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[2] = temp_buf[2] - '0';
+ 690               	.LM37:
+ 691 0196 8B81      		ldd r24,Y+3
+ 692 0198 8053      		subi r24,lo8(-(-48))
+ 693 019a 8387      		std Z+11,r24
+ 128:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[3] = temp_buf[3] - '0';
+ 695               	.LM38:
+ 696 019c 8C81      		ldd r24,Y+4
+ 697 019e 8053      		subi r24,lo8(-(-48))
+ 698 01a0 8487      		std Z+12,r24
+ 129:../../../projects/dicio/utility/parser.c ****             break;
+ 700               	.LM39:
+ 701 01a2 00C0      		rjmp .L6
+ 702               	.L18:
+ 130:../../../projects/dicio/utility/parser.c ****         }
+ 131:../../../projects/dicio/utility/parser.c **** 
+ 132:../../../projects/dicio/utility/parser.c ****         case MSG_DATA:
+ 133:../../../projects/dicio/utility/parser.c ****         {
+ 134:../../../projects/dicio/utility/parser.c ****             // should not be getting DATA type messages from server
+ 135:../../../projects/dicio/utility/parser.c ****             break;
+ 136:../../../projects/dicio/utility/parser.c ****         }
+ 137:../../../projects/dicio/utility/parser.c **** 
+ 138:../../../projects/dicio/utility/parser.c ****         case MSG_CMDACK:
+ 139:../../../projects/dicio/utility/parser.c ****         {
+ 140:../../../projects/dicio/utility/parser.c ****             // should not be getting command ack messages from server
+ 141:../../../projects/dicio/utility/parser.c ****             break;
+ 142:../../../projects/dicio/utility/parser.c ****         }
+ 143:../../../projects/dicio/utility/parser.c **** 
+ 144:../../../projects/dicio/utility/parser.c ****         case MSG_HAND:
+ 145:../../../projects/dicio/utility/parser.c ****         {
+ 146:../../../projects/dicio/utility/parser.c ****             // what is the payload going to look like here?
+ 147:../../../projects/dicio/utility/parser.c ****             break;
+ 148:../../../projects/dicio/utility/parser.c ****         }
+ 149:../../../projects/dicio/utility/parser.c **** 
+ 150:../../../projects/dicio/utility/parser.c ****         default:{
+ 151:../../../projects/dicio/utility/parser.c ****             printf("invalid msg_type \r\n");
+ 704               	.LM40:
+ 705 01a4 80E0      		ldi r24,lo8(.LC6)
+ 706 01a6 90E0      		ldi r25,hi8(.LC6)
+ 707 01a8 0E94 0000 		call puts
+ 708               	.L6:
+ 709               	/* epilogue start */
+ 152:../../../projects/dicio/utility/parser.c ****         }
+ 153:../../../projects/dicio/utility/parser.c ****     }
+ 154:../../../projects/dicio/utility/parser.c **** }
+ 711               	.LM41:
+ 712 01ac 6996      		adiw r28,25
+ 713 01ae 0FB6      		in __tmp_reg__,__SREG__
+ 714 01b0 F894      		cli
+ 715 01b2 DEBF      		out __SP_H__,r29
+ 716 01b4 0FBE      		out __SREG__,__tmp_reg__
+ 717 01b6 CDBF      		out __SP_L__,r28
+ 718 01b8 DF91      		pop r29
+ 719 01ba CF91      		pop r28
+ 720 01bc 1F91      		pop r17
+ 721 01be 0F91      		pop r16
+ 722 01c0 FF90      		pop r15
+ 723 01c2 DF90      		pop r13
+ 724 01c4 CF90      		pop r12
+ 725 01c6 BF90      		pop r11
+ 726 01c8 AF90      		pop r10
+ 727 01ca 9F90      		pop r9
+ 728 01cc 8F90      		pop r8
+ 729 01ce 7F90      		pop r7
+ 730 01d0 6F90      		pop r6
+ 731 01d2 0895      		ret
+ 738               	.Lscope2:
+ 740               		.stabd	78,0,0
+ 745               	.global	parse_msg
+ 747               	parse_msg:
+ 748               		.stabd	46,0,0
+ 155:../../../projects/dicio/utility/parser.c **** 
+ 156:../../../projects/dicio/utility/parser.c **** 
+ 157:../../../projects/dicio/utility/parser.c **** 
+ 158:../../../projects/dicio/utility/parser.c **** 
+ 159:../../../projects/dicio/utility/parser.c **** /*
+ 160:../../../projects/dicio/utility/parser.c **** Function : parse_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
+ 161:../../../projects/dicio/utility/parser.c **** 
+ 162:../../../projects/dicio/utility/parser.c **** Input parameters:
+ 163:../../../projects/dicio/utility/parser.c **** parsed_packet - pointer to the output packet struct.
+ 164:../../../projects/dicio/utility/parser.c **** src - the pointer to the received data buffer
+ 165:../../../projects/dicio/utility/parser.c **** len - the length of the received data buffer
+ 166:../../../projects/dicio/utility/parser.c **** msg_type - the type of message
+ 167:../../../projects/dicio/utility/parser.c **** */
+ 168:../../../projects/dicio/utility/parser.c **** void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
+ 169:../../../projects/dicio/utility/parser.c **** {
+ 750               	.LM42:
+ 751               	.LFBB3:
+ 752               	/* prologue: function */
+ 753               	/* frame size = 0 */
+ 754               	/* stack size = 0 */
+ 755               	.L__stack_usage = 0
+ 756 01d4 FC01      		movw r30,r24
+ 757 01d6 DB01      		movw r26,r22
+ 170:../../../projects/dicio/utility/parser.c ****     uint8_t pos = 0;
+ 171:../../../projects/dicio/utility/parser.c ****     uint8_t item = 0;
+ 172:../../../projects/dicio/utility/parser.c ****     uint8_t temp_buf[MAX_BUF_SIZE];
+ 173:../../../projects/dicio/utility/parser.c **** 
+ 174:../../../projects/dicio/utility/parser.c ****     parsed_packet->source_id = src[0];
+ 759               	.LM43:
+ 760 01d8 8C91      		ld r24,X
+ 761 01da 8083      		st Z,r24
+ 175:../../../projects/dicio/utility/parser.c ****     parsed_packet->seq_num = src[1];
+ 763               	.LM44:
+ 764 01dc 1196      		adiw r26,1
+ 765 01de 8C91      		ld r24,X
+ 766 01e0 1197      		sbiw r26,1
+ 767 01e2 90E0      		ldi r25,0
+ 768 01e4 9383      		std Z+3,r25
+ 769 01e6 8283      		std Z+2,r24
+ 176:../../../projects/dicio/utility/parser.c ****     parsed_packet->type = src[2];
+ 771               	.LM45:
+ 772 01e8 1296      		adiw r26,2
+ 773 01ea 8C91      		ld r24,X
+ 774 01ec 1297      		sbiw r26,2
+ 775 01ee 8183      		std Z+1,r24
+ 177:../../../projects/dicio/utility/parser.c ****     parsed_packet->num_hops = src[3];
+ 777               	.LM46:
+ 778 01f0 1396      		adiw r26,3
+ 779 01f2 9C91      		ld r25,X
+ 780 01f4 1397      		sbiw r26,3
+ 781 01f6 9483      		std Z+4,r25
+ 178:../../../projects/dicio/utility/parser.c **** 
+ 179:../../../projects/dicio/utility/parser.c ****     /*
+ 180:../../../projects/dicio/utility/parser.c ****     Payload has not been parsed into packet.
+ 181:../../../projects/dicio/utility/parser.c ****     Once the loop has gone through the length of the message, 
+ 182:../../../projects/dicio/utility/parser.c ****     the payload will be stored in temp_buf. 
+ 183:../../../projects/dicio/utility/parser.c ****     Need to parse payload depending on message type
+ 184:../../../projects/dicio/utility/parser.c ****     */
+ 185:../../../projects/dicio/utility/parser.c ****     switch(parsed_packet->type)
+ 783               	.LM47:
+ 784 01f8 8630      		cpi r24,lo8(6)
+ 785 01fa 01F0      		breq .L29
+ 786 01fc 00F4      		brsh .L30
+ 787 01fe 8530      		cpi r24,lo8(5)
+ 788 0200 01F4      		brne .L28
+ 186:../../../projects/dicio/utility/parser.c ****     {
+ 187:../../../projects/dicio/utility/parser.c ****         case MSG_CMD:
+ 188:../../../projects/dicio/utility/parser.c ****         {
+ 189:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[0] = src[4];
+ 190:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[1] = src[5];
+ 191:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[2] = src[6];
+ 192:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[3] = src[7];
+ 193:../../../projects/dicio/utility/parser.c ****             break;
+ 194:../../../projects/dicio/utility/parser.c ****         }
+ 195:../../../projects/dicio/utility/parser.c **** 
+ 196:../../../projects/dicio/utility/parser.c ****         case MSG_DATA:
+ 197:../../../projects/dicio/utility/parser.c ****         {
+ 198:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[DATA_PWR_INDEX] = (uint16_t)src[4];
+ 790               	.LM48:
+ 791 0202 1496      		adiw r26,4
+ 792 0204 8C91      		ld r24,X
+ 793 0206 1497      		sbiw r26,4
+ 794 0208 8187      		std Z+9,r24
+ 199:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[DATA_TEMP_INDEX] = (uint16_t)src[6];
+ 796               	.LM49:
+ 797 020a 1696      		adiw r26,6
+ 798 020c 8C91      		ld r24,X
+ 799 020e 1697      		sbiw r26,6
+ 800 0210 8387      		std Z+11,r24
+ 200:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[DATA_LIGHT_INDEX] = (uint16_t)src[8];
+ 802               	.LM50:
+ 803 0212 1896      		adiw r26,8
+ 804 0214 8C91      		ld r24,X
+ 805 0216 8587      		std Z+13,r24
+ 201:../../../projects/dicio/utility/parser.c ****             //printf("payload:%d,%d,%d\r\n", src[4],src[6],src[8]);
+ 202:../../../projects/dicio/utility/parser.c ****             break;
+ 807               	.LM51:
+ 808 0218 0895      		ret
+ 809               	.L30:
+ 185:../../../projects/dicio/utility/parser.c ****     {
+ 811               	.LM52:
+ 812 021a 8930      		cpi r24,lo8(9)
+ 813 021c 00F0      		brlo .L27
+ 814 021e 00C0      		rjmp .L28
+ 815               	.L29:
+ 189:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[1] = src[5];
+ 817               	.LM53:
+ 818 0220 1496      		adiw r26,4
+ 819 0222 8C91      		ld r24,X
+ 820 0224 1497      		sbiw r26,4
+ 821 0226 8187      		std Z+9,r24
+ 190:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[2] = src[6];
+ 823               	.LM54:
+ 824 0228 1596      		adiw r26,5
+ 825 022a 8C91      		ld r24,X
+ 826 022c 1597      		sbiw r26,5
+ 827 022e 8287      		std Z+10,r24
+ 191:../../../projects/dicio/utility/parser.c ****             parsed_packet->payload[3] = src[7];
+ 829               	.LM55:
+ 830 0230 1696      		adiw r26,6
+ 831 0232 8C91      		ld r24,X
+ 832 0234 1697      		sbiw r26,6
+ 833 0236 8387      		std Z+11,r24
+ 192:../../../projects/dicio/utility/parser.c ****             break;
+ 835               	.LM56:
+ 836 0238 1796      		adiw r26,7
+ 837 023a 8C91      		ld r24,X
+ 838 023c 8487      		std Z+12,r24
+ 193:../../../projects/dicio/utility/parser.c ****         }
+ 840               	.LM57:
+ 841 023e 0895      		ret
+ 842               	.L28:
+ 203:../../../projects/dicio/utility/parser.c ****         }
+ 204:../../../projects/dicio/utility/parser.c **** 
+ 205:../../../projects/dicio/utility/parser.c ****         case MSG_CMDACK:
+ 206:../../../projects/dicio/utility/parser.c ****         {
+ 207:../../../projects/dicio/utility/parser.c ****             break;
+ 208:../../../projects/dicio/utility/parser.c ****         }
+ 209:../../../projects/dicio/utility/parser.c **** 
+ 210:../../../projects/dicio/utility/parser.c ****         case MSG_HAND:
+ 211:../../../projects/dicio/utility/parser.c ****         {
+ 212:../../../projects/dicio/utility/parser.c ****             // what is the payload going to look like here?
+ 213:../../../projects/dicio/utility/parser.c ****             break;
+ 214:../../../projects/dicio/utility/parser.c ****         }
+ 215:../../../projects/dicio/utility/parser.c **** 
+ 216:../../../projects/dicio/utility/parser.c ****         default:{
+ 217:../../../projects/dicio/utility/parser.c ****             printf("invalid msg_type \r\n");
+ 844               	.LM58:
+ 845 0240 80E0      		ldi r24,lo8(.LC6)
+ 846 0242 90E0      		ldi r25,hi8(.LC6)
+ 847 0244 0C94 0000 		jmp puts
+ 848               	.L27:
+ 849 0248 0895      		ret
+ 851               	.Lscope3:
+ 853               		.stabd	78,0,0
+ 854               		.comm	error_num,1,1
+ 855               		.comm	error_task,1,1
+ 856               		.comm	bmac_rfTxInfo,7,1
+ 857               		.comm	bmac_rfRxInfo,12,1
+ 858               		.comm	bmac_enable_signal,1,1
+ 859               		.comm	bmac_tx_pkt_done_signal,1,1
+ 860               		.comm	bmac_rx_pkt_signal,1,1
+ 861               		.comm	nrk_kernel_stk_ptr,2,1
+ 862               		.comm	nrk_idle_task_stk,512,1
+ 863               		.comm	_nrk_signal_list,4,1
+ 875               	.Letext0:
+ 876               		.ident	"GCC: (GNU) 4.9.1"
+ 877               	.global __do_copy_data
+ 878               	.global __do_clear_bss
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 parser.c
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:2      *ABS*:000000000000003e __SP_H__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:3      *ABS*:000000000000003d __SP_L__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:4      *ABS*:000000000000003f __SREG__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:5      *ABS*:000000000000003b __RAMPZ__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:6      *ABS*:0000000000000000 __tmp_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:7      *ABS*:0000000000000001 __zero_reg__
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:369    .text:0000000000000000 print_packet
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:512    .text:00000000000000ce parse_serv_msg
+/var/folders/57/dy66zcf543x9s42pt1yfw30r0000gn/T//cc19iFoL.s:747    .text:00000000000001d4 parse_msg
+                            *COM*:0000000000000001 error_num
+                            *COM*:0000000000000001 error_task
+                            *COM*:0000000000000007 bmac_rfTxInfo
+                            *COM*:000000000000000c bmac_rfRxInfo
+                            *COM*:0000000000000001 bmac_enable_signal
+                            *COM*:0000000000000001 bmac_tx_pkt_done_signal
+                            *COM*:0000000000000001 bmac_rx_pkt_signal
+                            *COM*:0000000000000002 nrk_kernel_stk_ptr
+                            *COM*:0000000000000200 nrk_idle_task_stk
+                            *COM*:0000000000000004 _nrk_signal_list
+
+UNDEFINED SYMBOLS
+printf
+atoi
+puts
+__do_copy_data
+__do_clear_bss
