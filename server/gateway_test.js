@@ -4,7 +4,7 @@ var Outlet     = require('./models/Outlet');
 var Event      = require('./models/Event');
 
 // Constants
-const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
+const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUO5';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE = 0;
 const OUTLET_ACTION_MESSAGE = 6;
@@ -102,18 +102,10 @@ function sendAction(outletMacAddress, action) {
 };
 
 /*
- * Returns True if we have made a successful connection to the gateway,
- * False otherwise.
- */
-function isConnected() {
-	return serialPort && serialport.isOpen();
-}
-
-/*
  * Starts the connection to the gateway node. If a port was not given as an
  * argument, it assumed a constant defined above
  */
-function start(port) {
+function start(port, callback) {
 	if (!port) {
 		port = DEFAULT_SERIAL_PORT;
 	}
@@ -129,18 +121,30 @@ function start(port) {
 	    console.log('Serial Port opened');
 
 	    // Listen for "data" event from serial port
-	    serialPort.on('data', handleData);
+	    serialPort.on('data', (data) => console.log("received: ", data));
+
+	    callback(null);
 	});
 
 	serialPort.on('error', (err) => {
 		hasStarted = false;
 		console.error('Serial Port Error: ', err);
+		callback(err);
 	});
 };
 
-// export functions to make them public
-exports.sendAction = sendAction;
-exports.isConnected = isConnected;
-exports.start = start;
+// Get serial port from command line args
+var port = DEFAULT_SERIAL_PORT;
+if (process.argv.length >= 3) {
+	port = process.argv[2];
+}
 
-
+start(port, function(err) {
+	if (err) {
+		console.error(err);
+	}
+	
+	setInterval(function() {
+		sendAction(1,"ON").catch(console.trace);
+	},2000);
+});
