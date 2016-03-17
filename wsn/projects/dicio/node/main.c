@@ -20,11 +20,9 @@
 #include <nrk_error.h>
 // this package
 #include <assembler.h>
-#include <light_pool.h>
-#include <neighbors.h>
 #include <packet_queue.h>
 #include <parser.h>
-#include <sequence_pool.h>
+#include <pool.h>
 #include <type_defs.h>
 
 // DEFINES
@@ -92,13 +90,15 @@ sensor_packet sensor_pkt;
 void nrk_register_drivers();
 
 // SEQUENCE POOLS/NUMBER
-sequence_pool_t seq_pool;
+pool_t seq_pool;
 uint16_t seq_num = 0;
 nrk_sem_t* seq_num_mux;
 
 // GLOBAL FLAG
 uint8_t print_incoming;
 uint8_t blink_leds;
+uint8_t network_joined;
+nrk_sem_t* network_joined_mux;
 
 int main () {
   // setup ports/uart
@@ -112,17 +112,19 @@ int main () {
   nrk_led_clr(2);
   nrk_led_clr(3);
     
-  // print flag
-  print_incoming = 1;
-  blink_leds = 1;
+  // flags
+  print_incoming  = TRUE;
+  blink_leds      = TRUE;
+  network_joined  = FALSE;
 
   // mutexs
-  net_tx_buf_mux    = nrk_sem_create(1, 6);
-  act_queue_mux     = nrk_sem_create(1, 6);
-  cmd_tx_queue_mux  = nrk_sem_create(1, 6);
-  data_tx_queue_mux = nrk_sem_create(1, 6);
-  hand_rx_queue_mux = nrk_sem_create(1, 6);
-  seq_num_mux       = nrk_sem_create(1, 6);
+  net_tx_buf_mux      = nrk_sem_create(1, 6);
+  act_queue_mux       = nrk_sem_create(1, 6);
+  cmd_tx_queue_mux    = nrk_sem_create(1, 6);
+  data_tx_queue_mux   = nrk_sem_create(1, 6);
+  hand_rx_queue_mux   = nrk_sem_create(1, 6);
+  seq_num_mux         = nrk_sem_create(1, 6);
+  network_joined_mux  = nrk_sem_create(1, 6);
 
   // sensor periods (in seconds)
   pwr_period = 30;
@@ -165,6 +167,7 @@ void rx_msg_task() {
   int8_t in_seq_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
+  uint8_t local_network_joined;
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
@@ -177,7 +180,7 @@ void rx_msg_task() {
   // loop forever
   while(1) {
     // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
+    if(blink_leds == TRUE) {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
@@ -195,107 +198,120 @@ void rx_msg_task() {
       bmac_rx_pkt_release ();  
       
       // print incoming packet if appropriate
-      if(print_incoming == 1) {
+      if(print_incoming == TRUE) {
         nrk_kprintf (PSTR ("rx pkt:\r\n"));
         print_packet(&rx_packet);     
       }
       
-      // only receive the message if it's not from the gateway
-      //  NOTE: this is required because the gateway will hear re-transmitted packets 
+      // only receive the message if it's not from this node
+      //  NOTE: this is required because the node will hear re-transmitted packets 
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
 
-        // check to see if this node is in the sequence pool, if not then add it
-        in_seq_pool = in_sequence_pool(&seq_pool, rx_packet.source_id);
-        if(in_seq_pool == -1) {
-          add_to_sequence_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
-          new_node = NODE_FOUND;
-        }
-      
-        // determine if we should act on this packet based on the sequence number
-        local_seq_num = get_sequence_number(&seq_pool, rx_packet.source_id);
-        if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND)) {
-          
-          // update the sequence pool and reset the new_node flag
-          update_sequence_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
-          new_node = NONE;
-          
-          // put the message in the right queue based on the type
-          switch(rx_packet.type) {
-            case MSG_CMD: {
-              /*
-              command received -- either act or forward
-              Payload format: [NN][D][A]
-              NN: Command ID
-              D: Destination Address
-              A: Action!!!
-              
-              if command is for this node and hasn't been received yet, add it
-              to the action queue. Otherwise, add it to the cmd_tx queue for 
-              forwarding to other nodes.
-                */
-              if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
-                  (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) 
-              {
-                nrk_kprintf (PSTR ("packet for me!\r\n"));
-                last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
-                nrk_sem_pend(act_queue_mux);
-                push(&act_queue, &rx_packet);
-                nrk_sem_post(act_queue_mux);
-              } 
-              else 
-              {
+        // execute the normal sequence of events if the network has been joined
+        if(local_network_joined == TRUE) {
+          // check to see if this node is in the sequence pool, if not then add it
+          in_seq_pool = in_pool(&seq_pool, rx_packet.source_id);
+          if(in_seq_pool == -1) {
+            add_to_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
+            new_node = NODE_FOUND;
+          }
+        
+          // determine if we should act on this packet based on the sequence number
+          local_seq_num = get_data_val(&seq_pool, rx_packet.source_id);
+          if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND)) {
+            
+            // update the sequence pool and reset the new_node flag
+            update_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
+            new_node = NONE;
+            
+            // put the message in the right queue based on the type
+            switch(rx_packet.type) {
+              case MSG_CMD: {
+                // if command is for this node and hasn't been received yet, add it
+                //  to the action queue. Otherwise, add it to the cmd_tx queue for 
+                //  forwarding to other nodes.
+                if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
+                    (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) {
+                  nrk_kprintf (PSTR ("command for me!\r\n"));
+                  last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
+                  nrk_sem_pend(act_queue_mux); {
+                    push(&act_queue, &rx_packet);
+                  }
+                  nrk_sem_post(act_queue_mux);
+                } 
+                else {
+                  rx_packet.num_hops++;
+                  nrk_sem_pend(cmd_tx_queue_mux); {
+                    push(&cmd_tx_queue, &rx_packet);
+                  }
+                  nrk_sem_post(cmd_tx_queue_mux);
+                }
+                break;
+              }
+              // command ack received -- forward to the server
+              case MSG_CMDACK: {
                 rx_packet.num_hops++;
-                nrk_sem_pend(cmd_tx_queue_mux);
-                push(&cmd_tx_queue, &rx_packet);
+                nrk_sem_pend(cmd_tx_queue_mux); {
+                  push(&cmd_tx_queue, &rx_packet);
+                }
                 nrk_sem_post(cmd_tx_queue_mux);
+                break;
               }
-              break;
-            }
-            // command ack received -- forward to the server
-            case MSG_CMDACK: {
-              rx_packet.num_hops++;
-              nrk_sem_pend(cmd_tx_queue_mux);
-              push(&cmd_tx_queue, &rx_packet);
-              nrk_sem_post(cmd_tx_queue_mux);
-              break;
-            }
-            // data received -> forward to server
-            case MSG_DATA: {
-              rx_packet.num_hops++;
-              nrk_sem_pend(data_tx_queue_mux);
-              push(&data_tx_queue, &rx_packet);
-              nrk_sem_post(data_tx_queue_mux);
-              break;
-            }
-            // handshake message recieved -> deal with in handshake function or forward
-            case MSG_HAND: {
-              if(rx_packet.payload[HAND_NODE_ID_INDEX] == MAC_ADDR) {
-                nrk_sem_pend(hand_rx_queue_mux);
-                push(&hand_rx_queue, &rx_packet);
-                nrk_sem_post(hand_rx_queue_mux);                
-              } else {
+              // data received -> forward to server
+              case MSG_DATA: {
                 rx_packet.num_hops++;
-                nrk_sem_pend(data_tx_queue_mux);
-                push(&data_tx_queue, &rx_packet);
-                nrk_sem_post(data_tx_queue_mux);                 
+                nrk_sem_pend(data_tx_queue_mux); {
+                  push(&data_tx_queue, &rx_packet);
+                }
+                nrk_sem_post(data_tx_queue_mux);
+                break;
               }
-              break;
+              // handshake message recieved -> deal with in handshake function or forward
+              case MSG_HAND: {
+                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR) {
+                  nrk_sem_pend(hand_rx_queue_mux); {
+                    push(&hand_rx_queue, &rx_packet);
+                  }
+                  nrk_sem_post(hand_rx_queue_mux);                
+                } else {
+                  rx_packet.num_hops++;
+                  nrk_sem_pend(data_tx_queue_mux); {
+                    push(&data_tx_queue, &rx_packet);
+                  }
+                  nrk_sem_post(data_tx_queue_mux);                 
+                }
+                break;
+              }
+              // gateway message -> for future expansion
+              case MSG_GATEWAY:{
+                // do nothing...no messages have been defined with this type yet
+                break;                
+              }
+              // no message
+              case MSG_NO_MESSAGE: {
+                // do nothing. 
+                // NOTE: this is a valid case. If the message is not 'parsible' then it can be
+                //  given a 'NO_MESSAGE' type.
+                break;
+              }
+              default: {
+                // do nothing
+                // NOTICE: really this should never happen. Eventually, throw and error here.
+                break;
+              }
             }
-            // gateway message -> for future expansion
-            case MSG_GATEWAY:
-              // do nothing...no messages have been defined with this type yet
-              break;
-            // no message
-            case MSG_NO_MESSAGE:
-              // do nothing. 
-              // NOTE: this is a valid case. If the message is not 'parsible' then it can be
-              //  given a 'NO_MESSAGE' type.
-              break;
-            default:
-              // do nothing
-              // NOTICE: really this should never happen. Eventually, throw and error here.
-              break;
+          }
+        } 
+        // if the local_network_joined flag hasn't been set yet, check status
+        else {
+          // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
+          if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
+            nrk_sem_pend(network_joined_mux); {
+              network_joined = TRUE;
+              local_network_joined = network_joined;
+            }
+            nrk_sem_post(network_joined_mux);
           }
         }        
       }
@@ -316,6 +332,7 @@ void tx_cmd_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_cmd_queue_size;
+  uint8_t local_network_joined = FALSE;
 
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
@@ -330,7 +347,7 @@ void tx_cmd_task() {
   // loop forever
   while(1){
     // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
+    if(blink_leds == TRUE) {
       LED_FLAG++;
       LED_FLAG%=2;
       /*
@@ -341,49 +358,58 @@ void tx_cmd_task() {
       }  */    
     }
 
-    // atomically get the queue size
-    nrk_sem_pend(cmd_tx_queue_mux);
-      tx_cmd_queue_size = cmd_tx_queue.size;
-    nrk_sem_post(cmd_tx_queue_mux);
-
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(cmd_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
-     *    added to by another task.
-     */
-    for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
-      // get a packet out of the queue.
-      nrk_sem_pend(cmd_tx_queue_mux);
-      pop(&cmd_tx_queue, &tx_packet);
+    // only execute task if the network has been joined
+    if(local_network_joined == TRUE) {
+      // atomically get the queue size
+      nrk_sem_pend(cmd_tx_queue_mux); {
+        tx_cmd_queue_size = cmd_tx_queue.size;
+      }
       nrk_sem_post(cmd_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because 
-      //  tx_cmd_task() also uses it.
-      nrk_sem_pend(net_tx_buf_mux);
-      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+      /**
+       * loop on queue size received above, and no more.
+       *  NOTE: during this loop the queue can be added to. If, for instance,
+       *    a "while(cmd_tx_queue.size > 0)" was used a few bad things could happen
+       *      (1) a mutex would be required around the entire loop - BAD IDEA
+       *      (2) the queue could be added to while this loop is running, thus
+       *        making the loop unbounded - BAD IDEA
+       *      (3) the size the queue read and the actual size of the queue could be 
+       *        incorrect due to preemtion - BAD IDEA
+       *    Doing it this way bounds this loop to the maximum size of the queue
+       *    at any given time, regardless of whether or not the queue has been 
+       *    added to by another task.
+       */
+      for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
+        // get a packet out of the queue.
+        nrk_sem_pend(cmd_tx_queue_mux); {
+          pop(&cmd_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(cmd_tx_queue_mux);
 
-      // send the packet
-      val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
-      ret = nrk_event_wait (SIG(tx_done_signal));
+        // NOTE: a mutex is required around the network transmit buffer because 
+        //  tx_cmd_task() also uses it.
+        nrk_sem_pend(net_tx_buf_mux); {
+          net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
 
-      printf("tx pkt: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n",
-        net_tx_buf[0],net_tx_buf[1],net_tx_buf[2],net_tx_buf[3],net_tx_buf[4],
-        net_tx_buf[5],net_tx_buf[6],net_tx_buf[7],net_tx_buf[8],net_tx_buf[9]);
-      
-      // Just check to be sure signal is okay
-      if(ret & (SIG(tx_done_signal) == 0)) {
-        nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          // send the packet
+          val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
+          ret = nrk_event_wait (SIG(tx_done_signal));
+          
+          // Just check to be sure signal is okay
+          if(ret & (SIG(tx_done_signal) == 0)) {
+            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          }
+          clear_tx_buf();
+        }
+        nrk_sem_post(net_tx_buf_mux);     
+      }      
+    }
+    // if the local_network_joined flag hasn't been set yet, check status
+    else {
+      nrk_sem_pend(network_joined_mux); {
+        local_network_joined = network_joined;
       }
-      clear_tx_buf();
-      nrk_sem_post(net_tx_buf_mux);     
+      nrk_sem_post(network_joined_mux);      
     }
     nrk_wait_until_next_period();
   }
@@ -401,6 +427,7 @@ void tx_data_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_data_queue_size;
+  uint8_t local_network_joined = FALSE;
 
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
@@ -414,7 +441,7 @@ void tx_data_task() {
   
   while(1) {
     // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
+    if(blink_leds == TRUE) {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
@@ -423,59 +450,66 @@ void tx_data_task() {
         nrk_led_clr(3);
       }      
     }
- 
-    // atomically get the queue size
-    nrk_sem_pend(data_tx_queue_mux);
-      tx_data_queue_size = data_tx_queue.size;
-    nrk_sem_post(data_tx_queue_mux);
 
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
-     *    added to by another task.
-     */
-    for(uint8_t i = 0; i < tx_data_queue_size; i++) {
-      // get a packet out of the queue.
-      nrk_sem_pend(data_tx_queue_mux);
-     // printf("Q front:%d\r\n", data_tx_queue.front);// for debug
-      pop(&data_tx_queue, &tx_packet);
+    // only execute task if the network has been joined
+    if(local_network_joined == TRUE) {
+      // atomically get the queue size
+      nrk_sem_pend(data_tx_queue_mux); {
+        tx_data_queue_size = data_tx_queue.size;
+      }
       nrk_sem_post(data_tx_queue_mux);
 
-      if(print_incoming == 1){
-        //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
-        //print_packet(&tx_packet);
+      /**
+       * loop on queue size received above, and no more.
+       *  NOTE: during this loop the queue can be added to. If, for instance,
+       *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
+       *      (1) a mutex would be required around the entire loop - BAD IDEA
+       *      (2) the queue could be added to while this loop is running, thus
+       *        making the loop unbounded - BAD IDEA
+       *      (3) the size the queue read and the actual size of the queue could be 
+       *        incorrect due to preemtion - BAD IDEA
+       *    Doing it this way bounds this loop to the maximum size of the queue
+       *    at any given time, regardless of whether or not the queue has been 
+       *    added to by another task.
+       */
+      for(uint8_t i = 0; i < tx_data_queue_size; i++) {
+        // get a packet out of the queue.
+        nrk_sem_pend(data_tx_queue_mux); {
+          pop(&data_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(data_tx_queue_mux);
+
+        if(print_incoming == TRUE){
+          //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
+          //print_packet(&tx_packet);
+        }
+
+        // NOTE: a mutex is required around the network transmit buffer because 
+        //  tx_cmd_task() also uses it.
+        nrk_sem_pend(net_tx_buf_mux); {
+          net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+
+          // send the packet
+          val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
+          ret = nrk_event_wait (SIG(tx_done_signal));
+
+          // Just check to be sure signal is okay
+          if(ret & (SIG(tx_done_signal) == 0)) {
+            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          }
+          clear_tx_buf();
+        }
+        nrk_sem_post(net_tx_buf_mux);     
+      }      
+    } 
+    // if the local_network_joined flag hasn't been set yet, check status
+    else {
+      nrk_sem_pend(network_joined_mux); {
+        local_network_joined = network_joined;
       }
-
-      // NOTE: a mutex is required around the network transmit buffer because 
-      //  tx_cmd_task() also uses it.
-      nrk_sem_pend(net_tx_buf_mux);
-      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
-
-      // send the packet
-      val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
-      ret = nrk_event_wait (SIG(tx_done_signal));
-
-      /*printf("tx pkt: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n",
-        net_tx_buf[0],net_tx_buf[1],net_tx_buf[2],net_tx_buf[3],net_tx_buf[4],
-        net_tx_buf[5],net_tx_buf[6],net_tx_buf[7],net_tx_buf[8],net_tx_buf[9]);*/
-
-        //printf("index: %d\r\n", net_tx_index);
-
-      // Just check to be sure signal is okay
-      if(ret & (SIG(tx_done_signal) == 0)) {
-        nrk_kprintf (PSTR ("TX done signal error\r\n"));
-      }
-      clear_tx_buf();
-      nrk_sem_post(net_tx_buf_mux);     
+      nrk_sem_post(network_joined_mux);       
     }
+
     nrk_wait_until_next_period();
   }
 }
@@ -496,6 +530,7 @@ void sample_task() {
   uint16_t local_temp_val = 0;
   uint16_t local_light_val = 0;
   packet tx_packet;
+  uint8_t local_network_joined = FALSE;
 
   // initialize sensor packet
   sensor_pkt.pwr_val = local_pwr_val;
@@ -510,75 +545,77 @@ void sample_task() {
   // loop forever
   while(1) {
     // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
+    if(blink_leds == TRUE) {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        //nrk_led_set(2);
+        nrk_led_set(2);
       } else {
         nrk_led_clr(2);
       }      
     }
 
-    // update period counts
-    pwr_period_count++;
-    temp_period_count++;
-    light_period_count++;
-    pwr_period_count %= pwr_period;
-    temp_period_count %= temp_period;
-    light_period_count %= light_period;
-
-    // sample power sensor if appropriate
-    if(pwr_period_count == SAMPLE_SENSOR) {
-      //TODO: SAMPLE POWER SENSOR
-      local_pwr_val++;
-      sensor_pkt.pwr_val = local_pwr_val;
-      sensor_sampled = TRUE;
-      pwr_period_count = 0;
-    }
-
-    // sample temperature sensor if appropriate
-    if(temp_period_count == SAMPLE_SENSOR) {
-      //TODO: SAMPLE TEMP SENSOR
-      local_temp_val++;
-      sensor_pkt.temp_val = local_temp_val;
-      sensor_sampled = TRUE;
-      temp_period_count = 0;
-    }
-
-    // sample light sensor if appropriate
-    if(light_period_count == SAMPLE_SENSOR) {
-      //TODO: SAMPLE LIGHT SENSOR
-      local_light_val++;
-      sensor_pkt.light_val = local_light_val;
-      sensor_sampled = TRUE;
-      light_period_count = 0;
-    }
-
-    // if a sensor has been sampled, send a packet out
-    if(sensor_sampled == TRUE) {
-      // update sequence number
-      nrk_sem_post(seq_num_mux);
-      seq_num++;
-      tx_packet.seq_num = seq_num;
-      nrk_sem_pend(seq_num_mux);
-
-      // add data values to sensor packet
-      tx_packet.payload[DATA_PWR_INDEX] = sensor_pkt.pwr_val;
-      tx_packet.payload[DATA_TEMP_INDEX] = sensor_pkt.temp_val;
-      tx_packet.payload[DATA_LIGHT_INDEX] = sensor_pkt.light_val;
-
-      // add packet to data queue
-      nrk_sem_pend(data_tx_queue_mux);
-      push(&data_tx_queue, &tx_packet);
-      nrk_sem_post(data_tx_queue_mux);
-
-      //nrk_sem_pend(cmd_tx_queue_mux);
-      //push(&cmd_tx_queue, &tx_packet);
-      //nrk_sem_post(data_tx_queue_mux);
-
-      // reset FLAG
+    if(local_network_joined == TRUE) {
+      // update period counts
+      pwr_period_count++;
+      temp_period_count++;
+      light_period_count++;
+      pwr_period_count %= pwr_period;
+      temp_period_count %= temp_period;
+      light_period_count %= light_period;
       sensor_sampled = FALSE;
+
+      // sample power sensor if appropriate
+      if(pwr_period_count == SAMPLE_SENSOR) {
+        //TODO: SAMPLE POWER SENSOR
+        local_pwr_val++;
+        sensor_pkt.pwr_val = local_pwr_val;
+        sensor_sampled = TRUE;
+      }
+
+      // sample temperature sensor if appropriate
+      if(temp_period_count == SAMPLE_SENSOR) {
+        //TODO: SAMPLE TEMP SENSOR
+        local_temp_val++;
+        sensor_pkt.temp_val = local_temp_val;
+        sensor_sampled = TRUE;
+      }
+
+      // sample light sensor if appropriate
+      if(light_period_count == SAMPLE_SENSOR) {
+        //TODO: SAMPLE LIGHT SENSOR
+        local_light_val++;
+        sensor_pkt.light_val = local_light_val;
+        sensor_sampled = TRUE;
+      }
+
+      // if a sensor has been sampled, send a packet out
+      if(sensor_sampled == TRUE) {
+        // update sequence number
+        nrk_sem_pend(seq_num_mux); {
+          seq_num++;
+          tx_packet.seq_num = seq_num;          
+        }
+        nrk_sem_post(seq_num_mux);
+
+        // add data values to sensor packet
+        tx_packet.payload[DATA_PWR_INDEX] = sensor_pkt.pwr_val;
+        tx_packet.payload[DATA_TEMP_INDEX] = sensor_pkt.temp_val;
+        tx_packet.payload[DATA_LIGHT_INDEX] = sensor_pkt.light_val;
+
+        // add packet to data queue
+        nrk_sem_pend(data_tx_queue_mux); {
+          push(&data_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(data_tx_queue_mux);
+      }      
+    } 
+    // if the local_network_joined flag hasn't been set yet, check status
+    else {
+      nrk_sem_pend(network_joined_mux); {
+        local_network_joined = network_joined;
+      }
+      nrk_sem_post(network_joined_mux);       
     }
     nrk_wait_until_next_period();
   }
@@ -594,6 +631,7 @@ void actuate_task() {
   uint8_t act_queue_size;
   packet act_packet, tx_packet;
   uint8_t action, ack_required, act_required; 
+  uint8_t local_network_joined = FALSE;
 
   // initialize tx_packet
   tx_packet.source_id = MAC_ADDR;
@@ -603,115 +641,131 @@ void actuate_task() {
   // loop forever
   while(1) {
     // LEDs for debug
-    if(blink_leds == BLINKLEDS) {
+    if(blink_leds == TRUE) {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        //nrk_led_set(1);
+        nrk_led_set(1);
       } else {
         nrk_led_clr(1);
       }   
     }
 
-    // get action queue size
-    nrk_sem_post(act_queue_mux);
-    act_queue_size = act_queue.size;
-    nrk_sem_pend(act_queue_mux);
-
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(act_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
-     *    added to by another task.
-     */
-    for(uint8_t i = 0; i < act_queue_size; i++) {
-      // get packet out of the queue
+    if(local_network_joined == TRUE) {
+      // get action queue size
+      nrk_sem_pend(act_queue_mux); {
+        act_queue_size = act_queue.size;
+      }
       nrk_sem_post(act_queue_mux);
-      pop(&act_queue, &act_packet);
-      nrk_sem_pend(act_queue_mux); 
 
-      // pull action out of packet
-      action = act_packet.payload[CMD_ACT_INDEX];
+      /**
+       * loop on queue size received above, and no more.
+       *  NOTE: during this loop the queue can be added to. If, for instance,
+       *    a "while(act_queue.size > 0)" was used a few bad things could happen
+       *      (1) a mutex would be required around the entire loop - BAD IDEA
+       *      (2) the queue could be added to while this loop is running, thus
+       *        making the loop unbounded - BAD IDEA
+       *      (3) the size the queue read and the actual size of the queue could be 
+       *        incorrect due to preemtion - BAD IDEA
+       *    Doing it this way bounds this loop to the maximum size of the queue
+       *    at any given time, regardless of whether or not the queue has been 
+       *    added to by another task.
+       */
+      for(uint8_t i = 0; i < act_queue_size; i++) {
+        // get packet out of the queue
+        nrk_sem_pend(act_queue_mux); {
+          pop(&act_queue, &act_packet);
+        }
+        nrk_sem_post(act_queue_mux); 
 
-      // switch on current state
-      switch(curr_state) {
-        // STATE_ON - actuate if required / acknowledge if required
-        case STATE_ON:
-          // action ON received -> ack but don't act
-          if(action == ON) {
-            ack_required = TRUE;
-            act_required = FALSE;
-            curr_state = STATE_ON;
-          } 
-          // action OFF received -> ack and act
-          else if(action == OFF) {
-            ack_required = TRUE;
-            act_required = TRUE;
-            curr_state = STATE_OFF;
-          } 
-          // this should never happen, but -> don't ack and don't act
-          else {
-            ack_required = FALSE;
-            act_required = FALSE;
-            curr_state = STATE_ON;
+        // pull action out of packet
+        action = act_packet.payload[CMD_ACT_INDEX];
+
+        // switch on current state
+        switch(curr_state) {
+          // STATE_ON - actuate if required / acknowledge if required
+          case STATE_ON: {
+            // action ON received -> ack but don't act
+            if(action == ON) {
+              ack_required = TRUE;
+              act_required = FALSE;
+              curr_state = STATE_ON;
+            } 
+            // action OFF received -> ack and act
+            else if(action == OFF) {
+              ack_required = TRUE;
+              act_required = TRUE;
+              curr_state = STATE_OFF;
+            } 
+            // this should never happen, but -> don't ack and don't act
+            else {
+              ack_required = FALSE;
+              act_required = FALSE;
+              curr_state = STATE_ON;
+            }
+            break;             
           }
-          break;        
-        // STATE_OFF - actuate if required / acknowledge if required
-        case STATE_OFF:
-          // action OFF received -> ack but don't act
-          if(action == OFF) {
-            ack_required = TRUE;
-            act_required = FALSE;
-            curr_state = STATE_OFF;
-          } 
-          // action ON received -> ack and act
-          else if(action == ON) {
-            ack_required = TRUE;
-            act_required = TRUE;
-            curr_state = STATE_ON;
-          } 
-          // this should never happen, but -> don't ack and don't act
-          else {
-            ack_required = FALSE;
-            act_required = FALSE;
-            curr_state = STATE_OFF;
+          // STATE_OFF - actuate if required / acknowledge if required
+          case STATE_OFF: {
+            // action OFF received -> ack but don't act
+            if(action == OFF) {
+              ack_required = TRUE;
+              act_required = FALSE;
+              curr_state = STATE_OFF;
+            } 
+            // action ON received -> ack and act
+            else if(action == ON) {
+              ack_required = TRUE;
+              act_required = TRUE;
+              curr_state = STATE_ON;
+            } 
+            // this should never happen, but -> don't ack and don't act
+            else {
+              ack_required = FALSE;
+              act_required = FALSE;
+              curr_state = STATE_OFF;
+            }
+            break;
           }
-          break;
-        default:
-          // THIS SHOULD NEVER HAPPEN.
-          break;
+          default: {
+            // THIS SHOULD NEVER HAPPEN.
+            break;
+          }
+        }
+
+        // action required -> complete actuation
+        if(act_required == TRUE) {
+          // TODO: ACTUATE.
+          // dummy operation so the compiler doesn't yell.
+          i = i;
+        }
+
+        // acknowledge required -> add ack packet to cmd_tx_queue
+        if(ack_required == TRUE) {
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);
+        }
+      }      
+    }
+    // if the local_network_joined flag hasn't been set yet, check status
+    else {
+      nrk_sem_pend(network_joined_mux); {
+        local_network_joined = network_joined;
       }
-
-      // action required -> complete actuation
-      if(act_required == TRUE) {
-        // TODO: ACTUATE.
-        // dummy operation so the compiler doesn't yell.
-        i = i;
-      }
-
-      // acknowledge required -> add ack packet to cmd_tx_queue
-      if(ack_required == TRUE) {
-        // update sequence number
-        nrk_sem_pend(seq_num_mux);
-        seq_num++;
-        tx_packet.seq_num = seq_num;
-        nrk_sem_post(seq_num_mux);
-
-        // set payload
-        tx_packet.payload[CMDACK_ID_INDEX] = act_packet.payload[CMD_ID_INDEX];
-
-        // place message in the queue
-        nrk_sem_pend(cmd_tx_queue_mux);
-        push(&cmd_tx_queue, &tx_packet);
-        nrk_sem_post(cmd_tx_queue_mux);
-      }
+      nrk_sem_post(network_joined_mux);       
     }
     nrk_wait_until_next_period();
   }

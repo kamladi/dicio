@@ -28,11 +28,9 @@ SRC = $(TARGET).c
 # For example:
 SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
-SRC += $(ROOT_DIR)/projects/dicio/utility/light_pool.c
-SRC += $(ROOT_DIR)/projects/dicio/utility/neighbors.c
-SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
-SRC += $(ROOT_DIR)/projects/dicio/utility/sequence_pool.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/pool.c
 
 # Add extra includes files. 
 # For example:

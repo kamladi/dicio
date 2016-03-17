@@ -39,64 +39,48 @@ In file included from /opt/local/avr/include/avr/io.h:164:0,
 /opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
  #define ANT_1                           1
  ^
-main.c:61:1: error: unknown type name ‘node_state’
- node_state curr_state = STATE_OFF;
- ^
 main.c: In function ‘rx_msg_task’:
-main.c:183:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
+main.c:196:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
        parse_msg(&rx_packet, &net_rx_buf, len);
        ^
-In file included from main.c:26:0:
-../../../projects/dicio/utility/parser.h:16:6: note: expected ‘char *’ but argument is of type ‘uint8_t (*)[116]’
- void parse_msg(packet *parsed_packet, char *src, uint8_t len);
+In file included from main.c:24:0:
+../../../projects/dicio/utility/parser.h:16:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
       ^
-main.c:184:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
+main.c:197:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
        local_buf = bmac_rx_pkt_get(&len, &rssi);
                    ^
 In file included from main.c:19:0:
 ../../../src/net/bmac/bmac.h:119:10: note: expected ‘int8_t *’ but argument is of type ‘uint8_t *’
  uint8_t *bmac_rx_pkt_get(uint8_t *len, int8_t *rssi);
           ^
+main.c:272:38: error: ‘HAND_NODE_ID_INDEX’ undeclared (first use in this function)
+                 if(rx_packet.payload[HAND_NODE_ID_INDEX] == MAC_ADDR) {
+                                      ^
+main.c:272:38: note: each undeclared identifier is reported only once for each function it appears in
+main.c:166:12: warning: variable ‘local_buf’ set but not used [-Wunused-but-set-variable]
+   uint8_t *local_buf;
+            ^
 main.c: In function ‘tx_cmd_task’:
-main.c:333:7: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
-       assemble_packet(&net_tx_buf, &tx_packet);
-       ^
+main.c:392:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+           net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+                          ^
 In file included from main.c:22:0:
-../../../projects/dicio/utility/assembler.h:14:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
- void assemble_packet(uint8_t *tx_buf, packet *tx);
-      ^
-main.c:336:49: warning: pointer targets in passing argument 1 of ‘strlen’ differ in signedness [-Wpointer-sign]
-       val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
-                                                 ^
-In file included from ../../../src/platform/firefly3/include/include.h:79:0,
-                 from ../../../src/kernel/include/nrk_time.h:32,
-                 from ../../../src/kernel/include/nrk.h:38,
-                 from main.c:11:
-/opt/local/avr/include/string.h:133:15: note: expected ‘const char *’ but argument is of type ‘uint8_t *’
- extern size_t strlen(const char *) __ATTR_PURE__;
-               ^
-main.c:274:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
+         ^
+main.c:330:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
    uint16_t val;
             ^
 main.c: In function ‘tx_data_task’:
-main.c:413:7: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
-       assemble_packet(&net_tx_buf, &tx_packet);
-       ^
+main.c:490:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+           net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+                          ^
 In file included from main.c:22:0:
-../../../projects/dicio/utility/assembler.h:14:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
- void assemble_packet(uint8_t *tx_buf, packet *tx);
-      ^
-main.c:415:49: warning: pointer targets in passing argument 1 of ‘strlen’ differ in signedness [-Wpointer-sign]
-       val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
-                                                 ^
-In file included from ../../../src/platform/firefly3/include/include.h:79:0,
-                 from ../../../src/kernel/include/nrk_time.h:32,
-                 from ../../../src/kernel/include/nrk.h:38,
-                 from main.c:11:
-/opt/local/avr/include/string.h:133:15: note: expected ‘const char *’ but argument is of type ‘uint8_t *’
- extern size_t strlen(const char *) __ATTR_PURE__;
-               ^
-main.c:356:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
+         ^
+main.c:425:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
    uint16_t val;
             ^
 make: *** [main.o] Error 1
