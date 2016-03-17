@@ -334,12 +334,13 @@ void rx_serv_task() {
 
       // print message if appropriate
       if(print_incoming == 1) {
-        printf("%s", serv_rx_buf);     
+        //printf("%s", serv_rx_buf);   
       }
 
       // parse message
       parse_serv_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
       clear_serv_buf();
+      print_packet(&rx_packet);  
 
       // check sequence number to determine if the packet should be received
       // NOTE: This probably is unnecessary because the likelihood of an earlier

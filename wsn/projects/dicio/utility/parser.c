@@ -61,8 +61,11 @@ void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
     uint8_t pos = 0;
     uint8_t item = 0;
+    uint8_t payload_index = 0;
     uint8_t temp_buf[MAX_BUF_SIZE];
+    uint8_t temp_payload[MAX_PAYLOAD_SIZE];
     uint16_t value = 0;
+
     for (int x = 0; x < len; x ++){
         if(src[x] == ':')
         {
@@ -111,21 +114,57 @@ void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
         }
 
     }
-
     /*
     Payload has not been parsed into packet.
     Once the loop has gone through the length of the message, 
     the payload will be stored in temp_buf. 
     Need to parse payload depending on message type
     */
+    item = 0;
     switch(parsed_packet->type)
     {
         case MSG_CMD:
         {
-            parsed_packet->payload[0] = temp_buf[0] - '0';
-            parsed_packet->payload[1] = temp_buf[1] - '0';
-            parsed_packet->payload[2] = temp_buf[2] - '0';
-            parsed_packet->payload[3] = temp_buf[3] - '0';
+            for (int x = 0; x < MAX_PAYLOAD_SIZE; x ++){
+                if(temp_buf[x] == ',')
+                {
+                    value = atoi(temp_payload);
+                    switch(item)
+                    {
+                        case 0: // cmd_id
+                        {
+                            parsed_packet->payload[CMD_ID_INDEX] = value;
+                            break;
+                        }
+
+                        case 1: // destination
+                        {              
+                             // get seq_num
+                             parsed_packet->payload[CMD_NODE_ID_INDEX] = value;
+                            break;
+                        }
+
+                        case 2: // action
+                        {
+                            // get message type
+                            parsed_packet->payload[CMD_ACT_INDEX] = value;
+                            break;
+                        }
+                    }
+                    // clear buffer
+                    for(uint8_t i = 0; i < payload_index; i ++)
+                    {
+                        temp_payload[i] = 0;
+                    }
+                    item += 1;
+                    payload_index = 0;
+                }
+                else{
+                    temp_payload[payload_index] = temp_buf[x];
+                    payload_index += 1;
+                }
+
+            }
             break;
         }
 
