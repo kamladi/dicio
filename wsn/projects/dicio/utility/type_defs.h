@@ -41,12 +41,6 @@
 #define ON 1
 #define OFF 0
 
-// rates/timers
-#define DEFAULT_SENSOR_RATE 2
-#define DEFAULT_NEIGHBOR_RATE 10
-#define MIN_RATE 1
-#define MAX_RATE 30
-
 // buffers/messages
 #define MAX_BUF_SIZE 24
 #define MAX_PAYLOAD_SIZE 8
@@ -71,14 +65,10 @@
 #define DATA_PWR_INDEX 0
 #define DATA_TEMP_INDEX 2
 #define DATA_LIGHT_INDEX 4
+#define HANDACK_NODE_ID_INDEX 0
 
 /*** ENUMERATIONS ***/
 typedef enum {
-  // NOTE: These are old messages and should eventually be removed
-  //  when parser.c and assembler.c are updated.
-  MSG_NODE_SENSOR_VALUE = 1,
-  MSG_NODE_NEIGHBORS = 2,
-
   // NOTE: These are the messages that will be used by Dicio. The
   //  ennumeration values should be updated when when parser.c and 
   //  assembeler.c are updated.
@@ -87,56 +77,9 @@ typedef enum {
   MSG_DATA = 5,
   MSG_CMD = 6,
   MSG_CMDACK = 7,
-  MSG_HAND = 8, 
+  MSG_HAND = 8,
+  MSG_HANDACK = 9, 
 } msg_type;
-
-/**
- * light_pool_t struct - hold all 
- * 
- * @param size - number of nodes in the light pool
- * @param node_id - array of node ids
- * @param light_values - array of last seen light values for each node 
- *    NOTE: maps directly to node_id array
- */
-typedef struct {
-  uint8_t size;
-  uint8_t node_id[MAX_NEIGHBOR_TABLE];
-  uint16_t light_values[MAX_NEIGHBOR_TABLE];
-} light_pool_t;
-
-/** 
- * neighbor_t struct - defines a neighbor struct
- * 
- * NOTES: can expand with RSSI, etc.
- */
-typedef struct{
-  uint8_t id;
-} neighbor_t;
-
-/** 
- * neighbor_table_t struct - defines a neighbor table
- * 
- * @param size - size of the neighbor table
- * @param origin - address of the node who is established this neighbor table
- * @param neighbors - array of neighbors
- */
-typedef struct {
-  uint8_t size;
-  uint8_t origin;
-  neighbor_t neighbors[MAX_NEIGHBOR_TABLE];
-} neighbor_table_t;
-
-/**
- * neighbor_graph_t - defines a neighbor graph
- * 
- * @param size - size of the neighbor graph (i.e. number of nodes in the systsem)
- * @param neighbor_tables - all neighbor tables from the system.
- */
-typedef struct 
-{
-  uint8_t size;
-  neighbor_table_t neighbor_tables[MAX_NEIGHBOR_TABLE];
-} neighbor_graph_t; 
 
 /**
  * sequence_pool_t struct - hold all neighbor id's and the last seen sequence 
@@ -150,8 +93,8 @@ typedef struct
 typedef struct {
   uint8_t size;
   uint8_t node_id[MAX_NEIGHBOR_TABLE];
-  uint16_t seq_nums[MAX_NEIGHBOR_TABLE];
-} sequence_pool_t;
+  uint16_t data_vals[MAX_NEIGHBOR_TABLE];
+} pool_t;
 
 /**
  * paket struct - defines a network packet
@@ -168,10 +111,6 @@ typedef struct{
   msg_type type;
   uint16_t seq_num;
   uint8_t num_hops;
-  
-  uint16_t light_value;
-  uint8_t sensor_sample_rate;
-  uint8_t neighbor_update_rate;
   uint8_t payload[MAX_PAYLOAD_SIZE];
 } packet;
 

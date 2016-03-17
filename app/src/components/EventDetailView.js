@@ -13,6 +13,7 @@ import React, {
   SegmentedControlIOS,
 } from 'react-native';
 
+import {EditableTextField} from './EditableTextField';
 import {OutletPicker} from './OutletPicker';
 import {SensorPicker} from './SensorPicker';
 import {SENSORS} from '../lib/Constants';
@@ -31,6 +32,7 @@ export class EventDetailView extends Component {
     this.onChange = this.onChange.bind(this);
     this.showOutletSelector = this.showOutletSelector.bind(this);
     this.onFormValueChanged = this.onFormValueChanged.bind(this);
+    this.onNameChange = this.onNameChange.bind(this);
 	}
 
 	componentDidMount() {
@@ -51,6 +53,16 @@ export class EventDetailView extends Component {
       event: EventStore.findById(this.props.event_id),
       loaded: true
     });
+  }
+
+  onNameChange(newName) {
+    var name = newName.trim();
+    if (name.length === 0) {
+      AlertIOS.alert("Invalid event name");
+      return false;
+    }
+    EventActions.updateEvent(this.props.event_id, {name: name});
+    return true;
   }
 
   onFormValueChanged(paramName, value) {
@@ -112,6 +124,10 @@ export class EventDetailView extends Component {
     }
     return (
 			<View style={styles.container}>
+        <View style={styles.row}>
+          <Text style={styles.label}>Change Name:</Text>
+          <EditableTextField value={event.name} onSubmit={this.onNameChange} />
+        </View>
 				<View style={styles.row}>
           <Text style={styles.label}>Input Outlet:</Text>
           <TouchableHighlight

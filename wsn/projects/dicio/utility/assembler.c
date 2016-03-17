@@ -33,15 +33,6 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
                 (uint16_t)tx->payload[DATA_PWR_INDEX], (uint16_t)tx->payload[DATA_TEMP_INDEX],
                  (uint16_t)tx->payload[DATA_LIGHT_INDEX]);
         }
-        case MSG_NODE_SENSOR_VALUE:
-        {
-            break;
-        }
-        
-        case MSG_GATEWAY:
-        {
-            break;
-        }
     }
 }
 
@@ -87,19 +78,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[7] = tx->payload[3];
             tx_buf[8] = tx->payload[4];
             tx_buf[9] = tx->payload[5];
-        }
-        case MSG_NODE_SENSOR_VALUE:
-        {/*
-            sprintf (tx_buf, "[%d][%d][%d][%d][%d]", tx->type, tx->source_id, tx->seq_num, 
-            tx->num_hops, tx->light_value);*/
-            break;
-        }
-        
-        case MSG_GATEWAY:
-        {/*
-          sprintf (tx_buf, "[%d][%d][%d][%d][%d][%d]", tx->type, tx->source_id, tx->seq_num, 
-          tx->num_hops, tx->sensor_sample_rate, tx->neighbor_update_rate);*/
-            break;
         }
     }
     return length;
