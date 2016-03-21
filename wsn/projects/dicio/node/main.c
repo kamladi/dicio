@@ -529,7 +529,7 @@ void sample_task() {
   uint16_t local_pwr_val = 0;
   uint16_t local_temp_val = 0;
   uint16_t local_light_val = 0;
-  packet tx_packet;
+  packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
 
   // initialize sensor packet
@@ -541,6 +541,11 @@ void sample_task() {
   tx_packet.source_id = MAC_ADDR;
   tx_packet.type = MSG_DATA;
   tx_packet.num_hops = 0;
+
+  // initialize hello packet
+  hello_packet.source_id = MAC_ADDR;
+  hello_packet.type = MSG_HAND;
+  hello_packet.num_hops = 0;
 
   // loop forever
   while(1) {
@@ -615,7 +620,24 @@ void sample_task() {
       nrk_sem_pend(network_joined_mux); {
         local_network_joined = network_joined;
       }
-      nrk_sem_post(network_joined_mux);       
+      nrk_sem_post(network_joined_mux);   
+      
+      // if the network has not yet been joined, then add "Hello" message
+      //  to the data_tx_queue
+      if(local_network_joined == FALSE) {
+        // update seq num
+        nrk_sem_pend(seq_num_mux); {
+          seq_num++;
+          hello_packet.seq_num = seq_num;
+        }
+        nrk_sem_post(seq_num_mux);
+
+        // push to queue
+        nrk_sem_pend(data_tx_queue_mux); {
+          push(&data_tx_queue, &hello_packet);
+        }
+        nrk_sem_post(data_tx_queue_mux);
+      }         
     }
     nrk_wait_until_next_period();
   }
@@ -762,10 +784,11 @@ void actuate_task() {
     }
     // if the local_network_joined flag hasn't been set yet, check status
     else {
+      // determine if the network has been joined
       nrk_sem_pend(network_joined_mux); {
         local_network_joined = network_joined;
       }
-      nrk_sem_post(network_joined_mux);       
+      nrk_sem_post(network_joined_mux);  
     }
     nrk_wait_until_next_period();
   }
