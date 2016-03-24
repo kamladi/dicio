@@ -140,6 +140,7 @@ int main () {
   // start running
   nrk_time_set(0, 0);
   bmac_task_config();
+  nrk_set_gpio();
   nrk_create_taskset();
   bmac_init(13);
   nrk_start();
@@ -650,6 +651,7 @@ void sample_task() {
 void actuate_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
+  uint8_t ACT_FLAG = 0;
   uint8_t act_queue_size;
   packet act_packet, tx_packet;
   uint8_t action, ack_required, act_required; 
@@ -671,6 +673,19 @@ void actuate_task() {
       } else {
         nrk_led_clr(1);
       }   
+
+      ACT_FLAG++;
+      ACT_FLAG%=4;
+
+      if(ACT_FLAG ==0) {
+        nrk_gpio_clr(COIL_1_OUT);
+      } else if (ACT_FLAG == 1) {
+        nrk_gpio_set(COIL_1_OUT);
+      } else if (ACT_FLAG == 2) {
+        nrk_gpio_clr(COIL_2_OUT);
+      } else if (ACT_FLAG == 3) {
+        nrk_gpio_set(COIL_2_OUT);
+      }
     }
 
     if(local_network_joined == TRUE) {
@@ -794,6 +809,15 @@ void actuate_task() {
   }
 }
 
+void nrk_set_gpio() {
+  nrk_gpio_direction(COIL_1_OUT, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(COIL_2_OUT, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(BTN_IN, NRK_PIN_INPUT);
+  
+  nrk_gpio_set(COIL_1_OUT);
+  nrk_gpio_set(COIL_2_OUT);
+}
+
 /**
  * nrk_create_taskset - create the tasks in this application
  * 
@@ -822,7 +846,7 @@ void nrk_create_taskset () {
   ACTUATE_TASK.Type = BASIC_TASK;
   ACTUATE_TASK.SchType = PREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
-  ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
+  ACTUATE_TASK.period.nano_secs = 1000*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
   ACTUATE_TASK.cpu_reserve.nano_secs = 30*NANOS_PER_MS;
   ACTUATE_TASK.offset.secs = 0;
@@ -836,7 +860,7 @@ void nrk_create_taskset () {
   TX_CMD_TASK.Type = BASIC_TASK;
   TX_CMD_TASK.SchType = PREEMPTIVE;
   TX_CMD_TASK.period.secs = 0;
-  TX_CMD_TASK.period.nano_secs = 100*NANOS_PER_MS;
+  TX_CMD_TASK.period.nano_secs = 200*NANOS_PER_MS;
   TX_CMD_TASK.cpu_reserve.secs = 0;
   TX_CMD_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   TX_CMD_TASK.offset.secs = 0;
