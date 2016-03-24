@@ -287,6 +287,11 @@ void rx_node_task() {
               nrk_sem_post(hand_rx_queue_mux);
               break;              
             }
+
+            case MSG_HANDACK: {
+              // received an ACK. Do nothing?
+              break;
+            }
             // gateway message -> do nothing
             case MSG_GATEWAY:{
               // do nothing...no messages have been defined with this type yet
@@ -543,9 +548,9 @@ void tx_node_task() {
       // NOTE: a mutex is required around the network transmit buffer because 
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux); {
-        assemble_packet(&net_tx_buf, &tx_packet);
+      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
         // send the packet
-        val = bmac_tx_pkt_nonblocking(net_tx_buf, strlen(net_tx_buf));
+        val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
         
         // Just check to be sure signal is okay
@@ -658,11 +663,13 @@ void hand_task() {
         pop(&hand_rx_queue, &rx_packet);
       }
       nrk_sem_post(hand_rx_queue_mux);
+      printf("popped hand\r\n");
+      print_packet(&rx_packet);
 
       // check to see if the node is in the pool. If so, send HANDACK. Otherwise, ignore
-      in_node_pool = in_pool(&node_pool, rx_packet.source_id);
-      if(in_node_pool == -1) {
-        add_to_pool(&node_pool, rx_packet.source_id, rx_packet.seq_num);
+      //in_node_pool = in_pool(&node_pool, rx_packet.source_id);
+      //if(in_node_pool == -1) {
+       //add_to_pool(&node_pool, rx_packet.source_id, rx_packet.seq_num);
 
         // finish TX packet
         // NOTE: no mutex is required for seq_num because this is the only task that
@@ -670,19 +677,21 @@ void hand_task() {
         seq_num++;
         tx_packet.seq_num = seq_num;
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
+        printf("hand ack\r\n");
+        print_packet(&tx_packet);
 
         // send response back to the node
-        nrk_sem_pend(node_tx_queue_mux); {
-          push(&node_tx_queue, &tx_packet);
+        nrk_sem_pend(cmd_tx_queue_mux); {
+          push(&cmd_tx_queue, &tx_packet);
         }
-        nrk_sem_post(node_tx_queue_mux);
+        nrk_sem_post(cmd_tx_queue_mux);
 
         // forward the "hello" message from the node to the server
         nrk_sem_pend(serv_tx_queue_mux); {
           push(&serv_tx_queue, &rx_packet);
         }
         nrk_sem_post(serv_tx_queue_mux);
-      } 
+      //} 
     }
     nrk_wait_until_next_period();
 

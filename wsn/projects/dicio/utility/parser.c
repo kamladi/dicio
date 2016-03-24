@@ -36,7 +36,14 @@ void print_packet(packet *p)
 
         case MSG_HAND:
         {
+            printf("[payload:]\r\n");
             // what is the payload going to look like here?
+            break;
+        }
+
+        case MSG_HANDACK:
+        {
+            printf("[payload:%d]\r\n", p->payload[HANDACK_NODE_ID_INDEX]);
             break;
         }
 
@@ -248,7 +255,14 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 
         case MSG_HAND:
         {
-            // what is the payload going to look like here?
+            // no information is stored in payload
+            break;
+        }
+
+        case MSG_HANDACK: // received hand ack
+        {
+            parsed_packet->payload[HANDACK_NODE_ID_INDEX] = (uint16_t)src[4];
+            // no need to do anything...?
             break;
         }
 
