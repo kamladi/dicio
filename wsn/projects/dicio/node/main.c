@@ -167,7 +167,7 @@ void rx_msg_task() {
   int8_t in_seq_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
-  uint8_t local_network_joined;
+  uint8_t local_network_joined = FALSE;
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
@@ -207,9 +207,10 @@ void rx_msg_task() {
       //  NOTE: this is required because the node will hear re-transmitted packets 
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
-
+        nrk_kprintf (PSTR ("not mac_addr\r\n"));
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
+          nrk_kprintf (PSTR ("network joined\r\n"));
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&seq_pool, rx_packet.source_id);
           if(in_seq_pool == -1) {
@@ -267,7 +268,8 @@ void rx_msg_task() {
                 nrk_sem_post(data_tx_queue_mux);
                 break;
               }
-              // handshake message recieved -> deal with in handshake function or forward
+              // handshake message recieved
+              // will only receive type MSG_HAND to forward..?
               case MSG_HAND: {
                 if(rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_sem_pend(hand_rx_queue_mux); {
@@ -302,12 +304,14 @@ void rx_msg_task() {
               }
             }
           }
-        } 
+        }
         // if the local_network_joined flag hasn't been set yet, check status
         else {
+          printf("check if ack\r\n");
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
             nrk_sem_pend(network_joined_mux); {
+              printf("received ack!\r\n");
               network_joined = TRUE;
               local_network_joined = network_joined;
             }
@@ -358,8 +362,6 @@ void tx_cmd_task() {
       }  */    
     }
 
-    // only execute task if the network has been joined
-    if(local_network_joined == TRUE) {
       // atomically get the queue size
       nrk_sem_pend(cmd_tx_queue_mux); {
         tx_cmd_queue_size = cmd_tx_queue.size;
@@ -403,14 +405,7 @@ void tx_cmd_task() {
         }
         nrk_sem_post(net_tx_buf_mux);     
       }      
-    }
-    // if the local_network_joined flag hasn't been set yet, check status
-    else {
-      nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
-      }
-      nrk_sem_post(network_joined_mux);      
-    }
+
     nrk_wait_until_next_period();
   }
 }
@@ -633,10 +628,10 @@ void sample_task() {
         nrk_sem_post(seq_num_mux);
 
         // push to queue
-        nrk_sem_pend(data_tx_queue_mux); {
-          push(&data_tx_queue, &hello_packet);
+        nrk_sem_pend(cmd_tx_queue_mux); {
+          push(&cmd_tx_queue, &hello_packet);
         }
-        nrk_sem_post(data_tx_queue_mux);
+        nrk_sem_post(cmd_tx_queue_mux);
       }         
     }
     nrk_wait_until_next_period();
@@ -849,7 +844,7 @@ void nrk_create_taskset () {
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = PREEMPTIVE;
-  SAMPLE_TASK.period.secs = 1;
+  SAMPLE_TASK.period.secs = 2;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
   SAMPLE_TASK.cpu_reserve.nano_secs = 200*NANOS_PER_MS;
