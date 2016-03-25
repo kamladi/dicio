@@ -67,6 +67,12 @@
 #define DATA_LIGHT_INDEX 4
 #define HANDACK_NODE_ID_INDEX 0
 
+#define COIL_1_OUT NRK_PORTB_6
+#define COIL_2_OUT NRK_PORTB_7
+#define ON_COIL COIL_1_OUT
+#define OFF_COIL COIL_2_OUT
+#define BTN_IN NRK_PORTE_6
+
 /*** ENUMERATIONS ***/
 typedef enum {
   // NOTE: These are the messages that will be used by Dicio. The
