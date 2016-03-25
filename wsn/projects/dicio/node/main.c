@@ -26,7 +26,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 3
+#define MAC_ADDR 2
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);

@@ -250,6 +250,7 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 
         case MSG_CMDACK:
         {
+            parsed_packet->payload[CMDACK_ID_INDEX] = (uint16_t)src[4];
             break;
         }
 

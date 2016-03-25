@@ -580,9 +580,9 @@ void tx_serv_task() {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        nrk_kprintf(PSTR("SERV LED ON\r\n"));
+        //nrk_kprintf(PSTR("SERV LED ON\r\n"));
       } else {
-        nrk_kprintf(PSTR("SERV LED OFF\r\n"));
+        //nrk_kprintf(PSTR("SERV LED OFF\r\n"));
       }      
     }
 
