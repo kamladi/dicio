@@ -31,7 +31,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 3
+#define MAC_ADDR 2
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -240,7 +240,7 @@ void rx_msg_task() {
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for 
                 //  forwarding to other nodes.
-                if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
+                if(/*(last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&*/
                     (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) {
                   nrk_kprintf (PSTR ("command for me!\r\n"));
                   last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
