@@ -26,7 +26,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
+#define MAC_ADDR 3
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -40,7 +40,11 @@ void nrk_create_taskset ();
 // STATE ENUM
 typedef enum {
   STATE_ON,
-  STATE_OFF, 
+  STATE_OFF,
+  STATE_ACT_OFF,
+  STATE_ACT_ON,
+  STATE_ACK_OFF,
+  STATE_ACK_ON 
 } act_state;
 
 // TASKS
@@ -56,9 +60,6 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
-
-// CURRENT STATE
-act_state curr_state = STATE_OFF;
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -652,10 +653,17 @@ void actuate_task() {
   uint8_t action, ack_required, act_required; 
   uint8_t local_network_joined = FALSE;
 
+  // CURRENT STATE
+  act_state curr_state = STATE_OFF;
+
   // initialize tx_packet
   tx_packet.source_id = MAC_ADDR;
   tx_packet.type = MSG_CMDACK;
   tx_packet.num_hops = 0;
+
+  // clear the GPIOs - these are ACTIVE LOW, i.e. this is not actuating
+  nrk_gpio_set(ON_COIL);
+  nrk_gpio_set(OFF_COIL);
 
   // loop forever
   while(1) {
@@ -669,7 +677,7 @@ void actuate_task() {
         nrk_led_clr(1);
       }   
 
-      ACT_FLAG++;
+     /* ACT_FLAG++;
       ACT_FLAG%=4;
 
       if(ACT_FLAG ==0) {
@@ -680,7 +688,7 @@ void actuate_task() {
         nrk_gpio_clr(COIL_2_OUT);
       } else if (ACT_FLAG == 3) {
         nrk_gpio_set(COIL_2_OUT);
-      }
+      }*/
     }
 
     if(local_network_joined == TRUE) {
@@ -689,106 +697,130 @@ void actuate_task() {
         act_queue_size = act_queue.size;
       }
       nrk_sem_post(act_queue_mux);
+      
 
-      /**
-       * loop on queue size received above, and no more.
-       *  NOTE: during this loop the queue can be added to. If, for instance,
-       *    a "while(act_queue.size > 0)" was used a few bad things could happen
-       *      (1) a mutex would be required around the entire loop - BAD IDEA
-       *      (2) the queue could be added to while this loop is running, thus
-       *        making the loop unbounded - BAD IDEA
-       *      (3) the size the queue read and the actual size of the queue could be 
-       *        incorrect due to preemtion - BAD IDEA
-       *    Doing it this way bounds this loop to the maximum size of the queue
-       *    at any given time, regardless of whether or not the queue has been 
-       *    added to by another task.
-       */
-      for(uint8_t i = 0; i < act_queue_size; i++) {
-        // get packet out of the queue
-        nrk_sem_pend(act_queue_mux); {
-          pop(&act_queue, &act_packet);
-        }
-        nrk_sem_post(act_queue_mux); 
+      switch(curr_state) {
+        // STATE_OFF -
+        //  - wait for an ON command -> actuate
+        //  - wait for an OFF command -> send ACK
+        case STATE_OFF: {
+          // if there is something in the ACT queue
+          if(act_queue_size > 0) {
+            // get the action atomically
+            nrk_sem_pend(act_queue_mux); {
+              pop(&act_queue, &act_packet);
+            }
+            nrk_sem_post(act_queue_mux); 
+            action = act_packet.payload[CMD_ACT_INDEX];
 
-        // pull action out of packet
-        action = act_packet.payload[CMD_ACT_INDEX];
-
-        // switch on current state
-        switch(curr_state) {
-          // STATE_ON - actuate if required / acknowledge if required
-          case STATE_ON: {
-            // action ON received -> ack but don't act
+            // if the action is ON -> actuate
             if(action == ON) {
-              ack_required = TRUE;
-              act_required = FALSE;
-              curr_state = STATE_ON;
+              curr_state = STATE_ACT_ON;
             } 
-            // action OFF received -> ack and act
+            // if the action is OFF -> send ACK
+            else if (action == OFF) {
+              curr_state = STATE_ACK_OFF;
+            } 
+            // if the action is something else...there is a problem
+            else {
+              curr_state = STATE_OFF;
+            }
+          }
+          break;
+        }
+        // STATE_ON -
+        //  - wait for an ON command -> send ACK
+        //  - wait for an OFF command -> actuate
+        case STATE_ON: {
+          if(act_queue_size > 0) {
+            nrk_sem_pend(act_queue_mux); {
+              pop(&act_queue, &act_packet);
+            }
+            nrk_sem_post(act_queue_mux); 
+            action = act_packet.payload[CMD_ACT_INDEX];
+
+            // if the action is ON -> send ACK
+            if(action == ON) {
+              curr_state = STATE_ACK_ON;
+            } 
+            // if the action is OFF -> actuate
             else if(action == OFF) {
-              ack_required = TRUE;
-              act_required = TRUE;
-              curr_state = STATE_OFF;
-            } 
-            // this should never happen, but -> don't ack and don't act
+              curr_state = STATE_ACT_OFF;
+            }
+            // if the action is something else...there is a problem
             else {
-              ack_required = FALSE;
-              act_required = FALSE;
               curr_state = STATE_ON;
             }
-            break;             
-          }
-          // STATE_OFF - actuate if required / acknowledge if required
-          case STATE_OFF: {
-            // action OFF received -> ack but don't act
-            if(action == OFF) {
-              ack_required = TRUE;
-              act_required = FALSE;
-              curr_state = STATE_OFF;
-            } 
-            // action ON received -> ack and act
-            else if(action == ON) {
-              ack_required = TRUE;
-              act_required = TRUE;
-              curr_state = STATE_ON;
-            } 
-            // this should never happen, but -> don't ack and don't act
-            else {
-              ack_required = FALSE;
-              act_required = FALSE;
-              curr_state = STATE_OFF;
-            }
-            break;
-          }
-          default: {
-            // THIS SHOULD NEVER HAPPEN.
-            break;
-          }
+          } 
+          break;         
         }
 
-        // action required -> complete actuation
-        if(act_required == TRUE) {
-          // TODO: ACTUATE.
-          // dummy operation so the compiler doesn't yell.
-          i = i;
+        // STATE_ACT_OFF - actuate the OFF_COIL
+        case STATE_ACT_OFF: {
+          // ACTIVE LOW signal
+          nrk_gpio_clr(OFF_COIL);
+          curr_state = STATE_ACK_OFF;
+          break;
         }
 
-        // acknowledge required -> add ack packet to cmd_tx_queue
-        if(ack_required == TRUE) {
+        // STATE_ACT_ON - actuate the ON_COIL
+        case STATE_ACT_ON: {
+          // ACTIVE_HIGH signal
+          nrk_gpio_clr(ON_COIL);
+          curr_state = STATE_ACK_ON;
+          break;
+        }
+
+        // STATE_ACT_OFF - 
+        //  - clear the control signal
+        //  - send ACK
+        case STATE_ACK_OFF: {
+          nrk_gpio_set(OFF_COIL);
+
           // update sequence number
           nrk_sem_pend(seq_num_mux); {
             seq_num++;
             tx_packet.seq_num = seq_num;            
           }
-          nrk_sem_post(seq_num_mux);
+          nrk_sem_post(seq_num_mux);  
 
           // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = act_packet.payload[CMD_ID_INDEX];
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
 
           // place message in the queue
           nrk_sem_pend(cmd_tx_queue_mux); {
             push(&cmd_tx_queue, &tx_packet);
           }
           nrk_sem_post(cmd_tx_queue_mux);
+
+          curr_state = STATE_OFF;  
+          break;     
+        }
+
+        // STATE_ACK_ON -
+        //  - clear the control signal
+        //  - send ACK
+        case STATE_ACK_ON: {
+          nrk_gpio_set(ON_COIL);
+
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);  
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);
+
+          curr_state = STATE_ON;    
+          break;    
         }
       }      
     }
