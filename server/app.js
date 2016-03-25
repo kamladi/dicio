@@ -6,6 +6,7 @@ var logger           = require('morgan');
 var bodyParser       = require('body-parser');
 var outletsCtrl      = require('./controllers/Outlets');
 var eventsCtrl       = require('./controllers/Events');
+var timeSeriesCtrl   = require('./controllers/TimeSeries');
 
 var app = express();
 
@@ -41,6 +42,7 @@ app.post('/events/', eventsCtrl.createEvent);
 app.get('/events/clear', eventsCtrl.clearEvents);
 app.get('/events/:id', eventsCtrl.getEventDetails);
 app.post('/events/:id', eventsCtrl.updateEvent);
+app.get('/graphs/:id', timeSeriesCtrl.getSensorHistory);
 
 // Undefined Route Handler
 // (request url doesn't match any routes)
