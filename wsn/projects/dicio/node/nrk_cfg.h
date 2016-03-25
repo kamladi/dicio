@@ -53,7 +53,7 @@
 #define NRK_APP_STACKSIZE              512 
 #define NRK_KERNEL_STACKSIZE           512 
 #define NRK_MAX_RESOURCE_CNT           2
-#define NRK_MAX_DRIVER_CNT		        1
+#define NRK_MAX_DRIVER_CNT		       2
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)

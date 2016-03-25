@@ -18,6 +18,11 @@
 #include <hal.h>
 #include <bmac.h>
 #include <nrk_error.h>
+
+
+#include <nrk_driver_list.h>
+#include <nrk_driver.h>
+#include <adc_driver.h>
 // this package
 #include <assembler.h>
 #include <packet_queue.h>
@@ -26,7 +31,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 3
+#define MAC_ADDR 2
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -103,6 +108,7 @@ nrk_sem_t* network_joined_mux;
 
 int main () {
   // setup ports/uart
+  nrk_register_drivers();
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
   nrk_init ();
@@ -128,9 +134,9 @@ int main () {
   network_joined_mux  = nrk_sem_create(1, 6);
 
   // sensor periods (in seconds)
-  pwr_period = 30;
-  temp_period = 35;
-  light_period = 40;
+  pwr_period = 2;
+  temp_period = 4;
+  light_period = 8;
 
   // packet queues
   packet_queue_init(&act_queue);
@@ -234,8 +240,8 @@ void rx_msg_task() {
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for 
                 //  forwarding to other nodes.
-                if((last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&
-                    (rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR)) {
+                /*(last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&*/
+                if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_kprintf (PSTR ("command for me!\r\n"));
                   last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
                   nrk_sem_pend(act_queue_mux); {
@@ -528,6 +534,8 @@ void sample_task() {
   uint16_t local_light_val = 0;
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
+  int8_t adc_fd;
+  uint8_t adc_buf[2];
 
   // initialize sensor packet
   sensor_pkt.pwr_val = local_pwr_val;
@@ -579,6 +587,12 @@ void sample_task() {
       if(temp_period_count == SAMPLE_SENSOR) {
         //TODO: SAMPLE TEMP SENSOR
         local_temp_val++;
+        /*adc_fd = nrk_open(ADC_DEV_MANAGER, READ); 
+        if(adc_fd == NRK_ERROR) nrk_kprintf(PSTR("Failed to open adc driver\r\n"));
+        nrk_set_status(adc_fd,ADC_CHAN,CHAN_6);
+        nrk_read(adc_fd,&adc_buf,2);
+        nrk_close(adc_fd);
+        printf( "ADC value=%d\r\n",adc_buf);*/
         sensor_pkt.temp_val = local_temp_val;
         sensor_sampled = TRUE;
       }
@@ -676,19 +690,6 @@ void actuate_task() {
       } else {
         nrk_led_clr(1);
       }   
-
-     /* ACT_FLAG++;
-      ACT_FLAG%=4;
-
-      if(ACT_FLAG ==0) {
-        nrk_gpio_clr(COIL_1_OUT);
-      } else if (ACT_FLAG == 1) {
-        nrk_gpio_set(COIL_1_OUT);
-      } else if (ACT_FLAG == 2) {
-        nrk_gpio_clr(COIL_2_OUT);
-      } else if (ACT_FLAG == 3) {
-        nrk_gpio_set(COIL_2_OUT);
-      }*/
     }
 
     if(local_network_joined == TRUE) {
@@ -843,6 +844,14 @@ void nrk_set_gpio() {
   
   nrk_gpio_set(COIL_1_OUT);
   nrk_gpio_set(COIL_2_OUT);
+}
+
+void nrk_register_drivers() {
+  int8_t val;
+
+  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  if(val==NRK_ERROR) nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+
 }
 
 /**

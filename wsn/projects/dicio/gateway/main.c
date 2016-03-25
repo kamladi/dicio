@@ -83,6 +83,7 @@ void nrk_register_drivers();
 pool_t seq_pool;
 uint16_t server_seq_num;
 uint16_t seq_num = 0;
+uint16_t cmd_id = 0;
 
 // GLOBAL FLAG
 uint8_t print_incoming;
@@ -249,7 +250,7 @@ void rx_node_task() {
       
         // determine if we should act on this packet based on the sequence number
         local_seq_num = get_data_val(&seq_pool, rx_packet.source_id);
-        if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND)) {
+        if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
           
           // update the sequence pool and reset the new_node flag
           update_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -580,9 +581,9 @@ void tx_serv_task() {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        nrk_kprintf(PSTR("SERV LED ON\r\n"));
+        //nrk_kprintf(PSTR("SERV LED ON\r\n"));
       } else {
-        nrk_kprintf(PSTR("SERV LED OFF\r\n"));
+        //nrk_kprintf(PSTR("SERV LED OFF\r\n"));
       }      
     }
 
