@@ -34,6 +34,13 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
             break;
         }
 
+        case MSG_CMDACK:
+        {
+            sprintf(tx_buf, "%d:%d:%d:%d:%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+                (uint16_t)tx->payload[CMDACK_ID_INDEX]);
+            break;
+        }
+
         case MSG_HANDACK: // assemble hand_ack to server
         {
             sprintf(tx_buf, "%d:%d:%d:%d:%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
@@ -65,6 +72,18 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[5] = tx->payload[1];
             tx_buf[6] = tx->payload[2];
             tx_buf[7] = tx->payload[3];
+            break;
+        }
+
+        case MSG_CMDACK:
+        {
+            length = 6;
+            tx_buf[0] = tx->source_id;
+            tx_buf[1] = tx->seq_num;
+            tx_buf[2] = tx->type;
+            tx_buf[3] = tx->num_hops;
+            tx_buf[4] = tx->payload[0];
+            tx_buf[5] = tx->payload[1];
             break;
         }
 
