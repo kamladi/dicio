@@ -83,6 +83,7 @@ void nrk_register_drivers();
 pool_t seq_pool;
 uint16_t server_seq_num;
 uint16_t seq_num = 0;
+uint16_t cmd_id = 0;
 
 // GLOBAL FLAG
 uint8_t print_incoming;

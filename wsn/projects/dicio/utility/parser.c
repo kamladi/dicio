@@ -31,6 +31,7 @@ void print_packet(packet *p)
 
         case MSG_CMDACK:
         {
+            printf("\r\n");
             break;
         }
 
