@@ -8,6 +8,8 @@ var logger           = require('morgan');
 var ObjectId         = require('mongoose').Types.ObjectId;
 var outletsCtrl      = require('./controllers/Outlets');
 var path             = require('path');
+var eventsCtrl       = require('./controllers/Events');
+var timeSeriesCtrl   = require('./controllers/TimeSeries');
 
 var app = express();
 
@@ -53,6 +55,7 @@ app.get('/handlepacket/:packet', (req, res, next) => {
 		.then(result => res.json(result))
 		.catch(next);
 });
+app.get('/graphs/:id', timeSeriesCtrl.getSensorHistory);
 
 // Undefined Route Handler
 // (request url doesn't match any routes)
