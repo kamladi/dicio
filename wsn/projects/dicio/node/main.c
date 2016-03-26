@@ -18,8 +18,6 @@
 #include <hal.h>
 #include <bmac.h>
 #include <nrk_error.h>
-
-
 #include <nrk_driver_list.h>
 #include <nrk_driver.h>
 #include <adc_driver.h>
@@ -31,7 +29,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
+#define MAC_ADDR 7
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -40,7 +38,9 @@ void rx_msg_task(void);
 void tx_cmd_task(void);
 void tx_data_task(void);
 void tx_serv_task(void);
-void nrk_create_taskset ();
+void nrk_create_taskset (void);
+void nrk_register_drivers(void);
+
 
 // STATE ENUM
 typedef enum {
@@ -92,9 +92,6 @@ uint8_t temp_period;
 uint8_t light_period;
 sensor_packet sensor_pkt;
 
-// DRIVERS 
-void nrk_register_drivers();
-
 // SEQUENCE POOLS/NUMBER
 pool_t seq_pool;
 uint16_t seq_num = 0;
@@ -108,10 +105,11 @@ nrk_sem_t* network_joined_mux;
 
 int main () {
   // setup ports/uart
-  nrk_register_drivers();
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
+
   nrk_init ();
+  nrk_time_set(0, 0);
 
   // clear all LEDs
   nrk_led_clr(0);
@@ -145,9 +143,9 @@ int main () {
   packet_queue_init(&hand_rx_queue);
 
   // start running
-  nrk_time_set(0, 0);
-  bmac_task_config();
   nrk_set_gpio();
+  bmac_task_config();
+  nrk_register_drivers();
   nrk_create_taskset();
   bmac_init(13);
   nrk_start();
@@ -176,6 +174,8 @@ void rx_msg_task() {
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
   uint8_t local_network_joined = FALSE;
+
+  printf("rx_msg_task pid %d\r\n", nrk_get_pid());
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
@@ -346,6 +346,8 @@ void tx_cmd_task() {
   uint8_t tx_cmd_queue_size;
   uint8_t local_network_joined = FALSE;
 
+  printf("tx_cmd_task pid %d\r\n", nrk_get_pid());
+
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
   while(!bmac_started()) {
@@ -413,7 +415,6 @@ void tx_cmd_task() {
         }
         nrk_sem_post(net_tx_buf_mux);     
       }      
-
     nrk_wait_until_next_period();
   }
 }
@@ -431,6 +432,8 @@ void tx_data_task() {
   packet tx_packet;
   uint8_t tx_data_queue_size;
   uint8_t local_network_joined = FALSE;
+
+  printf("tx_data_task pid %d\r\n", nrk_get_pid());
 
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
@@ -512,7 +515,6 @@ void tx_data_task() {
       }
       nrk_sem_post(network_joined_mux);       
     }
-
     nrk_wait_until_next_period();
   }
 }
@@ -534,8 +536,10 @@ void sample_task() {
   uint16_t local_light_val = 0;
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
-  int8_t adc_fd;
-  uint8_t adc_buf[2];
+  int8_t adc_fd, val, chan;
+  uint16_t adc_buf;
+
+  printf("sample_task pid %d\r\n", nrk_get_pid());
 
   // initialize sensor packet
   sensor_pkt.pwr_val = local_pwr_val;
@@ -587,12 +591,28 @@ void sample_task() {
       if(temp_period_count == SAMPLE_SENSOR) {
         //TODO: SAMPLE TEMP SENSOR
         local_temp_val++;
-        /*adc_fd = nrk_open(ADC_DEV_MANAGER, READ); 
-        if(adc_fd == NRK_ERROR) nrk_kprintf(PSTR("Failed to open adc driver\r\n"));
-        nrk_set_status(adc_fd,ADC_CHAN,CHAN_6);
-        nrk_read(adc_fd,&adc_buf,2);
-        nrk_close(adc_fd);
-        printf( "ADC value=%d\r\n",adc_buf);*/
+        
+        /*
+        adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
+        if(adc_fd == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+        } else {
+          val = nrk_set_status(adc_fd,ADC_CHAN,CHAN_6);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+          } else {
+            val = nrk_read(adc_fd, &adc_buf, 2);
+            if(val == NRK_ERROR) {
+              nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+            } else {
+              printf("ADC: %d\r\n", adc_buf);
+            }
+          }
+          nrk_close(adc_fd);  
+        }
+        */
+        
+
         sensor_pkt.temp_val = local_temp_val;
         sensor_sampled = TRUE;
       }
@@ -629,7 +649,7 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
+        local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);   
       
@@ -666,6 +686,8 @@ void actuate_task() {
   packet act_packet, tx_packet;
   uint8_t action, ack_required, act_required; 
   uint8_t local_network_joined = FALSE;
+
+  printf("actuate_task pid %d\r\n", nrk_get_pid());
 
   // CURRENT STATE
   act_state curr_state = STATE_OFF;
@@ -849,9 +871,12 @@ void nrk_set_gpio() {
 void nrk_register_drivers() {
   int8_t val;
 
-  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  /* val=nrk_register_driver(&dev_manager_adc, ADC_DEV_MANAGER);
   if(val==NRK_ERROR) nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
-
+  */
+  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  if(val==NRK_ERROR) 
+    nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
 }
 
 /**
@@ -868,7 +893,7 @@ void nrk_create_taskset () {
   RX_MSG_TASK.Type = BASIC_TASK;
   RX_MSG_TASK.SchType = PREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
-  RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
+  RX_MSG_TASK.period.nano_secs = 50*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
   RX_MSG_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   RX_MSG_TASK.offset.secs = 0;
@@ -905,14 +930,14 @@ void nrk_create_taskset () {
   // PRIORITY 2
   SAMPLE_TASK.task = sample_task;
   nrk_task_set_stk(&SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
-  SAMPLE_TASK.prio = 2;
+  SAMPLE_TASK.prio = 10;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = PREEMPTIVE;
   SAMPLE_TASK.period.secs = 2;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
-  SAMPLE_TASK.cpu_reserve.nano_secs = 200*NANOS_PER_MS;
+  SAMPLE_TASK.cpu_reserve.nano_secs = 500*NANOS_PER_MS;
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
