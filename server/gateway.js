@@ -6,13 +6,65 @@ var Event      = require('./models/Event');
 // Constants
 const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
 const BAUD_RATE = 115200;
-const OUTLET_SENSOR_MESSAGE = 0;
-const OUTLET_ACTION_MESSAGE = 6;
+const OUTLET_SENSOR_MESSAGE         = 5;
+const OUTLET_ACTION_MESSAGE         = 6;
+const OUTLET_ACTION_ACK_MESSAGE     = 7;
+const OUTLET_HANDSHAKE_MESSAGE      = 8;
+const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
 
 // Globals
 var serialPort = null;
 var hasStarted = false;
 var seqNum = 1;
+
+
+function handleSensorDataMessage(macAddress, payload) {
+	return Outlet.find({mac_address: macAddress}).exec()
+	  .then( outlets => {
+	    if (outlets.length == 0) {
+	      throw new Error(`Outlet does not exist for MAC Address: ${macAddress}`);
+	    }
+
+	    var outlet = outlets[0];
+
+	    // Parse sensor data, convert to ints
+	    var sensorValues = payload.split(',').map(value => parseInt(value));
+
+	    // We're expecting five values: power, temp, light, (eventually status).
+	    if (sensorValues.length !== 3) {
+	      throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
+	    }
+
+	    // TODO: when status has been added to message,
+	    // get status value from packet.
+	    var cur_power = sensorValues[0];
+	        cur_temperature = sensorValues[1],
+	        cur_light = sensorValues[2],
+	        status = 'OFF';
+
+	    // Update outlet object with new properties, and save.
+	    outlet.status = status;
+	    outlet.cur_temperature = cur_temperature;
+	    outlet.cur_light = cur_light;
+	    outlet.cur_power = cur_power;
+	    console.log(`Outlet ${macAddress} updated.`);
+	    return outlet.save();
+	  }).catch(console.error);
+}
+
+function handleActionAckMessage(macAddress, payload) {
+	return Outlet.find({mac_address: macAddress}).exec()
+		.then( outlets => {
+			if (outlets.length == 0) {
+	      throw new Error(`Outlet does not exist for MAC Address: ${macAddress}`);
+	    }
+	    var outlet = outlets[0];
+
+	    // Toggle outlet status.
+	    outlet.status = (outlet.status == 'ON') ? 'OFF' : 'ON';
+	    return outlet.save();
+		}).catch(console.error);
+}
 
 // Parse and handle data packet.
 // TODO:
@@ -24,44 +76,24 @@ function handleData(data) {
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
+	// "source_mac_addr:seq_num:msg_type:num_hops:payload"
 	var components = data.split(':');
-	if (components.length !== 4) {
-		console.trace("Invalid minimum packet length");
+	if (components.length !== 5) {
+		console.error("Invalid minimum packet length");
 		return;
 	}
-	var macAddress = components[0],
-	    msgId = components[2],
-	    payload = components[3];
-	return Outlet.findOne({mac_address: macAddress}).exec()
-	  .then( outlet => {
-	    if (!outlet) {
-	      throw new Error(`Outlet does not exist for MAC Address: ${macAddress}`);
-	    }
-	    if (msgId !== OUTLET_SENSOR_MESSAGE) {
-	      throw new Error(`Invalid Message ID: ${msgId}`);
-	    }
+	var macAddress = parseInt(components[0]),
+	    msgId = parseInt(components[2]),
+	    payload = components[4];
 
-	    // Parse sensor data, convert to ints
-	    var sensorValues = payload.split(',').map(value => parseInt(value));
+	if (msgId === OUTLET_SENSOR_MESSAGE) {
+		return handleSensorDataMessage(macAddress, payload);
+  } else if (msgId == OUTLET_ACTION_ACK_MESSAGE) {
+  	return handleActionAckMessage(macAddress, payload);
+  } else {
+  	console.error(`Unknown Message type: ${msgId}`);
+  }
 
-	    // We're expecting five values: status, temp, humidity, light, and power.
-	    if (sensorValues.length !== 5) {
-	      throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
-	    }
-	    var status = sensorValues[0],
-	        cur_temperature = sensorValues[1],
-	        cur_humidity = sensorValues[2],
-	        cur_light = sensorValues[3],
-	        cur_power = sensorValues[4];
-
-	    // Update outlet object with new properties, and save.
-	    outlet.status = status;
-	    outlet.cur_temperature = cur_temperature;
-	    outlet.cur_humidity = cur_humidity;
-	    outlet.cur_light = cur_light;
-	    outlet.cur_power = cur_power;
-	    return outlet.save();
-	  }).catch(console.trace);
 }
 
 /*
@@ -81,8 +113,10 @@ function sendAction(outletMacAddress, action) {
       // Convert action string to enum value
       action = (action === 'ON') ? 1 : 0;
       // server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:${seqNum}:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       packet += "\r";
+      // increment sequence number
+      seqNum = (seqNum + 1) % 255;
       console.log("packet sent is..." + packet);
       serialPort.write(packet, (err) => {
         if (err) {
@@ -106,7 +140,7 @@ function sendAction(outletMacAddress, action) {
  * False otherwise.
  */
 function isConnected() {
-	return serialPort && serialport.isOpen();
+	return serialPort && serialPort.isOpen();
 }
 
 /*
