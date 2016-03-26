@@ -7,6 +7,10 @@
 2. In another terminal tab, run `node index.js $SERIAL_PORT`, where `$SERIAL_PORT` is the device port for the connected gateway node (i.e. `/dev/tty.USB0`).
 3. If you want the server to restart when you save changes, run `npm install -g nodemon` and run `nodemon index.js $SERIAL_PORT`.
 
+## Making the Server Public (so it can me remotely accessed by the app on another device)
+1. Install localtunnel with `npm install localtunnel`.
+2. Once you have the server running (on port 3000), open a new terminal and run `lt --port 3000`. Running this will give you a url with you can point to in the app code (defined in `../app/lib/Constants.js`).
+
 ## Starting the server with sample data
 The server is set up to initialize the database with some sample outlets and events so you have something to look at when developing. This sample data is defined in `initial_data.js` and loaded into the database in `index.js`
 
