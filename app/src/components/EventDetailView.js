@@ -42,10 +42,15 @@ export class EventDetailView extends Component {
     });
     EventStore.listen(this.onChange);
     EventActions.fetchEvent(this.props.event_id);
+    // Regularly ping the server for the latest event data.
+    this.updateIntervalId = setInterval(() => {
+      EventActions.fetchEvent(this.props.event_id);
+    }, 500);
   }
 
   componentWillUnmount() {
     EventStore.unlisten(this.onChange);
+    clearInterval(this.updateIntervalId);
   }
 
   onChange(state) {
