@@ -40,10 +40,10 @@ function handleSensorDataMessage(macAddress, payload) {
 	    var cur_power = sensorValues[0];
 	        cur_temperature = sensorValues[1],
 	        cur_light = sensorValues[2],
-	        status = 'OFF';
+	        //status = 'OFF';
 
 	    // Update outlet object with new properties, and save.
-	    outlet.status = status;
+	    //outlet.status = status;
 	    outlet.cur_temperature = cur_temperature;
 	    outlet.cur_light = cur_light;
 	    outlet.cur_power = cur_power;
@@ -72,7 +72,7 @@ function handleActionAckMessage(macAddress, payload) {
 // 2) Iterate over events involving this outlet, and
 // 			execute any actions is applicable
 function handleData(data) {
-  console.log("RX: ", data);
+  console.log("Gateway: ", data);
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
@@ -117,22 +117,25 @@ function sendAction(outletMacAddress, action) {
       packet += "\r";
       // increment sequence number
       seqNum = (seqNum + 1) % 255;
-      console.log("packet sent is..." + packet);
+
       serialPort.write(packet, (err) => {
         if (err) {
+        	console.log(err);
           reject(err);
         } else {
 	      	serialPort.drain((err) => {
 	      		if(err){
+	      			console.log(err);
 	      			reject(err);
 	      		} else {
+	      			console.log("packet sent is..." + packet);
 	      			resolve(packet);
 	      		}
 	     		});
         }
       });
     }
-  });
+  }).catch(console.error);
 };
 
 /*
