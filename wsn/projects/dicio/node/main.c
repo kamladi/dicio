@@ -20,7 +20,8 @@
 #include <nrk_error.h>
 #include <nrk_driver_list.h>
 #include <nrk_driver.h>
-#include <adc_driver.h>
+//#include <adc_driver.h>
+#include <ff_basic_sensor.h>
 // this package
 #include <assembler.h>
 #include <packet_queue.h>
@@ -29,7 +30,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
+#define MAC_ADDR 3
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -58,6 +59,7 @@ nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_DATA_TASK;
 nrk_task_type SAMPLE_TASK;
 nrk_task_type ACTUATE_TASK;
+nrk_task_type TaskOne;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
@@ -65,6 +67,7 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
+NRK_STK Stack1[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -87,6 +90,7 @@ packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
 // SENSOR VALUES
+uint8_t adc_fd;
 uint8_t pwr_period;
 uint8_t temp_period;
 uint8_t light_period;
@@ -103,7 +107,7 @@ uint8_t blink_leds;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
 
-int main () {
+int main() {
   // setup ports/uart
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
@@ -131,10 +135,10 @@ int main () {
   seq_num_mux         = nrk_sem_create(1, 6);
   network_joined_mux  = nrk_sem_create(1, 6);
 
-  // sensor periods (in seconds)
-  pwr_period = 10;
-  temp_period = 15;
-  light_period = 20;
+  // sensor periods (in seconds / 2)
+  pwr_period = 5;
+  temp_period = 2;
+  light_period = 10;
 
   // packet queues
   packet_queue_init(&act_queue);
@@ -142,10 +146,15 @@ int main () {
   packet_queue_init(&data_tx_queue);
   packet_queue_init(&hand_rx_queue);
 
+  //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC, READ);
+  //adc_fd = nrk_open(ADC_DEV_MANAGER, READ);
+  //if(adc_fd == NRK_ERROR) 
+  //  nrk_kprintf(PSTR("Failed to open sensor driver\r\n"));
+
   // start running
+  bmac_task_config();
   nrk_register_drivers();
   nrk_set_gpio();
-  bmac_task_config();
   nrk_create_taskset();
   bmac_init(13);
   nrk_start();
@@ -532,7 +541,7 @@ void sample_task() {
   uint16_t local_light_val = 0;
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
-  int8_t adc_fd, val, chan;
+  int8_t val, chan;
   uint16_t adc_buf;
 
   printf("sample_task pid %d\r\n", nrk_get_pid());
@@ -551,6 +560,7 @@ void sample_task() {
   hello_packet.source_id = MAC_ADDR;
   hello_packet.type = MSG_HAND;
   hello_packet.num_hops = 0;
+
   // loop forever
   while(1) {
     // LED blinking - for debug
@@ -563,7 +573,7 @@ void sample_task() {
         nrk_led_clr(2);
       }      
     }
-
+    
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -576,6 +586,7 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
+
         //TODO: SAMPLE POWER SENSOR
         local_pwr_val++;
         sensor_pkt.pwr_val = local_pwr_val;
@@ -586,29 +597,36 @@ void sample_task() {
       if(temp_period_count == SAMPLE_SENSOR) {
         //TODO: SAMPLE TEMP SENSOR
         local_temp_val++;
-        
-        /*
-        adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-        //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC,READ);
-        if(adc_fd == NRK_ERROR) {
-          nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
-        } else {
-          val = nrk_set_status(adc_fd,ADC_CHAN,2);
-          if(val == NRK_ERROR) {
-            nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
-          } else {
-            val = nrk_read(adc_fd, &adc_buf, 2);
-            if(val == NRK_ERROR) {
-              nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
-            } else {
-              printf("ADC: %d\r\n", adc_buf);
-            }
-          }
-          nrk_close(adc_fd);  
-        }
-        */
         sensor_pkt.temp_val = local_temp_val;
-        sensor_sampled = TRUE;
+        sensor_sampled = TRUE;  
+        /*val = nrk_set_status(adc_fd,ADC_CHAN, 5);
+        if(val == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+        } else {
+          val = nrk_read(adc_fd, &adc_buf, 2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+          } else {
+            printf("ADC: %d\r\n", adc_buf);
+          }
+        }*/
+
+
+        // state actions
+        /*val = nrk_set_status(adc_fd,SENSOR_SELECT,LIGHT);
+        if(val == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+        } else {
+          val = nrk_read(adc_fd,&adc_buf,2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+          } else {
+            printf("ADC: %d\r\n", adc_buf);
+
+            sensor_pkt.temp_val = local_temp_val;
+            sensor_sampled = TRUE;             
+          }
+        }*/
       }
 
       // sample light sensor if appropriate
@@ -643,8 +661,8 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        //local_network_joined = TRUE; // for debug
         local_network_joined = network_joined;
+        //local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);   
       
@@ -679,7 +697,9 @@ void actuate_task() {
   uint8_t ACT_FLAG = 0;
   uint8_t act_queue_size;
   packet act_packet, tx_packet;
-  uint8_t action, ack_required, act_required; 
+  uint8_t ack_required, act_required;
+  int8_t action; 
+  uint8_t btn_val;
   uint8_t local_network_joined = FALSE;
 
   printf("actuate_task pid %d\r\n", nrk_get_pid());
@@ -709,141 +729,157 @@ void actuate_task() {
       }   
     }
 
-    if(local_network_joined == TRUE) {
-      // get action queue size
-      nrk_sem_pend(act_queue_mux); {
-        act_queue_size = act_queue.size;
-      }
-      nrk_sem_post(act_queue_mux);
-      
-
-      switch(curr_state) {
-        // STATE_OFF -
-        //  - wait for an ON command -> actuate
-        //  - wait for an OFF command -> send ACK
-        case STATE_OFF: {
-          // if there is something in the ACT queue
-          if(act_queue_size > 0) {
-            // get the action atomically
-            nrk_sem_pend(act_queue_mux); {
-              pop(&act_queue, &act_packet);
-            }
-            nrk_sem_post(act_queue_mux); 
-            action = act_packet.payload[CMD_ACT_INDEX];
-
-            // if the action is ON -> actuate
-            if(action == ON) {
-              curr_state = STATE_ACT_ON;
-            } 
-            // if the action is OFF -> send ACK
-            else if (action == OFF) {
-              curr_state = STATE_ACK_OFF;
-            } 
-            // if the action is something else...there is a problem
-            else {
-              curr_state = STATE_OFF;
-            }
-          }
-          break;
-        }
-        // STATE_ON -
-        //  - wait for an ON command -> send ACK
-        //  - wait for an OFF command -> actuate
-        case STATE_ON: {
-          if(act_queue_size > 0) {
-            nrk_sem_pend(act_queue_mux); {
-              pop(&act_queue, &act_packet);
-            }
-            nrk_sem_post(act_queue_mux); 
-            action = act_packet.payload[CMD_ACT_INDEX];
-
-            // if the action is ON -> send ACK
-            if(action == ON) {
-              curr_state = STATE_ACK_ON;
-            } 
-            // if the action is OFF -> actuate
-            else if(action == OFF) {
-              curr_state = STATE_ACT_OFF;
-            }
-            // if the action is something else...there is a problem
-            else {
-              curr_state = STATE_ON;
-            }
-          } 
-          break;         
-        }
-
-        // STATE_ACT_OFF - actuate the OFF_COIL
-        case STATE_ACT_OFF: {
-          // ACTIVE LOW signal
-          nrk_gpio_clr(OFF_COIL);
-          curr_state = STATE_ACK_OFF;
-          break;
-        }
-
-        // STATE_ACT_ON - actuate the ON_COIL
-        case STATE_ACT_ON: {
-          // ACTIVE_HIGH signal
-          nrk_gpio_clr(ON_COIL);
-          curr_state = STATE_ACK_ON;
-          break;
-        }
-
-        // STATE_ACT_OFF - 
-        //  - clear the control signal
-        //  - send ACK
-        case STATE_ACK_OFF: {
-          nrk_gpio_set(OFF_COIL);
-
-          // update sequence number
-          nrk_sem_pend(seq_num_mux); {
-            seq_num++;
-            tx_packet.seq_num = seq_num;            
-          }
-          nrk_sem_post(seq_num_mux);  
-
-          // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
-
-          // place message in the queue
-          nrk_sem_pend(cmd_tx_queue_mux); {
-            push(&cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(cmd_tx_queue_mux);
-
-          curr_state = STATE_OFF;  
-          break;     
-        }
-
-        // STATE_ACK_ON -
-        //  - clear the control signal
-        //  - send ACK
-        case STATE_ACK_ON: {
-          nrk_gpio_set(ON_COIL);
-
-          // update sequence number
-          nrk_sem_pend(seq_num_mux); {
-            seq_num++;
-            tx_packet.seq_num = seq_num;            
-          }
-          nrk_sem_post(seq_num_mux);  
-
-          // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
-
-          // place message in the queue
-          nrk_sem_pend(cmd_tx_queue_mux); {
-            push(&cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(cmd_tx_queue_mux);
-
-          curr_state = STATE_ON;    
-          break;    
-        }
-      }      
+    // get action queue size / reset action flag
+    nrk_sem_pend(act_queue_mux); {
+      act_queue_size = act_queue.size;
     }
-    // if the local_network_joined flag hasn't been set yet, check status
-    else {
+    nrk_sem_post(act_queue_mux);
+    action = ACT_NONE;
+
+    switch(curr_state) {
+      // STATE_OFF -
+      //  - wait for a button press -> actuate ON
+      //  - wait for an ON command -> actuate
+      //  - wait for an OFF command -> send ACK
+      case STATE_OFF: {
+        // check button state
+        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+          action = ON;
+        }
+        // check act queue
+        else if(act_queue_size > 0) {
+          // get the action atomically
+          nrk_sem_pend(act_queue_mux); {
+            pop(&act_queue, &act_packet);
+          }
+          nrk_sem_post(act_queue_mux); 
+          action = act_packet.payload[CMD_ACT_INDEX];
+        }
+        // if the action is ON -> actuate
+        if(action == ON) {
+          curr_state = STATE_ACT_ON;
+        } 
+        // if the action is OFF -> send ACK
+        else if (action == OFF) {
+          curr_state = STATE_ACK_OFF;
+        } 
+        // if the action is something else...there is a problem
+        else {
+          curr_state = STATE_OFF;
+        }
+        break;
+      }
+      // STATE_ON -
+      //  - wait for a buttton press -> actuate OFF
+      //  - wait for an ON command -> send ACK
+      //  - wait for an OFF command -> actuate
+      case STATE_ON: {
+        // check button state
+        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+          action = OFF;
+        }
+        // check act queue
+        else if(act_queue_size > 0) {
+          nrk_sem_pend(act_queue_mux); {
+            pop(&act_queue, &act_packet);
+          }
+          nrk_sem_post(act_queue_mux); 
+          action = act_packet.payload[CMD_ACT_INDEX];
+        }
+
+        // if the action is ON -> send ACK
+        if(action == ON) {
+          curr_state = STATE_ACK_ON;
+        } 
+        // if the action is OFF -> actuate
+        else if(action == OFF) {
+          curr_state = STATE_ACT_OFF;
+        }
+        // if the action is something else...there is a problem
+        else {
+          curr_state = STATE_ON;
+        }
+        break;         
+      }
+
+      // STATE_ACT_OFF - actuate the OFF_COIL
+      case STATE_ACT_OFF: {
+        // ACTIVE LOW signal
+        nrk_gpio_clr(OFF_COIL);
+        curr_state = STATE_ACK_OFF;
+        break;
+      }
+
+      // STATE_ACT_ON - actuate the ON_COIL
+      case STATE_ACT_ON: {
+        // ACTIVE_HIGH signal
+        nrk_gpio_clr(ON_COIL);
+        curr_state = STATE_ACK_ON;
+        break;
+      }
+
+      // STATE_ACT_OFF - 
+      //  - clear the control signal
+      //  - send ACK
+      case STATE_ACK_OFF: {
+        // clear control signal
+        nrk_gpio_set(OFF_COIL);
+
+        // send ack if the network has been joined
+        if(local_network_joined == TRUE) {
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);  
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);          
+        }
+
+        curr_state = STATE_OFF;  
+        break;     
+      }
+
+      // STATE_ACK_ON -
+      //  - clear the control signal
+      //  - send ACK
+      case STATE_ACK_ON: {
+        // clear control signal
+        nrk_gpio_set(ON_COIL);
+
+        // send ack if network has been joined
+        if(local_network_joined == TRUE) {
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);  
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);          
+        }
+
+        curr_state = STATE_ON;    
+        break;    
+      }
+    }      
+
+    if(local_network_joined == FALSE) {
       // determine if the network has been joined
       nrk_sem_pend(network_joined_mux); {
         local_network_joined = network_joined;
@@ -855,23 +891,23 @@ void actuate_task() {
 }
 
 void nrk_set_gpio() {
-  nrk_gpio_direction(COIL_1_OUT, NRK_PIN_OUTPUT);
-  nrk_gpio_direction(COIL_2_OUT, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(ON_COIL, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(OFF_COIL, NRK_PIN_OUTPUT);
   nrk_gpio_direction(BTN_IN, NRK_PIN_INPUT);
   
-  nrk_gpio_set(COIL_1_OUT);
-  nrk_gpio_set(COIL_2_OUT);
+  nrk_gpio_set(ON_COIL);
+  nrk_gpio_set(OFF_COIL);
 }
 
 void nrk_register_drivers() {
   int8_t val;
-
-  /* val=nrk_register_driver(&dev_manager_adc, ADC_DEV_MANAGER);
-  if(val==NRK_ERROR) nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
-  */
-  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  /*val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  if(val==NRK_ERROR) 
+    nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));*/
+  val = nrk_register_driver(&dev_manager_ff3_sensors, FIREFLY_3_SENSOR_BASIC);
   if(val==NRK_ERROR) 
     nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+  
 }
 
 /**

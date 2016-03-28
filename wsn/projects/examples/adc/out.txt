@@ -1,0 +1,32 @@
+set -e; avr-gcc -g -MM -mmcu=atmega1281 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega1281/nrk_timer.lst -I../../../src/platform/include -I../../../src/platform/firefly2_2/include -I../../../src/radio/cc2420/include -I../../../src/radio/cc2420/hal/atmega1281 -I../../../src/radio/cc2420/platform/firefly2_2 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly2_2/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega1281/nrk_timer.c \
+	| sed 's,\(.*\)\.o[ :]*,\1.o \1.d : ,g' > ../../../src/kernel/hal/atmega1281/nrk_timer.d; \
+	[ -s ../../../src/kernel/hal/atmega1281/nrk_timer.d ] || rm -f ../../../src/kernel/hal/atmega1281/nrk_timer.d
+../../../src/kernel/hal/atmega1281/nrk_timer.c:322:8: error: attempt to use poisoned "SIG_OUTPUT_COMPARE1A"
+ SIGNAL(SIG_OUTPUT_COMPARE1A) {
+        ^
+
+
+-------- begin --------
+avr-gcc (GCC) 4.9.1
+Copyright (C) 2014 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Compiling: ../../../src/kernel/hal/atmega1281/nrk_timer.c
+avr-gcc -g -c -mmcu=atmega1281 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=../../../src/kernel/hal/atmega1281/nrk_timer.lst -I../../../src/platform/include -I../../../src/platform/firefly2_2/include -I../../../src/radio/cc2420/include -I../../../src/radio/cc2420/hal/atmega1281 -I../../../src/radio/cc2420/platform/firefly2_2 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly2_2/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB ../../../src/kernel/hal/atmega1281/nrk_timer.c -o ../../../src/kernel/hal/atmega1281/nrk_timer.o
+../../../src/kernel/hal/atmega1281/nrk_timer.c: In function ‘__vector_13’:
+../../../src/kernel/hal/atmega1281/nrk_timer.c:261:33: warning: backslash and newline separated by space
+    "in      r0, __SREG__  \n\t" \ 
+ ^
+../../../src/kernel/hal/atmega1281/nrk_timer.c: At top level:
+../../../src/kernel/hal/atmega1281/nrk_timer.c:322:8: error: attempt to use poisoned "SIG_OUTPUT_COMPARE1A"
+ SIGNAL(SIG_OUTPUT_COMPARE1A) {
+        ^
+In file included from ../../../src/platform/firefly2_2/include/include.h:78:0,
+                 from ../../../src/kernel/hal/atmega1281/nrk_timer.c:26:
+../../../src/kernel/hal/atmega1281/nrk_timer.c: In function ‘SIG_OUTPUT_COMPARE1A’:
+../../../src/kernel/hal/atmega1281/nrk_timer.c:322:8: warning: ‘SIG_OUTPUT_COMPARE1A’ appears to be a misspelled signal handler
+ SIGNAL(SIG_OUTPUT_COMPARE1A) {
+        ^
+make: *** [../../../src/kernel/hal/atmega1281/nrk_timer.o] Error 1
