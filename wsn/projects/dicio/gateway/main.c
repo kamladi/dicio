@@ -153,7 +153,7 @@ uint8_t get_server_input() {
 
     // print if appropriate
     if(print_incoming == PRINT2TERM) {
-      printf("%c", option);
+      //printf("!%c", option);
     }
 
     // message has been completed
@@ -161,7 +161,7 @@ uint8_t get_server_input() {
       serv_rx_buf[serv_rx_index] = '\n';
       serv_rx_index++;
       if(print_incoming == PRINT2TERM) {
-        nrk_kprintf(PSTR("\n"));
+        //nrk_kprintf(PSTR("\n"));
       }
       return SERV_MSG_RECEIVED;    
     }
@@ -175,7 +175,7 @@ uint8_t get_server_input() {
  */
 void clear_serv_buf() {
   for(uint8_t i = 0; i < serv_rx_index; i++) {
-    serv_rx_buf[i] = '\0';
+    serv_rx_buf[i] = 0;
   }
   serv_rx_index = 0;
 }
@@ -349,7 +349,7 @@ void rx_serv_task() {
 
       // print message if appropriate
       if(print_incoming == 1) {
-        //printf("%s", serv_rx_buf);   
+        //printf("rx_serv:%s\r\n", serv_rx_buf);   
       }
 
       // parse message
@@ -470,6 +470,7 @@ void tx_cmd_task() {
       nrk_sem_pend(net_tx_buf_mux); {
         net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
 
+        printf("transmit \r\n");
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
@@ -764,7 +765,7 @@ void nrk_create_taskset () {
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
   TX_SERV_TASK.SchType = PREEMPTIVE;
-  TX_SERV_TASK.period.secs = 5;
+  TX_SERV_TASK.period.secs = 1;
   TX_SERV_TASK.period.nano_secs = 0;
   TX_SERV_TASK.cpu_reserve.secs = 0;
   TX_SERV_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;

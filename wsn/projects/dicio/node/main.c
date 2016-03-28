@@ -29,7 +29,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 7
+#define MAC_ADDR 2
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -132,9 +132,9 @@ int main () {
   network_joined_mux  = nrk_sem_create(1, 6);
 
   // sensor periods (in seconds)
-  pwr_period = 2;
-  temp_period = 4;
-  light_period = 8;
+  pwr_period = 10;
+  temp_period = 15;
+  light_period = 20;
 
   // packet queues
   packet_queue_init(&act_queue);
@@ -143,9 +143,9 @@ int main () {
   packet_queue_init(&hand_rx_queue);
 
   // start running
+  nrk_register_drivers();
   nrk_set_gpio();
   bmac_task_config();
-  nrk_register_drivers();
   nrk_create_taskset();
   bmac_init(13);
   nrk_start();
@@ -176,7 +176,6 @@ void rx_msg_task() {
   uint8_t local_network_joined = FALSE;
 
   printf("rx_msg_task pid %d\r\n", nrk_get_pid());
-
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
   
@@ -197,7 +196,6 @@ void rx_msg_task() {
         nrk_led_clr(0);
       }      
     }
-
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
       // get the packet, parse and release
@@ -377,7 +375,6 @@ void tx_cmd_task() {
         tx_cmd_queue_size = cmd_tx_queue.size;
       }
       nrk_sem_post(cmd_tx_queue_mux);
-
       /**
        * loop on queue size received above, and no more.
        *  NOTE: during this loop the queue can be added to. If, for instance,
@@ -464,7 +461,6 @@ void tx_data_task() {
         tx_data_queue_size = data_tx_queue.size;
       }
       nrk_sem_post(data_tx_queue_mux);
-
       /**
        * loop on queue size received above, and no more.
        *  NOTE: during this loop the queue can be added to. If, for instance,
@@ -555,7 +551,6 @@ void sample_task() {
   hello_packet.source_id = MAC_ADDR;
   hello_packet.type = MSG_HAND;
   hello_packet.num_hops = 0;
-
   // loop forever
   while(1) {
     // LED blinking - for debug
@@ -594,10 +589,11 @@ void sample_task() {
         
         /*
         adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
+        //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC,READ);
         if(adc_fd == NRK_ERROR) {
           nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
         } else {
-          val = nrk_set_status(adc_fd,ADC_CHAN,CHAN_6);
+          val = nrk_set_status(adc_fd,ADC_CHAN,2);
           if(val == NRK_ERROR) {
             nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
           } else {
@@ -611,8 +607,6 @@ void sample_task() {
           nrk_close(adc_fd);  
         }
         */
-        
-
         sensor_pkt.temp_val = local_temp_val;
         sensor_sampled = TRUE;
       }
@@ -644,12 +638,13 @@ void sample_task() {
           push(&data_tx_queue, &tx_packet);
         }
         nrk_sem_post(data_tx_queue_mux);
-      }      
+      }
     } 
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = TRUE;
+        //local_network_joined = TRUE; // for debug
+        local_network_joined = network_joined;
       }
       nrk_sem_post(network_joined_mux);   
       
@@ -708,7 +703,7 @@ void actuate_task() {
       LED_FLAG++;
       LED_FLAG%=2;
       if(LED_FLAG == 0) {
-        nrk_led_set(1);
+       // nrk_led_set(1);
       } else {
         nrk_led_clr(1);
       }   
@@ -930,7 +925,7 @@ void nrk_create_taskset () {
   // PRIORITY 2
   SAMPLE_TASK.task = sample_task;
   nrk_task_set_stk(&SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
-  SAMPLE_TASK.prio = 10;
+  SAMPLE_TASK.prio = 2;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = PREEMPTIVE;
