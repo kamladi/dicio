@@ -26,7 +26,9 @@ SRC = $(TARGET).c
 # Add extra source files. 
 # For example:
 SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
-SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c 
+SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/ff_basic_sensor.c
+SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/twi_base_calls.c
+#SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c 
 SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c

@@ -20,7 +20,8 @@
 #include <nrk_error.h>
 #include <nrk_driver_list.h>
 #include <nrk_driver.h>
-#include <adc_driver.h>
+//#include <adc_driver.h>
+#include <ff_basic_sensor.h>
 // this package
 #include <assembler.h>
 #include <packet_queue.h>
@@ -29,7 +30,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
+#define MAC_ADDR 3
 
 // FUNCTION DECLARATIONS
 uint8_t get_server_input(void);
@@ -58,6 +59,7 @@ nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_DATA_TASK;
 nrk_task_type SAMPLE_TASK;
 nrk_task_type ACTUATE_TASK;
+nrk_task_type TaskOne;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
@@ -65,6 +67,7 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
+NRK_STK Stack1[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -87,6 +90,7 @@ packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
 // SENSOR VALUES
+uint8_t adc_fd;
 uint8_t pwr_period;
 uint8_t temp_period;
 uint8_t light_period;
@@ -103,7 +107,7 @@ uint8_t blink_leds;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
 
-int main () {
+int main() {
   // setup ports/uart
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
@@ -133,7 +137,7 @@ int main () {
 
   // sensor periods (in seconds / 2)
   pwr_period = 5;
-  temp_period = 7;
+  temp_period = 2;
   light_period = 10;
 
   // packet queues
@@ -142,10 +146,15 @@ int main () {
   packet_queue_init(&data_tx_queue);
   packet_queue_init(&hand_rx_queue);
 
+  //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC, READ);
+  //adc_fd = nrk_open(ADC_DEV_MANAGER, READ);
+  //if(adc_fd == NRK_ERROR) 
+  //  nrk_kprintf(PSTR("Failed to open sensor driver\r\n"));
+
   // start running
+  bmac_task_config();
   nrk_register_drivers();
   nrk_set_gpio();
-  bmac_task_config();
   nrk_create_taskset();
   bmac_init(13);
   nrk_start();
@@ -532,7 +541,7 @@ void sample_task() {
   uint16_t local_light_val = 0;
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
-  int8_t adc_fd, val, chan;
+  int8_t val, chan;
   uint16_t adc_buf;
 
   printf("sample_task pid %d\r\n", nrk_get_pid());
@@ -551,6 +560,7 @@ void sample_task() {
   hello_packet.source_id = MAC_ADDR;
   hello_packet.type = MSG_HAND;
   hello_packet.num_hops = 0;
+
   // loop forever
   while(1) {
     // LED blinking - for debug
@@ -563,7 +573,7 @@ void sample_task() {
         nrk_led_clr(2);
       }      
     }
-
+    
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -576,6 +586,7 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
+
         //TODO: SAMPLE POWER SENSOR
         local_pwr_val++;
         sensor_pkt.pwr_val = local_pwr_val;
@@ -586,30 +597,36 @@ void sample_task() {
       if(temp_period_count == SAMPLE_SENSOR) {
         //TODO: SAMPLE TEMP SENSOR
         local_temp_val++;
-        
-        /*
-        adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-        //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC,READ);
-        if(adc_fd == NRK_ERROR) {
-          nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
-        } else {
-          val = nrk_set_status(adc_fd,ADC_CHAN,2);
-          if(val == NRK_ERROR) {
-            nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
-          } else {
-            val = nrk_read(adc_fd, &adc_buf, 2);
-            if(val == NRK_ERROR) {
-              nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
-            } else {
-              printf("ADC: %d\r\n", adc_buf);
-            }
-          }
-          nrk_close(adc_fd);  
-        }
-        */
-
         sensor_pkt.temp_val = local_temp_val;
-        sensor_sampled = TRUE;
+        sensor_sampled = TRUE;  
+        /*val = nrk_set_status(adc_fd,ADC_CHAN, 5);
+        if(val == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+        } else {
+          val = nrk_read(adc_fd, &adc_buf, 2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+          } else {
+            printf("ADC: %d\r\n", adc_buf);
+          }
+        }*/
+
+
+        // state actions
+        /*val = nrk_set_status(adc_fd,SENSOR_SELECT,LIGHT);
+        if(val == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+        } else {
+          val = nrk_read(adc_fd,&adc_buf,2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+          } else {
+            printf("ADC: %d\r\n", adc_buf);
+
+            sensor_pkt.temp_val = local_temp_val;
+            sensor_sampled = TRUE;             
+          }
+        }*/
       }
 
       // sample light sensor if appropriate
@@ -645,6 +662,7 @@ void sample_task() {
     else {
       nrk_sem_pend(network_joined_mux); {
         local_network_joined = network_joined;
+        //local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);   
       
@@ -883,13 +901,13 @@ void nrk_set_gpio() {
 
 void nrk_register_drivers() {
   int8_t val;
-
-  /* val=nrk_register_driver(&dev_manager_adc, ADC_DEV_MANAGER);
-  if(val==NRK_ERROR) nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
-  */
-  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  /*val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  if(val==NRK_ERROR) 
+    nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));*/
+  val = nrk_register_driver(&dev_manager_ff3_sensors, FIREFLY_3_SENSOR_BASIC);
   if(val==NRK_ERROR) 
     nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+  
 }
 
 /**
