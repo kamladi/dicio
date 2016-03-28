@@ -131,10 +131,10 @@ int main () {
   seq_num_mux         = nrk_sem_create(1, 6);
   network_joined_mux  = nrk_sem_create(1, 6);
 
-  // sensor periods (in seconds)
-  pwr_period = 10;
-  temp_period = 15;
-  light_period = 20;
+  // sensor periods (in seconds / 2)
+  pwr_period = 5;
+  temp_period = 7;
+  light_period = 10;
 
   // packet queues
   packet_queue_init(&act_queue);
@@ -607,6 +607,7 @@ void sample_task() {
           nrk_close(adc_fd);  
         }
         */
+
         sensor_pkt.temp_val = local_temp_val;
         sensor_sampled = TRUE;
       }
@@ -643,7 +644,6 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        //local_network_joined = TRUE; // for debug
         local_network_joined = network_joined;
       }
       nrk_sem_post(network_joined_mux);   
@@ -679,7 +679,9 @@ void actuate_task() {
   uint8_t ACT_FLAG = 0;
   uint8_t act_queue_size;
   packet act_packet, tx_packet;
-  uint8_t action, ack_required, act_required; 
+  uint8_t ack_required, act_required;
+  int8_t action; 
+  uint8_t btn_val;
   uint8_t local_network_joined = FALSE;
 
   printf("actuate_task pid %d\r\n", nrk_get_pid());
@@ -709,141 +711,157 @@ void actuate_task() {
       }   
     }
 
-    if(local_network_joined == TRUE) {
-      // get action queue size
-      nrk_sem_pend(act_queue_mux); {
-        act_queue_size = act_queue.size;
-      }
-      nrk_sem_post(act_queue_mux);
-      
-
-      switch(curr_state) {
-        // STATE_OFF -
-        //  - wait for an ON command -> actuate
-        //  - wait for an OFF command -> send ACK
-        case STATE_OFF: {
-          // if there is something in the ACT queue
-          if(act_queue_size > 0) {
-            // get the action atomically
-            nrk_sem_pend(act_queue_mux); {
-              pop(&act_queue, &act_packet);
-            }
-            nrk_sem_post(act_queue_mux); 
-            action = act_packet.payload[CMD_ACT_INDEX];
-
-            // if the action is ON -> actuate
-            if(action == ON) {
-              curr_state = STATE_ACT_ON;
-            } 
-            // if the action is OFF -> send ACK
-            else if (action == OFF) {
-              curr_state = STATE_ACK_OFF;
-            } 
-            // if the action is something else...there is a problem
-            else {
-              curr_state = STATE_OFF;
-            }
-          }
-          break;
-        }
-        // STATE_ON -
-        //  - wait for an ON command -> send ACK
-        //  - wait for an OFF command -> actuate
-        case STATE_ON: {
-          if(act_queue_size > 0) {
-            nrk_sem_pend(act_queue_mux); {
-              pop(&act_queue, &act_packet);
-            }
-            nrk_sem_post(act_queue_mux); 
-            action = act_packet.payload[CMD_ACT_INDEX];
-
-            // if the action is ON -> send ACK
-            if(action == ON) {
-              curr_state = STATE_ACK_ON;
-            } 
-            // if the action is OFF -> actuate
-            else if(action == OFF) {
-              curr_state = STATE_ACT_OFF;
-            }
-            // if the action is something else...there is a problem
-            else {
-              curr_state = STATE_ON;
-            }
-          } 
-          break;         
-        }
-
-        // STATE_ACT_OFF - actuate the OFF_COIL
-        case STATE_ACT_OFF: {
-          // ACTIVE LOW signal
-          nrk_gpio_clr(OFF_COIL);
-          curr_state = STATE_ACK_OFF;
-          break;
-        }
-
-        // STATE_ACT_ON - actuate the ON_COIL
-        case STATE_ACT_ON: {
-          // ACTIVE_HIGH signal
-          nrk_gpio_clr(ON_COIL);
-          curr_state = STATE_ACK_ON;
-          break;
-        }
-
-        // STATE_ACT_OFF - 
-        //  - clear the control signal
-        //  - send ACK
-        case STATE_ACK_OFF: {
-          nrk_gpio_set(OFF_COIL);
-
-          // update sequence number
-          nrk_sem_pend(seq_num_mux); {
-            seq_num++;
-            tx_packet.seq_num = seq_num;            
-          }
-          nrk_sem_post(seq_num_mux);  
-
-          // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
-
-          // place message in the queue
-          nrk_sem_pend(cmd_tx_queue_mux); {
-            push(&cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(cmd_tx_queue_mux);
-
-          curr_state = STATE_OFF;  
-          break;     
-        }
-
-        // STATE_ACK_ON -
-        //  - clear the control signal
-        //  - send ACK
-        case STATE_ACK_ON: {
-          nrk_gpio_set(ON_COIL);
-
-          // update sequence number
-          nrk_sem_pend(seq_num_mux); {
-            seq_num++;
-            tx_packet.seq_num = seq_num;            
-          }
-          nrk_sem_post(seq_num_mux);  
-
-          // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
-
-          // place message in the queue
-          nrk_sem_pend(cmd_tx_queue_mux); {
-            push(&cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(cmd_tx_queue_mux);
-
-          curr_state = STATE_ON;    
-          break;    
-        }
-      }      
+    // get action queue size / reset action flag
+    nrk_sem_pend(act_queue_mux); {
+      act_queue_size = act_queue.size;
     }
-    // if the local_network_joined flag hasn't been set yet, check status
-    else {
+    nrk_sem_post(act_queue_mux);
+    action = ACT_NONE;
+
+    switch(curr_state) {
+      // STATE_OFF -
+      //  - wait for a button press -> actuate ON
+      //  - wait for an ON command -> actuate
+      //  - wait for an OFF command -> send ACK
+      case STATE_OFF: {
+        // check button state
+        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+          action = ON;
+        }
+        // check act queue
+        else if(act_queue_size > 0) {
+          // get the action atomically
+          nrk_sem_pend(act_queue_mux); {
+            pop(&act_queue, &act_packet);
+          }
+          nrk_sem_post(act_queue_mux); 
+          action = act_packet.payload[CMD_ACT_INDEX];
+        }
+        // if the action is ON -> actuate
+        if(action == ON) {
+          curr_state = STATE_ACT_ON;
+        } 
+        // if the action is OFF -> send ACK
+        else if (action == OFF) {
+          curr_state = STATE_ACK_OFF;
+        } 
+        // if the action is something else...there is a problem
+        else {
+          curr_state = STATE_OFF;
+        }
+        break;
+      }
+      // STATE_ON -
+      //  - wait for a buttton press -> actuate OFF
+      //  - wait for an ON command -> send ACK
+      //  - wait for an OFF command -> actuate
+      case STATE_ON: {
+        // check button state
+        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+          action = OFF;
+        }
+        // check act queue
+        else if(act_queue_size > 0) {
+          nrk_sem_pend(act_queue_mux); {
+            pop(&act_queue, &act_packet);
+          }
+          nrk_sem_post(act_queue_mux); 
+          action = act_packet.payload[CMD_ACT_INDEX];
+        }
+
+        // if the action is ON -> send ACK
+        if(action == ON) {
+          curr_state = STATE_ACK_ON;
+        } 
+        // if the action is OFF -> actuate
+        else if(action == OFF) {
+          curr_state = STATE_ACT_OFF;
+        }
+        // if the action is something else...there is a problem
+        else {
+          curr_state = STATE_ON;
+        }
+        break;         
+      }
+
+      // STATE_ACT_OFF - actuate the OFF_COIL
+      case STATE_ACT_OFF: {
+        // ACTIVE LOW signal
+        nrk_gpio_clr(OFF_COIL);
+        curr_state = STATE_ACK_OFF;
+        break;
+      }
+
+      // STATE_ACT_ON - actuate the ON_COIL
+      case STATE_ACT_ON: {
+        // ACTIVE_HIGH signal
+        nrk_gpio_clr(ON_COIL);
+        curr_state = STATE_ACK_ON;
+        break;
+      }
+
+      // STATE_ACT_OFF - 
+      //  - clear the control signal
+      //  - send ACK
+      case STATE_ACK_OFF: {
+        // clear control signal
+        nrk_gpio_set(OFF_COIL);
+
+        // send ack if the network has been joined
+        if(local_network_joined == TRUE) {
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);  
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);          
+        }
+
+        curr_state = STATE_OFF;  
+        break;     
+      }
+
+      // STATE_ACK_ON -
+      //  - clear the control signal
+      //  - send ACK
+      case STATE_ACK_ON: {
+        // clear control signal
+        nrk_gpio_set(ON_COIL);
+
+        // send ack if network has been joined
+        if(local_network_joined == TRUE) {
+          // update sequence number
+          nrk_sem_pend(seq_num_mux); {
+            seq_num++;
+            tx_packet.seq_num = seq_num;            
+          }
+          nrk_sem_post(seq_num_mux);  
+
+          // set payload
+          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+
+          // place message in the queue
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &tx_packet);
+          }
+          nrk_sem_post(cmd_tx_queue_mux);          
+        }
+
+        curr_state = STATE_ON;    
+        break;    
+      }
+    }      
+
+    if(local_network_joined == FALSE) {
       // determine if the network has been joined
       nrk_sem_pend(network_joined_mux); {
         local_network_joined = network_joined;
@@ -855,12 +873,12 @@ void actuate_task() {
 }
 
 void nrk_set_gpio() {
-  nrk_gpio_direction(COIL_1_OUT, NRK_PIN_OUTPUT);
-  nrk_gpio_direction(COIL_2_OUT, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(ON_COIL, NRK_PIN_OUTPUT);
+  nrk_gpio_direction(OFF_COIL, NRK_PIN_OUTPUT);
   nrk_gpio_direction(BTN_IN, NRK_PIN_INPUT);
   
-  nrk_gpio_set(COIL_1_OUT);
-  nrk_gpio_set(COIL_2_OUT);
+  nrk_gpio_set(ON_COIL);
+  nrk_gpio_set(OFF_COIL);
 }
 
 void nrk_register_drivers() {
