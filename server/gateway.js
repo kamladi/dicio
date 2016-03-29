@@ -112,21 +112,20 @@ function handleData(data) {
 	    msgId = parseInt(components[2]),
 	    payload = components[4];
 
-	if (msgId === OUTLET_SENSOR_MESSAGE) {
-		return handleSensorDataMessage(macAddress, payload);
-  } else if (msgId == OUTLET_ACTION_ACK_MESSAGE) {
-  	return handleActionAckMessage(macAddress, payload);
-  } else {
-  	console.error(`Unknown Message type: ${msgId}`);
-  }
+	switch(msgId) {
+		case OUTLET_SENSOR_MESSAGE:
+			return handleSensorDataMessage(macAddress, payload);
+		case OUTLET_ACTION_ACK:
+			return handleActionAckMessage(macAddress, payload);
+		default:
+			console.error(`Unknown Message type: ${msgId}`);
+	}
 }
 
 /*
  * Given an outlet's mac address and an action ('ON'/'OFF'),
  * Send a message to the gateway to be propagated to that outlet.
  * Returns a promise which will be fulfilled when the packet is sent.
- * Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
- * Where "payload" has structure "dest_outlet_id,action,"
  * @returns Promise<message> the message sent to the gateway.
  */
 function sendAction(outletMacAddress, action) {
@@ -134,28 +133,28 @@ function sendAction(outletMacAddress, action) {
     if (!isConnected()) {
       reject(new Error("Connection to gateway has not started yet"));
     } else if (action !== 'ON' && action !== 'OFF') {
-      reject(new Error(`Invalid action: ${action}. Must be "ON" or "OFF"`));
+      return reject(new Error(`Invalid action: ${action}. Must be "ON" or "OFF"`));
     } else {
       // Convert action string to enum value
       action = (action === 'ON') ? 1 : 0;
 
 
-      // server sends message with source_id 0, seq_num 0, num_hops 0
+      // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
+ 			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
+      // Server sends message with source_id 0, seq_num 0, num_hops 0
       var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       packet += "\r";
-      console.log("Pakcet to be sent: ", packet);
+      console.log("Packet to be sent: ", packet);
 
       serialPort.write(packet, (err) => {
         if (err) {
-        	console.log(err);
-          reject(err);
+          return reject(err);
         } else {
 	      	serialPort.drain((err) => {
 	      		if(err){
-	      			console.log(err);
-	      			reject(err);
+	      			return reject(err);
 	      		} else {
-	      			console.log("Successfully sent packet!");
+	      			console.log("Successfully sent packet to gateway!");
 	      			resolve(packet);
 	      		}
 	     		});
