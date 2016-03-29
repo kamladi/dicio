@@ -11,7 +11,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/dicio', (err,db) => {
 	function addSensorData(counter, cb) {
 		start.setSeconds(start.getSeconds()+1);
 		collection.insert({
-			outlet_id: Math.floor(Math.random() * 5),
+			mac_address: Math.floor(Math.random() * 4).toString(10),
 			timestamp: start,
 			cur_temperature: Math.floor(Math.random() * 256),
 			cur_humidity: Math.floor(Math.random() * 256),

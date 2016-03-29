@@ -1,4 +1,5 @@
 var SensorRecord 		= require('../models/SensorRecord');
+var Outlet     			= require('../models/Outlet');
 var ObjectId        = require('mongoose').Types.ObjectId;
 var utils           = require('../lib/utils');
 var BadRequestError = utils.BadRequestError;
@@ -36,7 +37,7 @@ exports.getSensorHistory = (req, res, next) => {
 		);
 	}
 
-	return Outlet.findById(id).exec()
+	return Outlet.findById(id, 'mac_address').exec()
 		.then( (outlet) => {
 			if (!outlet) {
 				throw new BadRequestError(`Cannot find outlet with id ${id}`);
@@ -46,14 +47,16 @@ exports.getSensorHistory = (req, res, next) => {
 			// Match is a filter command, equivalent to 'WHERE' in SQL
 			var now =  new Date();
 			var earliest = new Date(now);
-			earliest.setHour(earliest.getHour() - MAX_HISTORY_LENGTH);
+			earliest.setHours(earliest.getHours() - MAX_HISTORY_LENGTH);
+			var macAddress = outlet.mac_address;
+			console.log(macAddress);
 			var match = {
 				$match: {
-					outlet_id: 1,
-					timestamp: {
-						gte: new Date(),
-						lte: earliest
-					}
+					mac_address: macAddress,
+					// timestamp: {
+					// 	gte: earliest,
+					// 	lte: new Date()
+					// }
 				}
 			};
 
@@ -69,10 +72,11 @@ exports.getSensorHistory = (req, res, next) => {
 					second: {
 						$second: '$timestamp'
 					},
-					outlet_id: 1
+					timestamp: 1,
+					mac_address: 1
 				}
 			};
-			project[sensor] = 1
+			project['$project']['cur_sensor'] = 1
 
 			// group
 			var group = {
@@ -81,7 +85,7 @@ exports.getSensorHistory = (req, res, next) => {
 				}
 			};
 			// Compute the average for each group for the sensor value we are querying
-			group[sensor] = { $avg: '$cur_'+sensor };
+			group['$group'][sensor] = { $avg: '$cur_'+sensor };
 
 			var sort = {
 				$sort: {
@@ -89,7 +93,7 @@ exports.getSensorHistory = (req, res, next) => {
 				}
 			};
 
-			return SensorRecord.aggregate([match, project, group, sort]);
+			return SensorRecord.aggregate([match, project, group]).exec();
 		})
 		.then( (aggregation) => {
 			return res.json(aggregation);
