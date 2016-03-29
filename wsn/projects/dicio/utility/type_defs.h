@@ -40,6 +40,8 @@
 #define SAMPLE_SENSOR 0
 #define ON 1
 #define OFF 0
+#define ACT_NONE -1
+#define BTN_ACT 0
 
 // buffers/messages
 #define MAX_BUF_SIZE 24
@@ -71,7 +73,7 @@
 #define COIL_2_OUT NRK_PORTB_7
 #define ON_COIL COIL_1_OUT
 #define OFF_COIL COIL_2_OUT
-#define BTN_IN NRK_PORTE_6
+#define BTN_IN NRK_PORTE_3
 
 /*** ENUMERATIONS ***/
 typedef enum {

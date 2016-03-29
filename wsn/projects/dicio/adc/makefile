@@ -24,13 +24,14 @@ SRC = $(TARGET).c
 # Add extra source files. 
 # For example:
 # SRC += $(ROOT_DIR)/src/platform/$(PLATFORM_TYPE)/source/my_src1.c 
-
+SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c 
 
 # Add extra includes files. 
 # For example:
 # EXTRAINCDIRS += $(ROOT_DIR)/src/platform/include
 EXTRAINCDIRS =
+EXTRAINCDIRS += $(ROOT_DIR)/src/net/bmac
 
 
 #  This is where the final compile and download happens

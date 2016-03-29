@@ -81,7 +81,7 @@ void nrk_register_drivers();
 
 // SEQUENCE POOLS/NUMBER
 pool_t seq_pool;
-uint16_t server_seq_num;
+//uint16_t server_seq_num;
 uint16_t seq_num = 0;
 uint16_t cmd_id = 0;
 
@@ -153,7 +153,7 @@ uint8_t get_server_input() {
 
     // print if appropriate
     if(print_incoming == PRINT2TERM) {
-      //printf("!%c", option);
+      printf("!%c", option);
     }
 
     // message has been completed
@@ -326,6 +326,7 @@ void rx_serv_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
   packet rx_packet;
+  uint16_t server_seq_num = 0;
 
   // get the UART signal and register it
   nrk_sig_t uart_rx_signal = nrk_uart_rx_signal_get();
@@ -363,41 +364,43 @@ void rx_serv_task() {
       //  that if these were actual network messages that a delay would be much more
       //  probable. Thus, in the spirit of correctness and completeness, we will
       //  keep track of these sequence numbers.
-      if(rx_packet.seq_num > server_seq_num) {
+      //if(rx_packet.seq_num > server_seq_num) {
 
-        // update local sequence number
-        server_seq_num = rx_packet.seq_num;
-
-        switch(rx_packet.type) {
-          // command received
-          case MSG_CMD: {
-            rx_packet.num_hops++;
-            nrk_sem_pend(cmd_tx_queue_mux); {
-              push(&cmd_tx_queue, &rx_packet);
-            }
-            nrk_sem_post(cmd_tx_queue_mux);
-            break;
+      // update local sequence number
+      //  server_seq_num = rx_packet.seq_num;
+      rx_packet.seq_num = server_seq_num;
+      server_seq_num++;
+      
+      switch(rx_packet.type) {
+        // command received
+        case MSG_CMD: {
+          rx_packet.num_hops++;
+          nrk_sem_pend(cmd_tx_queue_mux); {
+            push(&cmd_tx_queue, &rx_packet);
           }
-          case MSG_CMDACK:
-          case MSG_DATA:
-          case MSG_HAND: 
-          case MSG_GATEWAY:
-           // do nothing
-            // NOTICE: really, these should never happend. Eventually, throw an error here.
-            break;  
-          case MSG_NO_MESSAGE: {
-            // do nothing. 
-            // NOTE: this is a valid case. If the message is not 'parsible' then it can be
-            //  given a 'NO_MESSAGE' type.
-            break;
-          }    
-          default: {
-            // do nothing
-            // NOTICE: really this should never happen. Eventually, throw an error here.
-            break;
-          }
+          nrk_sem_post(cmd_tx_queue_mux);
+          break;
+        }
+        case MSG_CMDACK:
+        case MSG_DATA:
+        case MSG_HAND: 
+        case MSG_GATEWAY:
+         // do nothing
+          // NOTICE: really, these should never happend. Eventually, throw an error here.
+          break;  
+        case MSG_NO_MESSAGE: {
+          // do nothing. 
+          // NOTE: this is a valid case. If the message is not 'parsible' then it can be
+          //  given a 'NO_MESSAGE' type.
+          break;
+        }    
+        default: {
+          // do nothing
+          // NOTICE: really this should never happen. Eventually, throw an error here.
+          break;
         }
       }
+      //}
     }
     nrk_wait_until_next_period();
   }

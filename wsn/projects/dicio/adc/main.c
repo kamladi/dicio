@@ -22,17 +22,19 @@
 *******************************************************************************/
 
 #include <nrk.h>
+#include <nrk_events.h>
 #include <include.h>
 #include <ulib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <avr/sleep.h>
 #include <hal.h>
+#include <bmac.h>
 #include <nrk_error.h>
 #include <nrk_timer.h>
 #include <nrk_driver_list.h>
 #include <nrk_driver.h>
 #include <adc_driver.h>
-
 
 NRK_STK Stack1[NRK_APP_STACKSIZE];
 nrk_task_type TaskOne;
@@ -57,6 +59,8 @@ main ()
 
   nrk_register_drivers();
   nrk_create_taskset ();
+  //bmac_task_config();
+  //bmac_init(13);
   nrk_start();
   
   return 0;
@@ -65,40 +69,30 @@ main ()
 
 void Task1()
 {
-uint16_t cnt;
-int8_t fd,val,chan;
-uint16_t buf[8];
+  uint16_t cnt;
+  int8_t fd,val;
+  uint16_t buf;
 
-printf( "My node's address is %d\r\n",NODE_ADDR );
+  printf( "My node's address is %d\r\n",NODE_ADDR );
 
   printf( "Task1 PID=%d\r\n",nrk_get_pid());
 
   // Open ADC device as read 
-  fd=nrk_open(ADC_DEV_MANAGER,READ);
-  if(fd==NRK_ERROR) nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
-  
-  cnt=0;
-  chan=0;
+  //fd=nrk_open(ADC_DEV_MANAGER,READ);
+  //if(fd==NRK_ERROR) nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+  ADMUX = (ADMUX & ~0x1F) | (0x06);
   while(1) {
-	nrk_led_toggle(BLUE_LED);
-	for(chan=0; chan<8; chan++ )
-	{
-	  // Example of setting the ADC channel
-	  val=nrk_set_status(fd,ADC_CHAN,chan);
-	  if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
-	  val=nrk_read(fd,&buf[chan],2);
-	  if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to read ADC\r\n" ));
+  	nrk_led_toggle(BLUE_LED);
 
-	}
-	printf( "Task1 " );
- 	for(chan=0; chan<8; chan++ )
-	{
-	printf( "chan:%d=%d ",chan,buf[chan]);
-	}
-	nrk_kprintf( PSTR("\r\n" ));
+	  //val=nrk_set_status(fd,ADC_CHAN,CHAN_6);
+	  //if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+	  //val=nrk_read(fd, &buf,2);
+    //if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to read ADC\r\n" ));
 
-	nrk_wait_until_next_period();
-	cnt++;
+    buf = get_adc_val();
+
+    printf("ADC: %d\r\n", buf);
+  	nrk_wait_until_next_period();
 	}
 }
 
@@ -108,7 +102,7 @@ nrk_create_taskset()
 {
   TaskOne.task = Task1;
   nrk_task_set_stk( &TaskOne, Stack1, NRK_APP_STACKSIZE);
-  TaskOne.prio = 1;
+  TaskOne.prio = 10;
   TaskOne.FirstActivation = TRUE;
   TaskOne.Type = BASIC_TASK;
   TaskOne.SchType = PREEMPTIVE;

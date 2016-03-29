@@ -59,7 +59,8 @@ exports.sendOutletAction = (req, res, next) => {
 				// Forward command to gateway to propagate to the outlet. Eventually,
 				// the outlet will respond with its new state, and the database will
 				// be updated. Because of this, the outlet is not immediately updated.
-				Gateway.sendAction(outlet.mac_address, action);
+				Gateway.sendAction(outlet.mac_address, action)
+					.catch(console.error);
 				return outlet;
 			} else {
 				// If we aren't connected to the gateway node, 'fake' an update by
