@@ -23,18 +23,24 @@ function isConnected() {
 	return serialPort && serialPort.isOpen();
 }
 
+
 /*
  * Saves the given sensor data into the database for the outlet with the given
  * MAC address.
+ * @returns Promise<Outlet> with updated outlet data
  */
 function saveSensorData(macAddress, power, temperature, light) {
 	return Outlet.find({mac_address: macAddress}).exec()
 	  .then( outlets => {
+	    var outlet = null;
 	    if (outlets.length == 0) {
-	      throw new Error(`Outlet does not exist for MAC Address: ${macAddress}`);
+	      // Unrecognized MAC address, create a new one.
+	      console.log(`New MAC Address ${macAddress}, creating new outlet.`);
+	      var outlet = new Outlet();
+	    } else {
+	    	// Outlet found in database.
+				var outlet = outlets[0];
 	    }
-
-	    var outlet = outlets[0];
 
 	    // Update outlet object with new properties, and save.
 	    outlet.cur_temperature = temperature;
@@ -47,6 +53,7 @@ function saveSensorData(macAddress, power, temperature, light) {
 
 /*
  * Handle a Sensor Data Message
+ * @returns Promise<Outlet> updated outlet data
  */
 function handleSensorDataMessage(macAddress, payload) {
 	// Parse sensor data, convert to ints
@@ -69,6 +76,7 @@ function handleSensorDataMessage(macAddress, payload) {
 /*
  * Handle a Action Ack Message. Simply toggles the 'status' of the outlet in the
  * database.
+ * @returns Promise<Outlet> updated outlet data.
  */
 function handleActionAckMessage(macAddress, payload) {
 	return Outlet.find({mac_address: macAddress}).exec()
@@ -119,6 +127,7 @@ function handleData(data) {
  * Returns a promise which will be fulfilled when the packet is sent.
  * Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  * Where "payload" has structure "dest_outlet_id,action,"
+ * @returns Promise<message> the message sent to the gateway.
  */
 function sendAction(outletMacAddress, action) {
   return new Promise( (resolve, reject) => {
