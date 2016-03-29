@@ -14,11 +14,20 @@ const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
 
 // Globals
 var serialPort = null;
-var hasStarted = false;
-var seqNum = 1;
 
+/*
+ * Returns True if we have made a successful connection to the gateway,
+ * False otherwise.
+ */
+function isConnected() {
+	return serialPort && serialPort.isOpen();
+}
 
-function handleSensorDataMessage(macAddress, payload) {
+/*
+ * Saves the given sensor data into the database for the outlet with the given
+ * MAC address.
+ */
+function saveSensorData(macAddress, power, temperature, light) {
 	return Outlet.find({mac_address: macAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length == 0) {
@@ -27,31 +36,40 @@ function handleSensorDataMessage(macAddress, payload) {
 
 	    var outlet = outlets[0];
 
-	    // Parse sensor data, convert to ints
-	    var sensorValues = payload.split(',').map(value => parseInt(value));
-
-	    // We're expecting five values: power, temp, light, (eventually status).
-	    if (sensorValues.length !== 3) {
-	      throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
-	    }
-
-	    // TODO: when status has been added to message,
-	    // get status value from packet.
-	    var cur_power = sensorValues[0];
-	        cur_temperature = sensorValues[1],
-	        cur_light = sensorValues[2],
-	        //status = 'OFF';
-
 	    // Update outlet object with new properties, and save.
-	    //outlet.status = status;
-	    outlet.cur_temperature = cur_temperature;
-	    outlet.cur_light = cur_light;
-	    outlet.cur_power = cur_power;
+	    outlet.cur_temperature = temperature;
+	    outlet.cur_light = light;
+	    outlet.cur_power = power;
 	    console.log(`Outlet ${macAddress} updated.`);
 	    return outlet.save();
 	  }).catch(console.error);
 }
 
+/*
+ * Handle a Sensor Data Message
+ */
+function handleSensorDataMessage(macAddress, payload) {
+	// Parse sensor data, convert to ints
+  var sensorValues = payload.split(',').map(value => parseInt(value));
+
+  // We're expecting five values: power, temp, light, (eventually status).
+  if (sensorValues.length !== 3) {
+    throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
+  }
+
+  // Get data values from payload.
+  var power = sensorValues[0];
+      temperature = sensorValues[1],
+      light = sensorValues[2];
+
+  // TODO: Trigger events as necessary.
+  return saveSensorData(macAddress, power, temperature, light);
+}
+
+/*
+ * Handle a Action Ack Message. Simply toggles the 'status' of the outlet in the
+ * database.
+ */
 function handleActionAckMessage(macAddress, payload) {
 	return Outlet.find({mac_address: macAddress}).exec()
 		.then( outlets => {
@@ -72,7 +90,7 @@ function handleActionAckMessage(macAddress, payload) {
 // 2) Iterate over events involving this outlet, and
 // 			execute any actions is applicable
 function handleData(data) {
-  console.log("Gateway: ", data);
+  console.log("[Gateway] >>>>>>>>>>", data);
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
@@ -93,7 +111,6 @@ function handleData(data) {
   } else {
   	console.error(`Unknown Message type: ${msgId}`);
   }
-
 }
 
 /*
@@ -105,7 +122,7 @@ function handleData(data) {
  */
 function sendAction(outletMacAddress, action) {
   return new Promise( (resolve, reject) => {
-    if (!hasStarted) {
+    if (!isConnected()) {
       reject(new Error("Connection to gateway has not started yet"));
     } else if (action !== 'ON' && action !== 'OFF') {
       reject(new Error(`Invalid action: ${action}. Must be "ON" or "OFF"`));
@@ -117,8 +134,7 @@ function sendAction(outletMacAddress, action) {
       // server sends message with source_id 0, seq_num 0, num_hops 0
       var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       packet += "\r";
-      // increment sequence number
-      seqNum = (seqNum + 1) % 255;
+      console.log("Pakcet to be sent: ", packet);
 
       serialPort.write(packet, (err) => {
         if (err) {
@@ -130,7 +146,7 @@ function sendAction(outletMacAddress, action) {
 	      			console.log(err);
 	      			reject(err);
 	      		} else {
-	      			console.log("packet sent is..." + packet);
+	      			console.log("Successfully sent packet!");
 	      			resolve(packet);
 	      		}
 	     		});
@@ -140,13 +156,6 @@ function sendAction(outletMacAddress, action) {
   }).catch(console.error);
 };
 
-/*
- * Returns True if we have made a successful connection to the gateway,
- * False otherwise.
- */
-function isConnected() {
-	return serialPort && serialPort.isOpen();
-}
 
 /*
  * Starts the connection to the gateway node. If a port was not given as an
@@ -156,6 +165,7 @@ function start(port) {
 	if (!port) {
 		port = DEFAULT_SERIAL_PORT;
 	}
+
 	// Init serial port connection
 	serialPort = new SerialPort(port, {
 	    baudRate: BAUD_RATE,
@@ -164,7 +174,6 @@ function start(port) {
 
 	// Listen for "open" event form serial port
 	serialPort.on('open', () => {
-	    hasStarted = true;
 	    console.log('Serial Port opened');
 
 	    // Listen for "data" event from serial port
@@ -172,8 +181,11 @@ function start(port) {
 	});
 
 	serialPort.on('error', (err) => {
-		hasStarted = false;
 		console.error('Serial Port Error: ', err);
+	});
+
+	serialPort.on('close', () => {
+		console.log('Serial Port connection closed.');
 	});
 };
 
