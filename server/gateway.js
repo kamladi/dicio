@@ -112,8 +112,10 @@ function sendAction(outletMacAddress, action) {
     } else {
       // Convert action string to enum value
       action = (action === 'ON') ? 1 : 0;
+
+
       // server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:${seqNum}:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       packet += "\r";
       // increment sequence number
       seqNum = (seqNum + 1) % 255;
