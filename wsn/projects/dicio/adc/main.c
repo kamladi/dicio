@@ -78,18 +78,18 @@ void Task1()
   printf( "Task1 PID=%d\r\n",nrk_get_pid());
 
   // Open ADC device as read 
-  //fd=nrk_open(ADC_DEV_MANAGER,READ);
-  //if(fd==NRK_ERROR) nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
-  ADMUX = (ADMUX & ~0x1F) | (0x06);
+  fd=nrk_open(ADC_DEV_MANAGER,READ);
+  if(fd==NRK_ERROR) nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+  //ADMUX = (ADMUX & ~0x1F) | (0x06);
   while(1) {
-  	nrk_led_toggle(BLUE_LED);
+  	//nrk_led_toggle(BLUE_LED);
 
-	  //val=nrk_set_status(fd,ADC_CHAN,CHAN_6);
-	  //if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
-	  //val=nrk_read(fd, &buf,2);
-    //if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to read ADC\r\n" ));
+	  val=nrk_set_status(fd,ADC_CHAN,CHAN_6);
+	  if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+	  val=nrk_read(fd, &buf,2);
+    if(val==NRK_ERROR) nrk_kprintf( PSTR("Failed to read ADC\r\n" ));
 
-    buf = get_adc_val();
+    //buf = get_adc_val();
 
     printf("ADC: %d\r\n", buf);
   	nrk_wait_until_next_period();
