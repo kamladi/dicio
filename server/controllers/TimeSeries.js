@@ -9,6 +9,28 @@ const ALLOWED_SENSORS = ['power', 'light', 'temperature', 'humidity'];
 const MAX_HISTORY_LENGTH = 20; // will return last 10 hours/minutes/seconds of data
 
 /*
+ * Iteratively add levels of granularity depending on the required granularity.
+ */
+function granularityGroupKey(granularity) {
+	var group = {
+		day: '$day'
+	};
+
+	group['hour'] = '$hour';
+	if (granularity == 'hour') {
+		return group;
+	}
+	group['minute'] = '$minute';
+	if (granularity == 'minute') {
+		return group
+	}
+	group['second'] = '$second';
+	if (granularity == 'second') {
+		return group;
+	}
+	return group;
+}
+/*
  * Accepts two parameters as query params:
  * 'sensor': must be one of the ALLOWED_SENSORS
  * 'granularity': must be one of the ALLOWED_GRANULARITIES
@@ -51,49 +73,50 @@ exports.getSensorHistory = (req, res, next) => {
 			var macAddress = outlet.mac_address;
 			console.log(macAddress);
 			var match = {
-				$match: {
 					mac_address: macAddress,
 					// timestamp: {
-					// 	gte: earliest,
-					// 	lte: new Date()
+					// 	$gte: earliest
 					// }
-				}
 			};
 
 			// Project is a map command, equivalent to 'SELECT', in SQL
 			var project = {
-				$project: {
-					hour: {
-						$hour: '$timestamp'
-					},
-					minute: {
-						$minute: '$timestamp'
-					},
-					second: {
-						$second: '$timestamp'
-					},
-					timestamp: 1,
-					mac_address: 1
+				mac_address: 1,
+				timestamp: 1,
+				day: {
+					$dayOfYear: '$timestamp'
+				},
+				hour: {
+					$hour: '$timestamp'
+				},
+				minute: {
+					$minute: '$timestamp'
+				},
+				second: {
+					$second: '$timestamp'
 				}
 			};
-			project['$project']['cur_sensor'] = 1
+			project['cur_'+sensor] = 1
 
 			// group
 			var group = {
-				$group: {
-				 _id: '$'+granularity, // _id here is the key we want to group by.
-				}
+					// _id here is the key we want to group by.
+				 _id: granularityGroupKey(granularity)
 			};
+			//group['_id'][granularity] = '$'+granularity;
 			// Compute the average for each group for the sensor value we are querying
-			group['$group'][sensor] = { $avg: '$cur_'+sensor };
+			group[sensor] = { $avg: '$cur_'+sensor };
+			group['timestamp'] = { $min: '$timestamp'};
 
-			var sort = {
-				$sort: {
-					timestamp: 1
-				}
-			};
+			var sort = {};
+			sort['timestamp'] = -1;
 
-			return SensorRecord.aggregate([match, project, group]).exec();
+			var projectResult = {};
+			project[granularity]
+
+			return SensorRecord.aggregate([
+				{$match: match},{$project: project},{$group: group},{$sort: sort}
+			]).exec();
 		})
 		.then( (aggregation) => {
 			return res.json(aggregation);
