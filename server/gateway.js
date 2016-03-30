@@ -94,6 +94,29 @@ function handleActionAckMessage(macAddress, payload) {
 		}).catch(console.error);
 }
 
+/*
+ * Handle a Handshake Ack Message. Create a new outlet object in database,
+ * And send a websocket message to the app to notify the user.
+ */
+function handleHandshakeAckMessage(macAddress, payload) {
+    var params = payload.split(',');
+    if (params.length < 1) {
+        throw new Error("Not enough params in Handshake Ack payload: " + payload);
+    }
+    var newMacAddress = params[0];
+    return Outlet.find({mac_address: newMacAddress}).exec()
+        .then( outlets => {
+            if (outlets.length > 0) {
+                throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
+            }
+            var outlet = new Outlet({mac_address: newMacAddress});
+            return outlet.save();
+        }).then( outlet => {
+            // TODO: send socket mesage to app announcing new node
+            return outlet;
+        }).catch(console.error);
+}
+
 // Parse and handle data packet.
 // TODO:
 // 1) Update time series sensor data
@@ -119,6 +142,8 @@ function handleData(data) {
 			return handleSensorDataMessage(macAddress, payload);
 		case OUTLET_ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
+        case OUTLET_HANDSHAKE_ACK_MESSAGE:
+            return handleHandshakeAckMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
