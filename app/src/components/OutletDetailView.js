@@ -11,11 +11,57 @@ import React, {
   TouchableHighlight,
   AlertIOS
 } from 'react-native';
+import RNChart from 'react-native-chart';
 
 import {EditableTextField} from './EditableTextField';
 import {API_OUTLETS_URL} from '../lib/Constants';
 import OutletStore from '../stores/OutletStore';
 import OutletActions from '../actions/OutletActions';
+
+class OutletChart extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      xLabels: [],
+      data: []
+    };
+  }
+
+  componentDidMount() {
+    var self = this;
+    fetch('http://localhost:3000/graphs/' + this.props.outlet_id)
+      .then((response) => response.json())
+      .then( graphData => {
+        console.log(graphData);
+        self.setState({
+          xLabels: graphData.slice(0,10).map(record => new Date(record.timestamp).getSeconds()),
+          data: graphData.slice(0,10).map(record => record.power)
+        });
+        console.log(self.state);
+      }).catch(console.errror);
+  }
+
+  render() {
+    var chartData = [{
+      name: 'LineChart',
+      color: 'gray',
+      lineWidth: 2,
+      highlightIndices: [1, 2],   // The data points at indexes 1 and 2 will be orange
+      highlightColor: 'orange',
+      data: this.state.data,
+      showDataPoint: true
+    }];
+
+    return (
+      /*<RNChart style={styles.chart}
+          chartData={chartData}
+          verticalGridStep={5}
+          xLabels={this.state.xLabels}
+        />*/
+      <Text>Chart Placeholder</Text>
+    );
+  }
+}
 
 class OutletActionButton extends Component {
 	constructor(props) {
@@ -109,6 +155,10 @@ export class OutletDetailView extends Component {
     return true;
   }
 
+  getGraphData(granularity) {
+    return fetch()
+  }
+
 
   renderLoadingView() {
     return (
@@ -152,8 +202,9 @@ export class OutletDetailView extends Component {
           <Text style={styles.sensorValue}>{outlet.status}</Text>
           <OutletActionButton status={outlet.status} outlet_id={outlet._id} />
         </View>
-
-
+        <View style={styles.row}>
+          <OutletChart outlet_id={outlet._id} />
+        </View>
 			</View>
 		);
 	}
@@ -200,5 +251,9 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     backgroundColor: '#51C6ED'
+  },
+  chart: {
+    marginLeft: 10,
+    marginRight: 10,
   }
 });
