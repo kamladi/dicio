@@ -99,17 +99,12 @@ function handleActionAckMessage(macAddress, payload) {
  * And send a websocket message to the app to notify the user.
  */
 function handleHandshakeAckMessage(macAddress, payload) {
-    var params = payload.split(',');
-    if (params.length < 1) {
-        throw new Error("Not enough params in Handshake Ack payload: " + payload);
-    }
-    var newMacAddress = params[0];
-    return Outlet.find({mac_address: newMacAddress}).exec()
+    return Outlet.find({mac_address: macAddress}).exec()
         .then( outlets => {
             if (outlets.length > 0) {
-                throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
+                throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
             }
-            var outlet = new Outlet({mac_address: newMacAddress});
+            var outlet = new Outlet({mac_address: macAddress});
             return outlet.save();
         }).then( outlet => {
             // TODO: send socket mesage to app announcing new node
