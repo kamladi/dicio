@@ -103,7 +103,6 @@ nrk_sem_t* seq_num_mux;
 
 // GLOBAL FLAG
 uint8_t print_incoming;
-uint8_t blink_leds;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
 
@@ -122,8 +121,7 @@ int main() {
   nrk_led_clr(3);
     
   // flags
-  print_incoming  = TRUE;
-  blink_leds      = TRUE;
+  print_incoming  = FALSE;
   network_joined  = FALSE;
 
   // mutexs
@@ -184,7 +182,7 @@ void rx_msg_task() {
   uint8_t new_node = NONE;
   uint8_t local_network_joined = FALSE;
 
-  printf("rx_msg_task pid %d\r\n", nrk_get_pid());
+  printf("rx_msg_task PID: %d.\r\n", nrk_get_pid());
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
   
@@ -195,18 +193,9 @@ void rx_msg_task() {
   
   // loop forever
   while(1) {
-    // LED blinking - for debug
-    if(blink_leds == TRUE) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(0);
-      } else {
-        nrk_led_clr(0);
-      }      
-    }
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
+      nrk_led_set(BLUE_LED);
       // get the packet, parse and release
       parse_msg(&rx_packet, &net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
@@ -214,7 +203,6 @@ void rx_msg_task() {
       
       // print incoming packet if appropriate
       if(print_incoming == TRUE) {
-        nrk_kprintf (PSTR ("rx pkt:\r\n"));
         print_packet(&rx_packet);     
       }
       
@@ -222,10 +210,8 @@ void rx_msg_task() {
       //  NOTE: this is required because the node will hear re-transmitted packets 
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
-        nrk_kprintf (PSTR ("not mac_addr\r\n"));
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
-          nrk_kprintf (PSTR ("network joined\r\n"));
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&seq_pool, rx_packet.source_id);
           if(in_seq_pool == -1) {
@@ -249,7 +235,7 @@ void rx_msg_task() {
                 //  forwarding to other nodes.
                 /*(last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&*/
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
-                  nrk_kprintf (PSTR ("command for me!\r\n"));
+                  nrk_kprintf (PSTR ("Received command.\r\n"));
                   last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
                   nrk_sem_pend(act_queue_mux); {
                     push(&act_queue, &rx_packet);
@@ -319,14 +305,14 @@ void rx_msg_task() {
               }
             }
           }
+
         }
         // if the local_network_joined flag hasn't been set yet, check status
         else {
-          printf("check if ack\r\n");
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
             nrk_sem_pend(network_joined_mux); {
-              printf("received ack!\r\n");
+              nrk_kprintf (PSTR ("Received HAND ACK.\r\n"));
               network_joined = TRUE;
               local_network_joined = network_joined;
             }
@@ -334,6 +320,7 @@ void rx_msg_task() {
           }
         }        
       }
+      nrk_led_clr(BLUE_LED);
     }
     nrk_wait_until_next_period();
   }
@@ -367,18 +354,6 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-    // LED blinking - for debug
-    if(blink_leds == TRUE) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      /*
-      if(LED_FLAG == 0) {
-        nrk_led_set(1);
-      } else {
-        nrk_led_clr(1);
-      }  */    
-    }
-
       // atomically get the queue size
       nrk_sem_pend(cmd_tx_queue_mux); {
         tx_cmd_queue_size = cmd_tx_queue.size;
@@ -398,6 +373,7 @@ void tx_cmd_task() {
        *    added to by another task.
        */
       for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
+        nrk_led_set(ORANGE_LED);
         // get a packet out of the queue.
         nrk_sem_pend(cmd_tx_queue_mux); {
           pop(&cmd_tx_queue, &tx_packet);
@@ -415,11 +391,12 @@ void tx_cmd_task() {
           
           // Just check to be sure signal is okay
           if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+            nrk_kprintf(PSTR("TX done signal error\r\n"));
           }
           clear_tx_buf();
         }
-        nrk_sem_post(net_tx_buf_mux);     
+        nrk_sem_post(net_tx_buf_mux);  
+        nrk_led_clr(ORANGE_LED);   
       }      
     nrk_wait_until_next_period();
   }
@@ -439,7 +416,7 @@ void tx_data_task() {
   uint8_t tx_data_queue_size;
   uint8_t local_network_joined = FALSE;
 
-  printf("tx_data_task pid %d\r\n", nrk_get_pid());
+  printf("tx_data_task PID: %d.\r\n", nrk_get_pid());
 
   // Wait until bmac has started. This should be called by all tasks 
   //  using bmac that do not call bmac_init().
@@ -452,17 +429,6 @@ void tx_data_task() {
   nrk_signal_register(tx_done_signal);
   
   while(1) {
-    // LED blinking - for debug
-    if(blink_leds == TRUE) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(3);
-      } else {
-        nrk_led_clr(3);
-      }      
-    }
-
     // only execute task if the network has been joined
     if(local_network_joined == TRUE) {
       // atomically get the queue size
@@ -484,6 +450,7 @@ void tx_data_task() {
        *    added to by another task.
        */
       for(uint8_t i = 0; i < tx_data_queue_size; i++) {
+        nrk_led_set(ORANGE_LED);
         // get a packet out of the queue.
         nrk_sem_pend(data_tx_queue_mux); {
           pop(&data_tx_queue, &tx_packet);
@@ -510,7 +477,9 @@ void tx_data_task() {
           }
           clear_tx_buf();
         }
-        nrk_sem_post(net_tx_buf_mux);     
+        nrk_sem_post(net_tx_buf_mux);  
+
+        nrk_led_clr(ORANGE_LED);   
       }      
     } 
     // if the local_network_joined flag hasn't been set yet, check status
@@ -544,7 +513,7 @@ void sample_task() {
   int8_t val, chan;
   uint16_t adc_buf;
 
-  printf("sample_task pid %d\r\n", nrk_get_pid());
+  printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
   // initialize sensor packet
   sensor_pkt.pwr_val = local_pwr_val;
@@ -563,17 +532,6 @@ void sample_task() {
 
   // loop forever
   while(1) {
-    // LED blinking - for debug
-    if(blink_leds == TRUE) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(2);
-      } else {
-        nrk_led_clr(2);
-      }      
-    }
-    
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -669,6 +627,8 @@ void sample_task() {
       // if the network has not yet been joined, then add "Hello" message
       //  to the data_tx_queue
       if(local_network_joined == FALSE) {
+        // set red LED
+        nrk_led_set(RED_LED);
         // update seq num
         nrk_sem_pend(seq_num_mux); {
           seq_num++;
@@ -681,6 +641,9 @@ void sample_task() {
           push(&cmd_tx_queue, &hello_packet);
         }
         nrk_sem_post(cmd_tx_queue_mux);
+      } else {
+        nrk_led_clr(RED_LED);
+        nrk_led_set(GREEN_LED);
       }         
     }
     nrk_wait_until_next_period();
@@ -702,7 +665,7 @@ void actuate_task() {
   uint8_t btn_val;
   uint8_t local_network_joined = FALSE;
 
-  printf("actuate_task pid %d\r\n", nrk_get_pid());
+  printf("actuate_task PID: %d.\r\n", nrk_get_pid());
 
   // CURRENT STATE
   act_state curr_state = STATE_OFF;
@@ -718,17 +681,6 @@ void actuate_task() {
 
   // loop forever
   while(1) {
-    // LEDs for debug
-    if(blink_leds == TRUE) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-       // nrk_led_set(1);
-      } else {
-        nrk_led_clr(1);
-      }   
-    }
-
     // get action queue size / reset action flag
     nrk_sem_pend(act_queue_mux); {
       act_queue_size = act_queue.size;

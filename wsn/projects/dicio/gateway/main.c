@@ -87,7 +87,6 @@ uint16_t cmd_id = 0;
 
 // GLOBAL FLAG
 uint8_t print_incoming;
-uint8_t blink_leds;
 
 int main () {
   // setup ports/uart
@@ -102,8 +101,7 @@ int main () {
   nrk_led_clr(3);
     
   // print flag
-  print_incoming = 1;
-  blink_leds = 1;
+  print_incoming = FALSE;
 
   // mutexs
   net_tx_buf_mux    = nrk_sem_create(1, 6);
@@ -152,7 +150,7 @@ uint8_t get_server_input() {
     }
 
     // print if appropriate
-    if(print_incoming == PRINT2TERM) {
+    if(print_incoming == TRUE) {
       printf("!%c", option);
     }
 
@@ -160,8 +158,8 @@ uint8_t get_server_input() {
     if(option == '\r') {
       serv_rx_buf[serv_rx_index] = '\n';
       serv_rx_index++;
-      if(print_incoming == PRINT2TERM) {
-        //nrk_kprintf(PSTR("\n"));
+      if(print_incoming == TRUE) {
+        nrk_kprintf(PSTR("\n"));
       }
       return SERV_MSG_RECEIVED;    
     }
@@ -211,25 +209,15 @@ void rx_node_task() {
   
   // loop forever
   while(1) {
-    // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(0);
-      } else {
-        nrk_led_clr(0);
-      }      
-    }
-
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
+      nrk_led_set(GREEN_LED);
       // get the packet, parse and release
       parse_msg(&rx_packet, &net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
       
       // print incoming packet if appropriate
-      if(print_incoming == 1) {
+      if(print_incoming == TRUE) {
         nrk_kprintf (PSTR ("rx:\r\n"));
         print_packet(&rx_packet);     
       }
@@ -312,7 +300,8 @@ void rx_node_task() {
             }
           }
         }
-      }        
+      } 
+      nrk_led_clr(GREEN_LED);       
     }
     nrk_wait_until_next_period();
   }
@@ -334,23 +323,13 @@ void rx_serv_task() {
   
   // loop forever
   while (1) {
-    // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(1);
-      } else {
-        nrk_led_clr(1);
-      }      
-    }
-
     // only execute if a full server message has been received
     if(get_server_input() == SERV_MSG_RECEIVED) {
+      nrk_led_set(BLUE_LED);
 
       // print message if appropriate
-      if(print_incoming == 1) {
-        //printf("rx_serv:%s\r\n", serv_rx_buf);   
+      if(print_incoming == TRUE) {
+        printf("rx_serv:%s\r\n", serv_rx_buf);   
       }
 
       // parse message
@@ -400,7 +379,7 @@ void rx_serv_task() {
           break;
         }
       }
-      //}
+      nrk_led_clr(BLUE_LED);
     }
     nrk_wait_until_next_period();
   }
@@ -431,17 +410,6 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-    // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(2);
-      } else {
-        nrk_led_clr(2);
-      }      
-    }
-
     // atomically get the queue size
     nrk_sem_pend(cmd_tx_queue_mux); {
       tx_cmd_queue_size = cmd_tx_queue.size;
@@ -462,6 +430,7 @@ void tx_cmd_task() {
      *    added to by another task.
      */
     for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
+      nrk_led_set(RED_LED);
       // get a packet out of the queue.
       nrk_sem_pend(cmd_tx_queue_mux); {
         pop(&cmd_tx_queue, &tx_packet);
@@ -473,7 +442,6 @@ void tx_cmd_task() {
       nrk_sem_pend(net_tx_buf_mux); {
         net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
 
-        printf("transmit \r\n");
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
@@ -483,7 +451,8 @@ void tx_cmd_task() {
           nrk_kprintf (PSTR ("TX done signal error\r\n"));
         }        
       }
-      nrk_sem_post(net_tx_buf_mux);     
+      nrk_sem_post(net_tx_buf_mux);  
+      nrk_led_clr(RED_LED);   
     }
     nrk_wait_until_next_period();
   }
@@ -513,17 +482,6 @@ void tx_node_task() {
   nrk_signal_register(tx_done_signal);
   
   while(1) {
-    // LED blinking - for debug
-    if(blink_leds == BLINKLEDS) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        nrk_led_set(3);
-      } else {
-        nrk_led_clr(3);
-      }      
-    }
- 
     // atomically get the queue size
     nrk_sem_pend(node_tx_queue_mux); {
       tx_node_queue_size = node_tx_queue.size;
@@ -544,6 +502,7 @@ void tx_node_task() {
      *    added to by another task.
      */
     for(uint8_t i = 0; i < tx_node_queue_size; i++) {
+      nrk_led_set(RED_LED);
       // get a packet out of the queue.
       nrk_sem_pend(node_tx_queue_mux); {
         pop(&node_tx_queue, &tx_packet);
@@ -563,7 +522,8 @@ void tx_node_task() {
           nrk_kprintf (PSTR ("TX done signal error\r\n"));
         }        
       }
-      nrk_sem_post(net_tx_buf_mux);     
+      nrk_sem_post(net_tx_buf_mux); 
+      nrk_led_clr(RED_LED);    
     }
     nrk_wait_until_next_period();
   }
@@ -580,17 +540,14 @@ void tx_serv_task() {
   packet tx_packet;
 
   while(1) {
-
-    if(blink_leds == BLINKLEDS) {
-      LED_FLAG++;
-      LED_FLAG%=2;
-      if(LED_FLAG == 0) {
-        //nrk_kprintf(PSTR("SERV LED ON\r\n"));
-      } else {
-        //nrk_kprintf(PSTR("SERV LED OFF\r\n"));
-      }      
+    LED_FLAG += 1;
+    LED_FLAG %= 2;
+    if(LED_FLAG == 0) {
+      nrk_led_set(ORANGE_LED);
     }
-
+    else {
+      nrk_led_clr(ORANGE_LED);
+    }
     // atomically get the queue size
     nrk_sem_pend(serv_tx_queue_mux); {
       tx_serv_queue_size = serv_tx_queue.size;
@@ -625,6 +582,7 @@ void tx_serv_task() {
       // send the packet
       printf("%s\r\n", serv_tx_buf);
     }
+    
     nrk_wait_until_next_period();
   }
 }
@@ -668,7 +626,6 @@ void hand_task() {
         pop(&hand_rx_queue, &rx_packet);
       }
       nrk_sem_post(hand_rx_queue_mux);
-      printf("popped hand\r\n");
       print_packet(&rx_packet);
 
       // check to see if the node is in the pool. If so, send HANDACK. Otherwise, ignore
@@ -682,7 +639,6 @@ void hand_task() {
         seq_num++;
         tx_packet.seq_num = seq_num;
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
-        printf("hand ack\r\n");
         print_packet(&tx_packet);
 
         // send response back to the node
