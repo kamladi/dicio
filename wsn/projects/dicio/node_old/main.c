@@ -9,17 +9,19 @@
 // INCLUDES
 // standard nrk 
 #include <nrk.h>
+#include <nrk_events.h>
 #include <include.h>
 #include <ulib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <avr/sleep.h>
 #include <hal.h>
+#include <bmac.h>
 #include <nrk_error.h>
-#include <nrk_timer.h>
 #include <nrk_driver_list.h>
 #include <nrk_driver.h>
 #include <adc_driver.h>
-#include <bmac.h>
+//#include <ff_basic_sensor.h>
 // this package
 #include <assembler.h>
 #include <packet_queue.h>
@@ -39,6 +41,7 @@ void tx_data_task(void);
 void tx_serv_task(void);
 void nrk_create_taskset (void);
 void nrk_register_drivers(void);
+
 
 // STATE ENUM
 typedef enum {
@@ -100,14 +103,13 @@ uint8_t print_incoming;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
 
-int main ()
-{
+int main() {
   // setup ports/uart
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
 
   nrk_init ();
-  nrk_time_set (0, 0);
+  nrk_time_set(0, 0);
 
   // clear all LEDs
   nrk_led_clr(0);
@@ -137,15 +139,19 @@ int main ()
   packet_queue_init(&cmd_tx_queue);
   packet_queue_init(&data_tx_queue);
 
-  // initialize bmac
-  bmac_task_config ();
-  bmac_init (13);
+  //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC, READ);
+  adc_fd = nrk_open(ADC_DEV_MANAGER, READ);
+  if(adc_fd == NRK_ERROR) 
+    nrk_kprintf(PSTR("Failed to open sensor driver\r\n"));
+
+  // start running
+  bmac_task_config();
+  bmac_init(13);
 
   nrk_register_drivers();
   nrk_set_gpio();
-  nrk_create_taskset ();
-  nrk_start ();
-
+  nrk_create_taskset();
+  nrk_start();
   return 0;
 }
 
@@ -466,6 +472,11 @@ void tx_data_task() {
   }
 }
 
+
+/**
+ * sample_task() -
+ *  sample any sensors that are supposed to be sampled.
+ */
 void sample_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -479,7 +490,7 @@ void sample_task() {
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
   int8_t val, chan;
-  uint16_t adc_buf[2];
+  uint16_t adc_buf;
 
   printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
@@ -498,12 +509,8 @@ void sample_task() {
   hello_packet.type = MSG_HAND;
   hello_packet.num_hops = 0;
 
-  // Open ADC device as read 
-  adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-  if(adc_fd == NRK_ERROR) 
-    nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
-
-  while (1) {
+  // loop forever
+  while(1) {
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -525,21 +532,38 @@ void sample_task() {
 
       // sample temperature sensor if appropriate
       if(temp_period_count == SAMPLE_SENSOR) {
-        // SAMPLE TEMP SENSOR
-        val = nrk_set_status(adc_fd,ADC_CHAN,CHAN_6);
+        //TODO: SAMPLE TEMP SENSOR
+        local_temp_val++;
+        sensor_pkt.temp_val = local_temp_val;
+        sensor_sampled = TRUE;  
+        val = nrk_set_status(adc_fd,ADC_CHAN, 5);
         if(val == NRK_ERROR) {
-          nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
         } else {
-          val = nrk_read(adc_fd, &adc_buf[0],2);
-          if(val == NRK_ERROR)  {
-            nrk_kprintf(PSTR("Failed to read ADC\r\n"));
+          val = nrk_read(adc_fd, &adc_buf, 2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
           } else {
-            local_temp_val = (uint16_t)adc_buf[0];
-            sensor_pkt.temp_val = local_temp_val;
-            sensor_sampled = TRUE;             
-            printf("TEMP: %d\r\n", local_temp_val);          
+            printf("ADC: %d\r\n", adc_buf);
           }
         }
+
+
+        // state actions
+        /*val = nrk_set_status(adc_fd,SENSOR_SELECT,LIGHT);
+        if(val == NRK_ERROR) {
+          nrk_kprintf( PSTR("Failed to set ADC status\r\n" ));
+        } else {
+          val = nrk_read(adc_fd,&adc_buf,2);
+          if(val == NRK_ERROR) {
+            nrk_kprintf( PSTR("Failed to read ADC\r\n" )); 
+          } else {
+            printf("ADC: %d\r\n", adc_buf);
+
+            sensor_pkt.temp_val = local_temp_val;
+            sensor_sampled = TRUE;             
+          }
+        }*/
       }
 
       // sample light sensor if appropriate
@@ -548,21 +572,6 @@ void sample_task() {
         local_light_val++;
         sensor_pkt.light_val = local_light_val;
         sensor_sampled = TRUE;
-
-        val = nrk_set_status(adc_fd,ADC_CHAN,CHAN_5);
-        if(val == NRK_ERROR) {
-          nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
-        } else {
-          val = nrk_read(adc_fd, &adc_buf[1],2);
-          if(val == NRK_ERROR){
-            nrk_kprintf(PSTR("Failed to read ADC\r\n"));
-          } else {
-            local_light_val = (uint16_t)adc_buf[1];
-            sensor_pkt.light_val = local_light_val;
-            sensor_sampled = TRUE;          
-            printf("LIGHT: %d\r\n", local_light_val);          
-          }          
-        }
       }
 
       // if a sensor has been sampled, send a packet out
@@ -589,9 +598,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
-        //network_joined = TRUE;
-        //local_network_joined = TRUE;
+        //local_network_joined = network_joined;
+        network_joined = TRUE;
+        local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);   
       
@@ -824,13 +833,21 @@ void nrk_set_gpio() {
 
 void nrk_register_drivers() {
   int8_t val;
-    val = nrk_register_driver(&dev_manager_adc,ADC_DEV_MANAGER);
-    if(val==NRK_ERROR) 
-      nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
-}  
+  val=nrk_register_driver( &dev_manager_adc,ADC_DEV_MANAGER);
+  if(val==NRK_ERROR) 
+    nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+  // val = nrk_register_driver(&dev_manager_ff3_sensors, FIREFLY_3_SENSOR_BASIC);
+  // if(val==NRK_ERROR) 
+  //   nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+  
+}
 
-void nrk_create_taskset ()
-{
+/**
+ * nrk_create_taskset - create the tasks in this application
+ * 
+ * NOTE: task priority maps to importance. That is, priority(5) > priority(2).
+ */
+void nrk_create_taskset () {
   // PRIORITY 5
   RX_MSG_TASK.task = rx_msg_task;
   nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
@@ -873,8 +890,9 @@ void nrk_create_taskset ()
   TX_CMD_TASK.offset.secs = 0;
   TX_CMD_TASK.offset.nano_secs = 0;
 
+  // PRIORITY 2
   SAMPLE_TASK.task = sample_task;
-  nrk_task_set_stk( &SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
   SAMPLE_TASK.prio = 2;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
@@ -882,7 +900,7 @@ void nrk_create_taskset ()
   SAMPLE_TASK.period.secs = 2;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
-  SAMPLE_TASK.cpu_reserve.nano_secs = 0;
+  SAMPLE_TASK.cpu_reserve.nano_secs = 500*NANOS_PER_MS;
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
@@ -906,6 +924,6 @@ void nrk_create_taskset ()
   nrk_activate_task(&SAMPLE_TASK);
   nrk_activate_task(&ACTUATE_TASK);
 
-  nrk_kprintf( PSTR("Create done\r\n") );
+  nrk_kprintf(PSTR("Create done.\r\n"));
 }
 
