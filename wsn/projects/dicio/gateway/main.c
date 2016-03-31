@@ -215,14 +215,13 @@ void rx_node_task() {
       // get the packet, parse and release
       parse_msg(&rx_packet, &net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
-      
+      bmac_rx_pkt_release ();  
+     
       // print incoming packet if appropriate
       if(print_incoming == TRUE) {
         nrk_kprintf (PSTR ("rx:\r\n"));
         print_packet(&rx_packet);     
       }
-
-       bmac_rx_pkt_release ();  
       
       // only receive the message if it's not from the gateway
       //  NOTE: this is required because the gateway will hear re-transmitted packets 
@@ -349,6 +348,7 @@ void rx_serv_task() {
       //  server_seq_num = rx_packet.seq_num;
       rx_packet.seq_num = server_seq_num;
       server_seq_num++;
+      rx_packet.num_hops++;
       
       switch(rx_packet.type) {
         // command received
