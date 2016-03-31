@@ -270,20 +270,13 @@ void rx_msg_task() {
                 break;
               }
               // handshake message recieved
-              // will only receive type MSG_HAND to forward..?
+              // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR) {
-                  nrk_sem_pend(hand_rx_queue_mux); {
-                    push(&hand_rx_queue, &rx_packet);
-                  }
-                  nrk_sem_post(hand_rx_queue_mux);                
-                } else {
-                  rx_packet.num_hops++;
-                  nrk_sem_pend(data_tx_queue_mux); {
-                    push(&data_tx_queue, &rx_packet);
-                  }
-                  nrk_sem_post(data_tx_queue_mux);                 
+                rx_packet.num_hops++;
+                nrk_sem_pend(data_tx_queue_mux); {
+                  push(&data_tx_queue, &rx_packet);
                 }
+                nrk_sem_post(data_tx_queue_mux);                 
                 break;
               }
               // gateway message -> for future expansion
