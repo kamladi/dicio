@@ -11,9 +11,11 @@ const OUTLET_ACTION_MESSAGE         = 6;
 const OUTLET_ACTION_ACK_MESSAGE     = 7;
 const OUTLET_HANDSHAKE_MESSAGE      = 8;
 const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
+const MAX_COMMAND_ID_NUM						= 65536;
 
 // Globals
 var serialPort = null;
+var commandId = 2048;
 
 /*
  * Returns True if we have made a successful connection to the gateway,
@@ -115,7 +117,7 @@ function handleData(data) {
 	switch(msgId) {
 		case OUTLET_SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_ACTION_ACK:
+		case OUTLET_ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
@@ -136,14 +138,30 @@ function sendAction(outletMacAddress, action) {
       return reject(new Error(`Invalid action: ${action}. Must be "ON" or "OFF"`));
     } else {
       // Convert action string to enum value
-      action = (action === 'ON') ? 1 : 0;
-
+      action = (action === 'ON') ? 0x1 : 0x0;
 
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
       var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
-      packet += "\r";
+      var sourceMacAddr = 0x0,
+      		seqNum = 0x0,
+      		msgType = OUTLET_ACTION_MESSAGE,
+      		numHops = 0x0,
+      		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
+
+      // increment command ID
+      commandId = (commandId + 1) % MAX_COMMAND_ID_NUM;
+
+      // split command id into two bytes
+      var cmdIdLower = commandId & 0xFF;
+      var cmdIdUpper = (commandId >> 8) & 0xFF;
+
+      // 0x0D is the integer value for '\r' (carriage return)
+      var packet = new Buffer([
+      	sourceMacAddr, seqNum, msgType, numHops,
+      	cmdIdUpper, cmdIdLower, destOutletAddr, action, 0x0D
+      ]);
       console.log("Packet to be sent: ", packet);
 
       serialPort.write(packet, (err) => {
