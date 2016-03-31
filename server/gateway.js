@@ -7,8 +7,8 @@ var Event      = require('./models/Event');
 const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE         = 5;
-const OUTLET_ACTION_MESSAGE         = 6;
-const OUTLET_ACTION_ACK_MESSAGE     = 7;
+const OUTLET_CMD_MESSAGE         		= 6;
+const OUTLET_CMD_ACK_MESSAGE     		= 7;
 const OUTLET_HANDSHAKE_MESSAGE      = 8;
 const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
 const MAX_COMMAND_ID_NUM						= 65536;
@@ -31,7 +31,7 @@ function isConnected() {
  * MAC address.
  * @returns Promise<Outlet> with updated outlet data
  */
-function saveSensorData(macAddress, power, temperature, light) {
+function saveSensorData(macAddress, power, temperature, light, status) {
 	return Outlet.find({mac_address: macAddress}).exec()
 	  .then( outlets => {
 	    var outlet = null;
@@ -48,6 +48,7 @@ function saveSensorData(macAddress, power, temperature, light) {
 	    outlet.cur_temperature = temperature;
 	    outlet.cur_light = light;
 	    outlet.cur_power = power;
+	    outlet.status = status;
 	    console.log(`Outlet ${macAddress} updated.`);
 	    return outlet.save();
 	  }).catch(console.error);
@@ -69,10 +70,11 @@ function handleSensorDataMessage(macAddress, payload) {
   // Get data values from payload.
   var power = sensorValues[0];
       temperature = sensorValues[1],
-      light = sensorValues[2];
+      light = sensorValues[2],
+      status = sensorValues[3];
 
   // TODO: Trigger events as necessary.
-  return saveSensorData(macAddress, power, temperature, light);
+  return saveSensorData(macAddress, power, temperature, light, status);
 }
 
 /*
@@ -88,8 +90,17 @@ function handleActionAckMessage(macAddress, payload) {
 	    }
 	    var outlet = outlets[0];
 
+	    // Parse sensor data, convert to ints
+  		var payloadValues = payload.split(',').map(value => parseInt(value));
+  		if (payloadValues.length < 2) {
+  			throw New Error(`Not enough sensor values in packet: ${payloadValues}`);
+  		}
+
+  		var status = payloadValues[1];
+  		console.log(`New outlet status: ${status}`);
+
 	    // Toggle outlet status.
-	    outlet.status = (outlet.status == 'ON') ? 'OFF' : 'ON';
+	    outlet.status = (status === 1) ? 'ON' : 'OFF';
 	    return outlet.save();
 		}).catch(console.error);
 }
@@ -117,7 +128,7 @@ function handleData(data) {
 	switch(msgId) {
 		case OUTLET_SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_ACTION_ACK_MESSAGE:
+		case OUTLET_CMD_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
@@ -143,10 +154,10 @@ function sendAction(outletMacAddress, action) {
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:0:${OUTLET_CMD_MESSAGE}:0:0,${outletMacAddress},${action},`;
       var sourceMacAddr = 0x0,
       		seqNum = 0x0,
-      		msgType = OUTLET_ACTION_MESSAGE,
+      		msgType = OUTLET_CMD_MESSAGE,
       		numHops = 0x0,
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
