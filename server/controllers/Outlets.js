@@ -65,6 +65,7 @@ exports.sendOutletAction = (req, res, next) => {
 			} else {
 				// If we aren't connected to the gateway node, 'fake' an update by
 				// simply updating the status of the node in our database.
+				console.warn("Gateway not connected, faking the result of the action");
 				outlet.status = action;
 				return outlet.save();
 			}

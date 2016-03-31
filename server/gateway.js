@@ -117,7 +117,7 @@ function handleData(data) {
 	switch(msgId) {
 		case OUTLET_SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_ACTION_ACK:
+		case OUTLET_ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
