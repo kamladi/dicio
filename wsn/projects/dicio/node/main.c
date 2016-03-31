@@ -102,6 +102,8 @@ nrk_sem_t* network_joined_mux;
 
 int main ()
 {
+  packet act_packet;
+
   // setup ports/uart
   nrk_setup_ports ();
   nrk_setup_uart (UART_BAUDRATE_115K2);
@@ -136,6 +138,20 @@ int main ()
   packet_queue_init(&act_queue);
   packet_queue_init(&cmd_tx_queue);
   packet_queue_init(&data_tx_queue);
+
+  // ensure node is initially set to "OFF" 
+  act_packet.source_id = MAC_ADDR;
+  act_packet.type = MSG_CMD;
+  act_packet.seq_num = 0;
+  act_packet.num_hops = 0;
+  act_packet.payload[CMD_ID_INDEX] = (uint16_t)0;
+  act_packet.payload[CMD_NODE_ID_INDEX] = MAC_ADDR;
+  act_packet.payload[CMD_ACT_INDEX] = OFF;
+  nrk_sem_pend(act_queue_mux); {
+    push(&act_queue, &act_packet);
+    push(&act_queue, &act_packet);
+  }
+  nrk_sem_post(act_queue_mux);
 
   // initialize bmac
   bmac_task_config ();
@@ -639,7 +655,9 @@ void actuate_task() {
   printf("actuate_task PID: %d.\r\n", nrk_get_pid());
 
   // CURRENT STATE
-  act_state curr_state = STATE_OFF;
+  // NOTE: set initially to "ON" so that when initial "OFF" commands come through
+  //  they will actually be paid attention to.
+  act_state curr_state = STATE_ON;
 
   // initialize tx_packet
   tx_packet.source_id = MAC_ADDR;
