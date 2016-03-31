@@ -2,7 +2,7 @@ var mongoose = require('mongoose');
 
 // TODO: Add property for outlet's MAC address
 var outletSchema = new mongoose.Schema({
-	name: String,
+	name: { type: String, default: "NEW OUTLET" },
 	mac_address: String,
 	last_sequence_number: Number,
 	status: { type: String, enum: ['ON','OFF'], default: 'ON'},
