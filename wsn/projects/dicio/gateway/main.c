@@ -6,10 +6,10 @@
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
-// silly change 
- 
+// silly change
+
 // INCLUDES
-// standard nrk 
+// standard nrk
 #include <nrk.h>
 #include <nrk_events.h>
 #include <include.h>
@@ -76,7 +76,7 @@ nrk_sem_t* serv_tx_queue_mux;
 packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
-// DRIVERS 
+// DRIVERS
 void nrk_register_drivers();
 
 // SEQUENCE POOLS/NUMBER
@@ -99,9 +99,9 @@ int main () {
   nrk_led_clr(1);
   nrk_led_clr(2);
   nrk_led_clr(3);
-    
+
   // print flag
-  print_incoming = FALSE;
+  print_incoming = TRUE;
 
   // mutexs
   net_tx_buf_mux    = nrk_sem_create(1, 6);
@@ -125,7 +125,7 @@ int main () {
 }
 
 /**
- * get_server_input() - 
+ * get_server_input() -
  *  get UART data from server - end of message noted by a '\r'
  */
 uint8_t get_server_input() {
@@ -140,8 +140,8 @@ uint8_t get_server_input() {
     // if there is room, add it to the buffer.
     if(serv_rx_index < (RF_MAX_PAYLOAD_SIZE -1)) {
       serv_rx_buf[serv_rx_index] = option;
-      serv_rx_index++;      
-    } 
+      serv_rx_index++;
+    }
     // if there is not room, clear the buffer and then add the new byte.
     else {
       clear_serv_buf();
@@ -161,14 +161,14 @@ uint8_t get_server_input() {
       if(print_incoming == TRUE) {
         nrk_kprintf(PSTR("\n"));
       }
-      return SERV_MSG_RECEIVED;    
+      return SERV_MSG_RECEIVED;
     }
   }
   return SERV_MSG_INCOMPLETE;
 }
 
 /**
- * clear_serv_buf() - 
+ * clear_serv_buf() -
  *  clear the server buffer
  */
 void clear_serv_buf() {
@@ -186,7 +186,7 @@ void clear_tx_buf(){
 }
 
 /**
- * rx_node_task() - 
+ * rx_node_task() -
  *  receive messages from the network
  */
 void rx_node_task() {
@@ -201,12 +201,12 @@ void rx_node_task() {
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
-  
+
   // Wait until bmac has started. This should be called by all tasks using bmac that do not call bmac_init()
   while (!bmac_started ()){
     nrk_wait_until_next_period ();
   }
-  
+
   // loop forever
   while(1) {
     // only execute if there is a packet available
@@ -215,17 +215,17 @@ void rx_node_task() {
       // get the packet, parse and release
       parse_msg(&rx_packet, &net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
-      
+
       // print incoming packet if appropriate
       if(print_incoming == TRUE) {
         nrk_kprintf (PSTR ("rx:\r\n"));
-        print_packet(&rx_packet);     
+        print_packet(&rx_packet);
       }
 
-       bmac_rx_pkt_release ();  
-      
+       bmac_rx_pkt_release ();
+
       // only receive the message if it's not from the gateway
-      //  NOTE: this is required because the gateway will hear re-transmitted packets 
+      //  NOTE: this is required because the gateway will hear re-transmitted packets
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
 
@@ -235,15 +235,15 @@ void rx_node_task() {
           add_to_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
           new_node = NODE_FOUND;
         }
-      
+
         // determine if we should act on this packet based on the sequence number
         local_seq_num = get_data_val(&seq_pool, rx_packet.source_id);
         if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
-          
+
           // update the sequence pool and reset the new_node flag
           update_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
           new_node = NONE;
-          
+
           // put the message in the right queue based on the type
           switch(rx_packet.type) {
             // command -> do nothing
@@ -274,7 +274,7 @@ void rx_node_task() {
                 push(&hand_rx_queue, &rx_packet);
               }
               nrk_sem_post(hand_rx_queue_mux);
-              break;              
+              break;
             }
 
             case MSG_HANDACK: {
@@ -284,11 +284,11 @@ void rx_node_task() {
             // gateway message -> do nothing
             case MSG_GATEWAY:{
               // do nothing...no messages have been defined with this type yet
-              break;                
+              break;
             }
             // no message
             case MSG_NO_MESSAGE: {
-              // do nothing. 
+              // do nothing.
               // NOTE: this is a valid case. If the message is not 'parsible' then it can be
               //  given a 'NO_MESSAGE' type.
               break;
@@ -300,15 +300,15 @@ void rx_node_task() {
             }
           }
         }
-      } 
-      nrk_led_clr(GREEN_LED);       
+      }
+      nrk_led_clr(GREEN_LED);
     }
     nrk_wait_until_next_period();
   }
 }
 
 /**
- * rx_serv_task() - 
+ * rx_serv_task() -
  *  receive a message from the server
  */
 void rx_serv_task() {
@@ -320,7 +320,7 @@ void rx_serv_task() {
   // get the UART signal and register it
   nrk_sig_t uart_rx_signal = nrk_uart_rx_signal_get();
   nrk_signal_register(uart_rx_signal);
-  
+
   // loop forever
   while (1) {
     // only execute if a full server message has been received
@@ -329,13 +329,13 @@ void rx_serv_task() {
 
       // print message if appropriate
       if(print_incoming == TRUE) {
-        printf("rx_serv:%s\r\n", serv_rx_buf);   
+        printf("rx_serv:%s\r\n", serv_rx_buf);
       }
 
       // parse message
-      parse_serv_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
+      parse_msg(&rx_packet, &serv_rx_buf, serv_rx_index);
       clear_serv_buf();
-      print_packet(&rx_packet);  
+      print_packet(&rx_packet);
 
       // check sequence number to determine if the packet should be received
       // NOTE: This probably is unnecessary because the likelihood of an earlier
@@ -349,7 +349,7 @@ void rx_serv_task() {
       //  server_seq_num = rx_packet.seq_num;
       rx_packet.seq_num = server_seq_num;
       server_seq_num++;
-      
+
       switch(rx_packet.type) {
         // command received
         case MSG_CMD: {
@@ -362,17 +362,17 @@ void rx_serv_task() {
         }
         case MSG_CMDACK:
         case MSG_DATA:
-        case MSG_HAND: 
+        case MSG_HAND:
         case MSG_GATEWAY:
          // do nothing
           // NOTICE: really, these should never happend. Eventually, throw an error here.
-          break;  
+          break;
         case MSG_NO_MESSAGE: {
-          // do nothing. 
+          // do nothing.
           // NOTE: this is a valid case. If the message is not 'parsible' then it can be
           //  given a 'NO_MESSAGE' type.
           break;
-        }    
+        }
         default: {
           // do nothing
           // NOTICE: really this should never happen. Eventually, throw an error here.
@@ -398,7 +398,7 @@ void tx_cmd_task() {
   packet tx_packet;
   uint8_t tx_cmd_queue_size;
 
-  // Wait until bmac has started. This should be called by all tasks 
+  // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
   while(!bmac_started()) {
     nrk_wait_until_next_period();
@@ -423,10 +423,10 @@ void tx_cmd_task() {
      *      (1) a mutex would be required around the entire loop - BAD IDEA
      *      (2) the queue could be added to while this loop is running, thus
      *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
+     *      (3) the size the queue read and the actual size of the queue could be
      *        incorrect due to preemtion - BAD IDEA
      *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
+     *    at any given time, regardless of whether or not the queue has been
      *    added to by another task.
      */
     for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
@@ -437,7 +437,7 @@ void tx_cmd_task() {
       }
       nrk_sem_post(cmd_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because 
+      // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux); {
         net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
@@ -445,14 +445,14 @@ void tx_cmd_task() {
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
-        
+
         // Just check to be sure signal is okay
         if(ret & (SIG(tx_done_signal) == 0)) {
           nrk_kprintf (PSTR ("TX done signal error\r\n"));
-        }        
+        }
       }
-      nrk_sem_post(net_tx_buf_mux);  
-      nrk_led_clr(RED_LED);   
+      nrk_sem_post(net_tx_buf_mux);
+      nrk_led_clr(RED_LED);
     }
     nrk_wait_until_next_period();
   }
@@ -470,8 +470,8 @@ void tx_node_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_node_queue_size;
-  
-  // Wait until bmac has started. This should be called by all tasks 
+
+  // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
   while(!bmac_started ()) {
     nrk_wait_until_next_period ();
@@ -480,7 +480,7 @@ void tx_node_task() {
   // Get and register the tx_done_signal to perform non-blocking transmits
   tx_done_signal = bmac_get_tx_done_signal();
   nrk_signal_register(tx_done_signal);
-  
+
   while(1) {
     // atomically get the queue size
     nrk_sem_pend(node_tx_queue_mux); {
@@ -495,10 +495,10 @@ void tx_node_task() {
      *      (1) a mutex would be required around the entire loop - BAD IDEA
      *      (2) the queue could be added to while this loop is running, thus
      *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
+     *      (3) the size the queue read and the actual size of the queue could be
      *        incorrect due to preemtion - BAD IDEA
      *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
+     *    at any given time, regardless of whether or not the queue has been
      *    added to by another task.
      */
     for(uint8_t i = 0; i < tx_node_queue_size; i++) {
@@ -509,21 +509,21 @@ void tx_node_task() {
       }
       nrk_sem_post(node_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because 
+      // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux); {
       net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
-        
+
         // Just check to be sure signal is okay
         if(ret & (SIG(tx_done_signal) == 0)) {
           nrk_kprintf (PSTR ("TX done signal error\r\n"));
-        }        
+        }
       }
-      nrk_sem_post(net_tx_buf_mux); 
-      nrk_led_clr(RED_LED);    
+      nrk_sem_post(net_tx_buf_mux);
+      nrk_led_clr(RED_LED);
     }
     nrk_wait_until_next_period();
   }
@@ -561,10 +561,10 @@ void tx_serv_task() {
      *      (1) a mutex would be required around the entire loop - BAD IDEA
      *      (2) the queue could be added to while this loop is running, thus
      *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
+     *      (3) the size the queue read and the actual size of the queue could be
      *        incorrect due to preemtion - BAD IDEA
      *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
+     *    at any given time, regardless of whether or not the queue has been
      *    added to by another task.
      */
     for(uint8_t i = 0; i < tx_serv_queue_size; i++) {
@@ -582,7 +582,7 @@ void tx_serv_task() {
       // send the packet
       printf("%s\r\n", serv_tx_buf);
     }
-    
+
     nrk_wait_until_next_period();
   }
 }
@@ -614,10 +614,10 @@ void hand_task() {
      *      (1) a mutex would be required around the entire loop - BAD IDEA
      *      (2) the queue could be added to while this loop is running, thus
      *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be 
+     *      (3) the size the queue read and the actual size of the queue could be
      *        incorrect due to preemtion - BAD IDEA
      *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been 
+     *    at any given time, regardless of whether or not the queue has been
      *    added to by another task.
      */
     for(uint8_t i = 0; i < hand_rx_size; i++) {
@@ -652,7 +652,7 @@ void hand_task() {
           push(&serv_tx_queue, &rx_packet);
         }
         nrk_sem_post(serv_tx_queue_mux);
-      //} 
+      //}
     }
     nrk_wait_until_next_period();
 
@@ -662,7 +662,7 @@ void hand_task() {
 
 /**
  * nrk_create_taskset - create the tasks in this application
- * 
+ *
  * NOTE: task priority maps to importance. That is, priority(5) > priority(2).
  */
 void nrk_create_taskset () {
@@ -691,7 +691,7 @@ void nrk_create_taskset () {
   RX_SERV_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
   RX_SERV_TASK.offset.secs = 0;
   RX_SERV_TASK.offset.nano_secs = 0;
-  
+
   TX_CMD_TASK.task = tx_cmd_task;
   nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE);
   TX_CMD_TASK.prio = 4;
@@ -750,7 +750,7 @@ void nrk_create_taskset () {
   nrk_activate_task(&TX_NODE_TASK);
   nrk_activate_task(&TX_SERV_TASK);
   nrk_activate_task(&HAND_TASK);
-  
+
   nrk_kprintf(PSTR("Create done.\r\n"));
 }
 
