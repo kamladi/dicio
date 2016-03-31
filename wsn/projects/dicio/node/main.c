@@ -86,9 +86,6 @@ nrk_sem_t* cmd_tx_queue_mux;
 packet_queue data_tx_queue;
 nrk_sem_t* data_tx_queue_mux;
 
-packet_queue hand_rx_queue;
-nrk_sem_t* hand_rx_queue_mux;
-
 // SENSOR VALUES
 uint8_t adc_fd;
 uint8_t pwr_period;
@@ -129,7 +126,6 @@ int main() {
   act_queue_mux       = nrk_sem_create(1, 6);
   cmd_tx_queue_mux    = nrk_sem_create(1, 6);
   data_tx_queue_mux   = nrk_sem_create(1, 6);
-  hand_rx_queue_mux   = nrk_sem_create(1, 6);
   seq_num_mux         = nrk_sem_create(1, 6);
   network_joined_mux  = nrk_sem_create(1, 6);
 
@@ -142,7 +138,6 @@ int main() {
   packet_queue_init(&act_queue);
   packet_queue_init(&cmd_tx_queue);
   packet_queue_init(&data_tx_queue);
-  packet_queue_init(&hand_rx_queue);
 
   //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC, READ);
   //adc_fd = nrk_open(ADC_DEV_MANAGER, READ);
