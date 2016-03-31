@@ -86,9 +86,6 @@ nrk_sem_t* cmd_tx_queue_mux;
 packet_queue data_tx_queue;
 nrk_sem_t* data_tx_queue_mux;
 
-packet_queue hand_rx_queue;
-nrk_sem_t* hand_rx_queue_mux;
-
 // SENSOR VALUES
 uint8_t adc_fd;
 uint8_t pwr_period;
@@ -129,7 +126,6 @@ int main() {
   act_queue_mux       = nrk_sem_create(1, 6);
   cmd_tx_queue_mux    = nrk_sem_create(1, 6);
   data_tx_queue_mux   = nrk_sem_create(1, 6);
-  hand_rx_queue_mux   = nrk_sem_create(1, 6);
   seq_num_mux         = nrk_sem_create(1, 6);
   network_joined_mux  = nrk_sem_create(1, 6);
 
@@ -142,7 +138,6 @@ int main() {
   packet_queue_init(&act_queue);
   packet_queue_init(&cmd_tx_queue);
   packet_queue_init(&data_tx_queue);
-  packet_queue_init(&hand_rx_queue);
 
   //adc_fd = nrk_open(FIREFLY_3_SENSOR_BASIC, READ);
   //adc_fd = nrk_open(ADC_DEV_MANAGER, READ);
@@ -270,20 +265,13 @@ void rx_msg_task() {
                 break;
               }
               // handshake message recieved
-              // will only receive type MSG_HAND to forward..?
+              // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR) {
-                  nrk_sem_pend(hand_rx_queue_mux); {
-                    push(&hand_rx_queue, &rx_packet);
-                  }
-                  nrk_sem_post(hand_rx_queue_mux);                
-                } else {
-                  rx_packet.num_hops++;
-                  nrk_sem_pend(data_tx_queue_mux); {
-                    push(&data_tx_queue, &rx_packet);
-                  }
-                  nrk_sem_post(data_tx_queue_mux);                 
+                rx_packet.num_hops++;
+                nrk_sem_pend(data_tx_queue_mux); {
+                  push(&data_tx_queue, &rx_packet);
                 }
+                nrk_sem_post(data_tx_queue_mux);                 
                 break;
               }
               // gateway message -> for future expansion
@@ -429,66 +417,56 @@ void tx_data_task() {
   nrk_signal_register(tx_done_signal);
   
   while(1) {
-    // only execute task if the network has been joined
-    if(local_network_joined == TRUE) {
-      // atomically get the queue size
+    // atomically get the queue size
+    nrk_sem_pend(data_tx_queue_mux); {
+      tx_data_queue_size = data_tx_queue.size;
+    }
+    nrk_sem_post(data_tx_queue_mux);
+    /**
+     * loop on queue size received above, and no more.
+     *  NOTE: during this loop the queue can be added to. If, for instance,
+     *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
+     *      (1) a mutex would be required around the entire loop - BAD IDEA
+     *      (2) the queue could be added to while this loop is running, thus
+     *        making the loop unbounded - BAD IDEA
+     *      (3) the size the queue read and the actual size of the queue could be 
+     *        incorrect due to preemtion - BAD IDEA
+     *    Doing it this way bounds this loop to the maximum size of the queue
+     *    at any given time, regardless of whether or not the queue has been 
+     *    added to by another task.
+     */
+    for(uint8_t i = 0; i < tx_data_queue_size; i++) {
+      nrk_led_set(ORANGE_LED);
+      // get a packet out of the queue.
       nrk_sem_pend(data_tx_queue_mux); {
-        tx_data_queue_size = data_tx_queue.size;
+        pop(&data_tx_queue, &tx_packet);
       }
       nrk_sem_post(data_tx_queue_mux);
-      /**
-       * loop on queue size received above, and no more.
-       *  NOTE: during this loop the queue can be added to. If, for instance,
-       *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
-       *      (1) a mutex would be required around the entire loop - BAD IDEA
-       *      (2) the queue could be added to while this loop is running, thus
-       *        making the loop unbounded - BAD IDEA
-       *      (3) the size the queue read and the actual size of the queue could be 
-       *        incorrect due to preemtion - BAD IDEA
-       *    Doing it this way bounds this loop to the maximum size of the queue
-       *    at any given time, regardless of whether or not the queue has been 
-       *    added to by another task.
-       */
-      for(uint8_t i = 0; i < tx_data_queue_size; i++) {
-        nrk_led_set(ORANGE_LED);
-        // get a packet out of the queue.
-        nrk_sem_pend(data_tx_queue_mux); {
-          pop(&data_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(data_tx_queue_mux);
 
-        if(print_incoming == TRUE){
-          //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
-          //print_packet(&tx_packet);
-        }
-
-        // NOTE: a mutex is required around the network transmit buffer because 
-        //  tx_cmd_task() also uses it.
-        nrk_sem_pend(net_tx_buf_mux); {
-          net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
-
-          // send the packet
-          val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
-          ret = nrk_event_wait (SIG(tx_done_signal));
-
-          // Just check to be sure signal is okay
-          if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf (PSTR ("TX done signal error\r\n"));
-          }
-          clear_tx_buf();
-        }
-        nrk_sem_post(net_tx_buf_mux);  
-
-        nrk_led_clr(ORANGE_LED);   
-      }      
-    } 
-    // if the local_network_joined flag hasn't been set yet, check status
-    else {
-      nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
+      if(print_incoming == TRUE){
+        //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
+        //print_packet(&tx_packet);
       }
-      nrk_sem_post(network_joined_mux);       
-    }
+
+      // NOTE: a mutex is required around the network transmit buffer because 
+      //  tx_cmd_task() also uses it.
+      nrk_sem_pend(net_tx_buf_mux); {
+        net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+
+        // send the packet
+        val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
+        ret = nrk_event_wait (SIG(tx_done_signal));
+
+        // Just check to be sure signal is okay
+        if(ret & (SIG(tx_done_signal) == 0)) {
+          nrk_kprintf (PSTR ("TX done signal error\r\n"));
+        }
+        clear_tx_buf();
+      }
+      nrk_sem_post(net_tx_buf_mux);  
+
+      nrk_led_clr(ORANGE_LED);   
+    }      
     nrk_wait_until_next_period();
   }
 }
