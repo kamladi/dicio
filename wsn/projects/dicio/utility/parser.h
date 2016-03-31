@@ -5,7 +5,7 @@
  * parser.h
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
- 
+
 #ifndef __parser_h
 #define __parser_h
 
@@ -14,6 +14,5 @@
 
 void print_packet(packet *p);
 void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
-void parse_serv_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
 
 #endif
