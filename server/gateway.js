@@ -118,8 +118,8 @@ function handleData(data) {
 	// "source_mac_addr:seq_num:msg_type:num_hops:payload"
 	var components = data.split(':');
 	if (components.length !== 5) {
-		console.error("Invalid minimum packet length");
-		return;
+		console.error("Invalid packet length");
+		return Promise.reject(new Error("Invalid minimum packet length"));
 	}
 	var macAddress = parseInt(components[0]),
 	    msgId = parseInt(components[2]),
@@ -132,6 +132,7 @@ function handleData(data) {
 			return handleActionAckMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
+			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
 	}
 }
 
@@ -227,6 +228,7 @@ function start(port) {
 };
 
 // export functions to make them public
+exports.handleData = handleData;
 exports.sendAction = sendAction;
 exports.isConnected = isConnected;
 exports.start = start;
