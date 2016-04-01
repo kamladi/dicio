@@ -1,5 +1,7 @@
 var db      = require('./db');
 var gateway = require('./gateway');
+var http 		= require('http');
+var WS 			= require('./websockets');
 var app     = require('./app');
 
 // Connect to database
@@ -17,7 +19,15 @@ if (process.argv.length >= 3) {
 // Start serial port handler
 gateway.start(port);
 
+var server = http.createServer();
+
+// Connect websocket handler to server
+WS.init(server);
+
+// Connect app to web server
+server.on('request', app);
+
 // Start web server
-app.listen(3000, () => {
+server.listen(3000, () => {
     console.log('App Listening on Port 3000');
 });
