@@ -11,29 +11,25 @@ class OutletActions {
   }
 
   fetchOutlets() {
-  	fetch(API_OUTLETS_URL)
+  	return fetch(API_OUTLETS_URL)
       .then((response) => response.json())
       .then((responseData) => {
         this.outletsChanged(responseData);
       })
       .catch(console.error)
-      .done();
-    return [];
   }
 
   fetchOutlet(outlet_id) {
-    fetch(`${API_OUTLETS_URL}/${outlet_id}`)
+    return fetch(`${API_OUTLETS_URL}/${outlet_id}`)
       .then((response) => response.json())
       .then((responseData) => {
         this.outletChanged(responseData);
       })
       .catch(console.error)
-      .done();
-    return {};
   }
 
   updateOutletName(outlet_id, name) {
-    fetch(`${API_OUTLETS_URL}/${outlet_id}`, {
+    return fetch(`${API_OUTLETS_URL}/${outlet_id}`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -46,8 +42,6 @@ class OutletActions {
         this.outletChanged(responseData);
       })
       .catch(console.error)
-      .done();
-    return {};
   }
 }
 

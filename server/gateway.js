@@ -2,6 +2,7 @@ var SP         = require('serialport');
 var SerialPort = SP.SerialPort;
 var Outlet     = require('./models/Outlet');
 var Event      = require('./models/Event');
+var WS 			= require('./websockets');
 
 // Constants
 const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
@@ -11,6 +12,7 @@ const OUTLET_ACTION_MESSAGE         = 6;
 const OUTLET_ACTION_ACK_MESSAGE     = 7;
 const OUTLET_HANDSHAKE_MESSAGE      = 8;
 const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
+const OUTLET_LOST_NODE_MESSAGE 			= 10;
 const MAX_COMMAND_ID_NUM						= 65536;
 
 // Globals
@@ -99,17 +101,41 @@ function handleActionAckMessage(macAddress, payload) {
  * And send a websocket message to the app to notify the user.
  */
 function handleHandshakeAckMessage(macAddress, payload) {
-    return Outlet.find({mac_address: macAddress}).exec()
-        .then( outlets => {
-            if (outlets.length > 0) {
-                throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
-            }
-            var outlet = new Outlet({mac_address: macAddress});
-            return outlet.save();
-        }).then( outlet => {
-            // TODO: send socket mesage to app announcing new node
-            return outlet;
-        }).catch(console.error);
+	return Outlet.find({mac_address: macAddress}).exec()
+	  .then( outlets => {
+	    if (outlets.length > 0) {
+	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
+	    }
+	    var outlet = new Outlet({mac_address: macAddress});
+	    return outlet.save();
+	  }).then( outlet => {
+	    // Send socket mesage to app announcing new node
+	    return WS.sendNewNodeMessage(outlet._id, outlet.name);
+	  }).catch(console.error);
+}
+
+/**
+ * Handle a Lost Node. Sends a Websocket message to the client with the outlet's
+ * name and id.
+ * (TODO: decide if we should immediately delete from the database, or set a
+ * 	'disconnected' flag)
+ */
+function handleLostNodeMessage(macAddress, payload) {
+	var payloadValues = payload.split(',');
+	if (payloadValues.length < 1) {
+		return Promise.reject('invalid payload: ', payload);
+	}
+	var lostMacAddress = payloadValues[0];
+	return Outlet.find({mac_address: lostMacAddress}).exec()
+	  .then( outlets => {
+	    if (outlets.length === 0) {
+	    	throw new Error("Received LOST NODE message for unknown outlet " + lostMacAddress);
+	    }
+
+	    var outlet = outlets[0];
+	    // Send socket mesage to app announcing new node
+	    return WS.sendLostNodeMessage(outlet._id, outlet.name);
+	  }).catch(console.error);
 }
 
 // Parse and handle data packet.
@@ -137,8 +163,10 @@ function handleData(data) {
 			return handleSensorDataMessage(macAddress, payload);
 		case OUTLET_ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
-        case OUTLET_HANDSHAKE_ACK_MESSAGE:
-            return handleHandshakeAckMessage(macAddress, payload);
+		case OUTLET_HANDSHAKE_ACK_MESSAGE:
+    	return handleHandshakeAckMessage(macAddress, payload);
+    case OUTLET_LOST_NODE_MESSAGE:
+    	return handleLostNodeMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
