@@ -22,6 +22,7 @@
 #include <bmac.h>
 // this package
 #include <assembler.h>
+#include <dicio_spi.h>
 #include <packet_queue.h>
 #include <parser.h>
 #include <pool.h>
@@ -105,8 +106,9 @@ int main ()
   packet act_packet;
 
   // setup ports/uart
-  nrk_setup_ports ();
-  nrk_setup_uart (UART_BAUDRATE_115K2);
+  nrk_setup_ports();
+  nrk_setup_uart(UART_BAUDRATE_115K2);
+  SPI_MasterInit();
 
   nrk_init ();
   nrk_time_set (0, 0);
@@ -130,7 +132,7 @@ int main ()
   network_joined_mux  = nrk_sem_create(1, 6);
 
   // sensor periods (in seconds / 2)
-  pwr_period = 5;
+  pwr_period = 1;
   temp_period = 2;
   light_period = 10;
 
@@ -532,11 +534,20 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
-
+        uint8_t s[3];
+        uint8_t r[3];
+        s[0] = 0x33;
+        s[1] = 0x99;
+        s[2] = 0xAA;
         //TODO: SAMPLE POWER SENSOR
         local_pwr_val++;
         sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
+
+        printf("SPI Send: %x%x%x\r\n", s[0], s[1], s[2]);
+        SPI_SendMessage(&s, &r, 3);
+        printf("SPI Recv: %x%x%x\r\n", r[0], r[1], r[2]);
+
       }
 
       // sample temperature sensor if appropriate
@@ -553,7 +564,7 @@ void sample_task() {
             local_temp_val = (uint16_t)adc_buf[0];
             sensor_pkt.temp_val = local_temp_val;
             sensor_sampled = TRUE;             
-            printf("TEMP: %d\r\n", local_temp_val);          
+            //printf("TEMP: %d\r\n", local_temp_val);          
           }
         }
       }
@@ -576,7 +587,7 @@ void sample_task() {
             local_light_val = (uint16_t)adc_buf[1];
             sensor_pkt.light_val = local_light_val;
             sensor_sampled = TRUE;          
-            printf("LIGHT: %d\r\n", local_light_val);          
+            //printf("LIGHT: %d\r\n", local_light_val);          
           }          
         }
       }
@@ -605,9 +616,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
-        //network_joined = TRUE;
-        //local_network_joined = TRUE;
+        //local_network_joined = network_joined;
+        network_joined = TRUE;
+        local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);   
       
