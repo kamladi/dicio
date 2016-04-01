@@ -223,6 +223,8 @@ void rx_node_task() {
         print_packet(&rx_packet);
       }
 
+
+
       // only receive the message if it's not from the gateway
       //  NOTE: this is required because the gateway will hear re-transmitted packets
       //    originally from itself.
