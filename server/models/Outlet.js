@@ -5,6 +5,7 @@ var outletSchema = new mongoose.Schema({
 	name: { type: String, default: "NEW OUTLET" },
 	mac_address: String,
 	last_sequence_number: Number,
+	hadrware_version: String,
 	status: { type: String, enum: ['ON','OFF'], default: 'ON'},
 	cur_temperature: Number,
 	cur_humidity: Number,
