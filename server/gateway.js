@@ -163,10 +163,15 @@ function handleData(data) {
 			return handleSensorDataMessage(macAddress, payload);
 		case OUTLET_ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
+<<<<<<< HEAD
 		case OUTLET_HANDSHAKE_ACK_MESSAGE:
     	return handleHandshakeAckMessage(macAddress, payload);
     case OUTLET_LOST_NODE_MESSAGE:
     	return handleLostNodeMessage(macAddress, payload);
+=======
+        case OUTLET_HANDSHAKE_ACK_MESSAGE:
+            return handleHandshakeAckMessage(macAddress, payload);
+>>>>>>> aea03d8dbb0921c76efd49c63577b38fb2869349
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
