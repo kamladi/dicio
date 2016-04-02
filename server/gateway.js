@@ -5,11 +5,11 @@ var Event      = require('./models/Event');
 var WS 			= require('./websockets');
 
 // Constants
-const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
+const DEFAULT_SERIAL_PORT = '/dev/ttty.usbserial-AM017Y3E';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE         = 5;
-const OUTLET_ACTION_MESSAGE         = 6;
-const OUTLET_ACTION_ACK_MESSAGE     = 7;
+const OUTLET_CMD_MESSAGE         		= 6;
+const OUTLET_CMD_ACK_MESSAGE     		= 7;
 const OUTLET_HANDSHAKE_MESSAGE      = 8;
 const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
 const OUTLET_LOST_NODE_MESSAGE 			= 10;
@@ -33,7 +33,7 @@ function isConnected() {
  * MAC address.
  * @returns Promise<Outlet> with updated outlet data
  */
-function saveSensorData(macAddress, power, temperature, light) {
+function saveSensorData(macAddress, power, temperature, light, status) {
 	return Outlet.find({mac_address: macAddress}).exec()
 	  .then( outlets => {
 	    var outlet = null;
@@ -50,6 +50,7 @@ function saveSensorData(macAddress, power, temperature, light) {
 	    outlet.cur_temperature = temperature;
 	    outlet.cur_light = light;
 	    outlet.cur_power = power;
+	    outlet.status = status;
 	    console.log(`Outlet ${macAddress} updated.`);
 	    return outlet.save();
 	  }).catch(console.error);
@@ -64,17 +65,18 @@ function handleSensorDataMessage(macAddress, payload) {
   var sensorValues = payload.split(',').map(value => parseInt(value));
 
   // We're expecting five values: power, temp, light, (eventually status).
-  if (sensorValues.length !== 3) {
-    throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
+  if (sensorValues.length !== 4) {
+    throw new Error(`Invalid number of sensor values in packet: ${sensorValues}`);
   }
 
   // Get data values from payload.
   var power = sensorValues[0];
       temperature = sensorValues[1],
-      light = sensorValues[2];
+      light = sensorValues[2],
+      status = (sensorValues[3] === 0) ? 'OFF' : 'ON';
 
   // TODO: Trigger events as necessary.
-  return saveSensorData(macAddress, power, temperature, light);
+  return saveSensorData(macAddress, power, temperature, light, status);
 }
 
 /*
@@ -90,8 +92,17 @@ function handleActionAckMessage(macAddress, payload) {
 	    }
 	    var outlet = outlets[0];
 
+	    // Parse sensor data, convert to ints
+  		var payloadValues = payload.split(',').map(value => parseInt(value));
+  		if (payloadValues.length < 2) {
+  			throw new Error(`Not enough sensor values in packet: ${payloadValues}`);
+  		}
+
+  		var status = payloadValues[1];
+  		console.log(`New outlet status: ${status}`);
+
 	    // Toggle outlet status.
-	    outlet.status = (outlet.status == 'ON') ? 'OFF' : 'ON';
+	    outlet.status = (status === 1) ? 'ON' : 'OFF';
 	    return outlet.save();
 		}).catch(console.error);
 }
@@ -101,12 +112,27 @@ function handleActionAckMessage(macAddress, payload) {
  * And send a websocket message to the app to notify the user.
  */
 function handleHandshakeAckMessage(macAddress, payload) {
-	return Outlet.find({mac_address: macAddress}).exec()
+	var payloadValues = payload.split(',');
+	if (payloadValues.length < 2) {
+		return Promise.reject(new Error('Invalid payload' + payload));
+	}
+	var newMacAddress		= payloadValues[0]
+	var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
+	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
+	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
+	// left-pad second value
+	var hardwareVersion = hardwareVersion1 +
+		((hardwareVersion2.length < 2) ? ('0'+hardwareVersion2) : hardwareVersion2);
+	console.log(`hardwareVersion: ${hardwareVersion}`);
+
+	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length > 0) {
-	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
+	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
 	    }
-	    var outlet = new Outlet({mac_address: macAddress});
+	    var outlet = new Outlet({
+	    	mac_address: newMacAddress,
+	    	hardware_version: hardwareVersion});
 	    return outlet.save();
 	  }).then( outlet => {
 	    // Send socket mesage to app announcing new node
@@ -165,7 +191,7 @@ function handleData(data) {
 	switch(msgId) {
 		case OUTLET_SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_ACTION_ACK_MESSAGE:
+		case OUTLET_CMD_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		case OUTLET_HANDSHAKE_ACK_MESSAGE:
     	return handleHandshakeAckMessage(macAddress, payload);
@@ -196,10 +222,10 @@ function sendAction(outletMacAddress, action) {
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${OUTLET_ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:0:${OUTLET_CMD_MESSAGE}:0:0,${outletMacAddress},${action},`;
       var sourceMacAddr = 0x0,
       		seqNum = 0x0,
-      		msgType = OUTLET_ACTION_MESSAGE,
+      		msgType = OUTLET_CMD_MESSAGE,
       		numHops = 0x0,
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
@@ -210,9 +236,10 @@ function sendAction(outletMacAddress, action) {
       var cmdIdLower = commandId & 0xFF;
       var cmdIdUpper = (commandId >> 8) & 0xFF;
 
+
       // 0x0D is the integer value for '\r' (carriage return)
       var packet = new Buffer([
-      	sourceMacAddr, seqNum, msgType, numHops,
+      	sourceMacAddr, 0, 0, msgType, numHops,
       	cmdIdUpper, cmdIdLower, destOutletAddr, action, 0x0D
       ]);
       console.log("Packet to be sent: ", packet);
