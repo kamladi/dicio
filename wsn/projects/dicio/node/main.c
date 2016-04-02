@@ -211,7 +211,6 @@ void rx_msg_task() {
       if(print_incoming == TRUE) {
         print_packet(&rx_packet);     
       }
-      
       // only receive the message if it's not from this node
       //  NOTE: this is required because the node will hear re-transmitted packets 
       //    originally from itself.
