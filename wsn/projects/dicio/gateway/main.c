@@ -646,6 +646,11 @@ void hand_task() {
         seq_num++;
         tx_packet.seq_num = seq_num;
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
+
         print_packet(&tx_packet);
 
         // send response back to the node
@@ -656,7 +661,7 @@ void hand_task() {
 
         // forward the "hello" message from the node to the server
         nrk_sem_pend(serv_tx_queue_mux); {
-          push(&serv_tx_queue, &rx_packet);
+          push(&serv_tx_queue, &tx_packet);
         }
         nrk_sem_post(serv_tx_queue_mux);
       //}
