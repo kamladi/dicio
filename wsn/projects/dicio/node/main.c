@@ -22,6 +22,7 @@
 #include <bmac.h>
 // this package
 #include <assembler.h>
+#include <dicio_spi.h>
 #include <packet_queue.h>
 #include <parser.h>
 #include <pool.h>
@@ -31,13 +32,20 @@
 #define MAC_ADDR 3
 
 // FUNCTION DECLARATIONS
-uint8_t get_global_outlet_state();
-void update_global_outlet_state(uint8_t new_state);
+int main(void);
+void clear_tx_buf(void);
 void rx_msg_task(void);
 void tx_cmd_task(void);
 void tx_data_task(void);
-void nrk_create_taskset (void);
+void sample_task(void);
+void button_task(void);
+void actuate_task(void);
+void nrk_set_gpio(void);
+uint8_t get_global_outlet_state();
+void update_global_outlet_state(uint8_t new_state);
+
 void nrk_register_drivers(void);
+void nrk_create_taskset(void);
 
 // STATE ENUM (used in actuate task)
 typedef enum {
@@ -49,13 +57,18 @@ typedef enum {
   STATE_ACK_ON
 } act_state;
 
+typedef enum {
+  STATE_SNIFF,
+  STATE_WAIT,
+} button_pressed_state;
+
 // TASKS
 nrk_task_type RX_MSG_TASK;
 nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_DATA_TASK;
 nrk_task_type SAMPLE_TASK;
 nrk_task_type ACTUATE_TASK;
-nrk_task_type TaskOne;
+nrk_task_type BUTTON_TASK;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
@@ -63,7 +76,7 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
-NRK_STK Stack1[NRK_APP_STACKSIZE];
+NRK_STK button_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -71,7 +84,7 @@ uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_index = 0;
 nrk_sem_t* net_tx_buf_mux;
 
-// QUEUES / MUTEXES
+// QUEUES
 packet_queue act_queue;
 nrk_sem_t* act_queue_mux;
 uint16_t last_command = 0;
@@ -94,20 +107,23 @@ pool_t seq_pool;
 uint16_t seq_num = 0;
 nrk_sem_t* seq_num_mux;
 
-// GLOBAL FLAG
+// GLOBAL FLAGS 
 uint8_t print_incoming;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
 uint8_t global_outlet_state;
 nrk_sem_t *global_outlet_state_mux;
+uint8_t glb_button_pressed;
+nrk_sem_t* glb_button_pressed_mux;
 
-int main ()
+int main()
 {
   packet act_packet;
 
   // setup ports/uart
-  nrk_setup_ports ();
-  nrk_setup_uart (UART_BAUDRATE_115K2);
+  nrk_setup_ports();
+  nrk_setup_uart(UART_BAUDRATE_115K2);
+  SPI_MasterInit();
 
   nrk_init ();
   nrk_time_set (0, 0);
@@ -119,21 +135,24 @@ int main ()
   nrk_led_clr(3);
 
   // flags
+
   print_incoming      = FALSE;
   network_joined      = FALSE;
   global_outlet_state = OFF;
+  glb_button_pressed  = FALSE;
 
   // mutexs
-  net_tx_buf_mux          = nrk_sem_create(1, 6);
-  act_queue_mux           = nrk_sem_create(1, 6);
-  cmd_tx_queue_mux        = nrk_sem_create(1, 6);
-  data_tx_queue_mux       = nrk_sem_create(1, 6);
-  seq_num_mux             = nrk_sem_create(1, 6);
-  network_joined_mux      = nrk_sem_create(1, 6);
-  global_outlet_state_mux = nrk_sem_create(1, 6);
+  net_tx_buf_mux          = nrk_sem_create(1, 7);
+  act_queue_mux           = nrk_sem_create(1, 7);
+  cmd_tx_queue_mux        = nrk_sem_create(1, 7);
+  data_tx_queue_mux       = nrk_sem_create(1, 7);
+  seq_num_mux             = nrk_sem_create(1, 7);
+  network_joined_mux      = nrk_sem_create(1, 7);
+  global_outlet_state_mux = nrk_sem_create(1, 7);
+  glb_button_pressed_mux  = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
-  pwr_period = 5;
+  pwr_period = 1;
   temp_period = 2;
   light_period = 10;
 
@@ -162,7 +181,7 @@ int main ()
 
   nrk_register_drivers();
   nrk_set_gpio();
-  nrk_create_taskset ();
+  nrk_create_taskset();
   nrk_start ();
 
   return 0;
@@ -561,11 +580,20 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
-
+        uint8_t s[3];
+        uint8_t r[3];
+        s[0] = 0x33;
+        s[1] = 0x99;
+        s[2] = 0xAA;
         //TODO: SAMPLE POWER SENSOR
         local_pwr_val++;
         sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
+
+        printf("SPI Send: %x%x%x\r\n", s[0], s[1], s[2]);
+        SPI_SendMessage(&s, &r, 3);
+        printf("SPI Recv: %x%x%x\r\n", r[0], r[1], r[2]);
+
       }
 
       // sample temperature sensor if appropriate
@@ -581,8 +609,10 @@ void sample_task() {
           } else {
             local_temp_val = (uint16_t)adc_buf[0];
             sensor_pkt.temp_val = local_temp_val;
+
             sensor_sampled = TRUE;
-            printf("TEMP: %d\r\n", local_temp_val);
+            printf("TEMP: %d\r\n", local_temp_val);        
+
           }
         }
       }
@@ -604,9 +634,11 @@ void sample_task() {
           } else {
             local_light_val = (uint16_t)adc_buf[1];
             sensor_pkt.light_val = local_light_val;
+
             sensor_sampled = TRUE;
             printf("LIGHT: %d\r\n", local_light_val);
-          }
+          }        
+
         }
       }
 
@@ -635,9 +667,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
-        //network_joined = TRUE;
-        //local_network_joined = TRUE;
+        //local_network_joined = network_joined;
+        network_joined = TRUE;
+        local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);
 
@@ -667,6 +699,61 @@ void sample_task() {
   }
 }
 
+void button_task() {
+  button_pressed_state curr_state = STATE_SNIFF;
+  uint8_t local_button_pressed = FALSE;
+
+  printf("button_task PID: %d.\r\n", nrk_get_pid());
+
+
+  while(1) {
+    switch(curr_state) {
+      // STATE_SNIFF: 
+      //    - if the button gets pressed set the flag and switch states
+      //    - otherwise, keep sniffing
+      case STATE_SNIFF: {
+        // get current button_pressed state
+        nrk_sem_pend(glb_button_pressed_mux); {
+          local_button_pressed = glb_button_pressed;
+        }
+        nrk_sem_post(glb_button_pressed_mux);
+
+        // check button input
+        if((nrk_gpio_get(BTN_IN) == BUTTON_PRESSED) && (local_button_pressed == FALSE)) {
+          // set flag
+          nrk_sem_pend(glb_button_pressed_mux); {
+            glb_button_pressed = TRUE;
+          }
+          nrk_sem_post(glb_button_pressed_mux);
+
+          // switch states
+          curr_state = STATE_WAIT;
+        }
+        // keep sniffing...
+        else {
+          curr_state = STATE_SNIFF;
+        }
+        break;
+      }
+
+      // STATE_WAIT:
+      //  - wait for button to be released and switch states
+      case STATE_WAIT: {
+        // if the button is released - start sniffing
+        if(nrk_gpio_get(BTN_IN) == BUTTON_RELEASED) {
+          curr_state = STATE_SNIFF;
+        }
+        // otherwise 
+        else { 
+          curr_state = STATE_WAIT;
+        }
+        break;
+      }
+    }
+    nrk_wait_until_next_period();
+  }
+}
+
 /**
  * actuate_task() -
  *  actuate any commands that have been received for this node.
@@ -681,6 +768,7 @@ void actuate_task() {
   int8_t action;
   uint8_t btn_val;
   uint8_t local_network_joined = FALSE;
+  uint8_t local_button_pressed = FALSE;
 
   printf("actuate_task PID: %d.\r\n", nrk_get_pid());
 
@@ -707,6 +795,12 @@ void actuate_task() {
     nrk_sem_post(act_queue_mux);
     action = ACT_NONE;
 
+    // get button pressed
+    nrk_sem_pend(glb_button_pressed_mux); {
+      local_button_pressed = glb_button_pressed;
+    }
+    nrk_sem_post(act_queue_mux);
+
     switch(curr_state) {
       // STATE_OFF -
       //  - wait for a button press -> actuate ON
@@ -714,7 +808,7 @@ void actuate_task() {
       //  - wait for an OFF command -> send ACK
       case STATE_OFF: {
         // check button state
-        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+        if(local_button_pressed == TRUE) {
           action = ON;
         }
         // check act queue
@@ -746,7 +840,7 @@ void actuate_task() {
       //  - wait for an OFF command -> actuate
       case STATE_ON: {
         // check button state
-        if(nrk_gpio_get(BTN_IN) == BTN_ACT) {
+        if(local_button_pressed == TRUE) {
           action = OFF;
         }
         // check act queue
@@ -813,14 +907,26 @@ void actuate_task() {
           nrk_sem_pend(cmd_tx_queue_mux); {
             push(&cmd_tx_queue, &tx_packet);
           }
+
           nrk_sem_post(cmd_tx_queue_mux);
         }
 
         // update global outlet state
         update_global_outlet_state(OFF);
 
+
+        // this will flag if the command just executed was from a physical button press
+        //  if so, reset the global flag
+        if(local_button_pressed = TRUE) {
+          nrk_sem_pend(glb_button_pressed_mux); {
+            glb_button_pressed = FALSE;
+          }
+          nrk_sem_post(glb_button_pressed_mux);
+        }   
+
         curr_state = STATE_OFF;
-        break;
+        break;   
+
       }
 
       // STATE_ACK_ON -
@@ -847,11 +953,21 @@ void actuate_task() {
           nrk_sem_pend(cmd_tx_queue_mux); {
             push(&cmd_tx_queue, &tx_packet);
           }
+
           nrk_sem_post(cmd_tx_queue_mux);
         }
 
         // update global outlet state
         update_global_outlet_state(ON);
+
+        // this will flag if the command just executed was from a physical button press
+        //  if so, reset the global flag
+        if(local_button_pressed = TRUE) {
+          nrk_sem_pend(glb_button_pressed_mux); {
+            glb_button_pressed = FALSE;
+          }
+          nrk_sem_post(glb_button_pressed_mux);
+        } 
 
         curr_state = STATE_ON;
         break;
@@ -887,10 +1003,10 @@ void nrk_register_drivers() {
 
 void nrk_create_taskset ()
 {
-  // PRIORITY 5
+  // PRIORITY 6
   RX_MSG_TASK.task = rx_msg_task;
   nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
-  RX_MSG_TASK.prio = 5;
+  RX_MSG_TASK.prio = 6;
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
   RX_MSG_TASK.SchType = PREEMPTIVE;
@@ -901,6 +1017,20 @@ void nrk_create_taskset ()
   RX_MSG_TASK.offset.secs = 0;
   RX_MSG_TASK.offset.nano_secs = 0;
 
+  // PRIORITY 5
+  BUTTON_TASK.task = button_task;
+  nrk_task_set_stk(&BUTTON_TASK, button_task_stack, NRK_APP_STACKSIZE);
+  BUTTON_TASK.prio = 5;
+  BUTTON_TASK.FirstActivation = TRUE;
+  BUTTON_TASK.Type = BASIC_TASK;
+  BUTTON_TASK.SchType = PREEMPTIVE;
+  BUTTON_TASK.period.secs = 0;
+  BUTTON_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  BUTTON_TASK.cpu_reserve.secs = 0;
+  BUTTON_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  BUTTON_TASK.offset.secs = 0;
+  BUTTON_TASK.offset.nano_secs = 0;
+
   // PRIORITY 4
   ACTUATE_TASK.task = actuate_task;
   nrk_task_set_stk(&ACTUATE_TASK, actuate_task_stack, NRK_APP_STACKSIZE);
@@ -909,7 +1039,7 @@ void nrk_create_taskset ()
   ACTUATE_TASK.Type = BASIC_TASK;
   ACTUATE_TASK.SchType = PREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
-  ACTUATE_TASK.period.nano_secs = 1000*NANOS_PER_MS;
+  ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
   ACTUATE_TASK.cpu_reserve.nano_secs = 30*NANOS_PER_MS;
   ACTUATE_TASK.offset.secs = 0;
@@ -938,7 +1068,7 @@ void nrk_create_taskset ()
   SAMPLE_TASK.period.secs = 2;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
-  SAMPLE_TASK.cpu_reserve.nano_secs = 0;
+  SAMPLE_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
@@ -961,6 +1091,7 @@ void nrk_create_taskset ()
   nrk_activate_task(&TX_DATA_TASK);
   nrk_activate_task(&SAMPLE_TASK);
   nrk_activate_task(&ACTUATE_TASK);
+  nrk_activate_task(&BUTTON_TASK);
 
   nrk_kprintf( PSTR("Create done\r\n") );
 }
