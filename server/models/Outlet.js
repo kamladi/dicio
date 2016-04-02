@@ -11,6 +11,7 @@ var outletSchema = new mongoose.Schema({
 	cur_humidity: Number,
 	cur_light: Number,
 	cur_power: Number,
+	active: {type: Boolean, default: true},
 	created: { type: Date, default: new Date() },
 	last_updated: { type: Date, default: new Date() }
 });

@@ -130,7 +130,7 @@ function handleHandshakeAckMessage(macAddress, payload) {
 function handleLostNodeMessage(macAddress, payload) {
 	var payloadValues = payload.split(',');
 	if (payloadValues.length < 1) {
-		return Promise.reject('invalid payload: ', payload);
+		return Promise.reject(new Error('invalid payload: ', payload));
 	}
 	var lostMacAddress = payloadValues[0];
 	return Outlet.find({mac_address: lostMacAddress}).exec()
@@ -139,8 +139,12 @@ function handleLostNodeMessage(macAddress, payload) {
 	    	throw new Error("Received LOST NODE message for unknown outlet " + lostMacAddress);
 	    }
 
+	    // Mark outlet as inactive in database.
 	    var outlet = outlets[0];
-	    // Send socket mesage to app announcing new node
+	    outlet.active = false;
+	    return outlet.save()
+	  }).then( outlet => {
+	  	// Send socket mesage to app announcing new node.
 	    return WS.sendLostNodeMessage(outlet._id, outlet.name);
 	  }).catch(console.error);
 }
