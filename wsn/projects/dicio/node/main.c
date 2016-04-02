@@ -41,9 +41,12 @@ void sample_task(void);
 void button_task(void);
 void actuate_task(void);
 void nrk_set_gpio(void);
+<<<<<<< HEAD
 uint8_t get_global_outlet_state();
 void update_global_outlet_state(uint8_t new_state);
 
+=======
+>>>>>>> master
 void nrk_register_drivers(void);
 void nrk_create_taskset(void);
 
@@ -111,8 +114,11 @@ nrk_sem_t* seq_num_mux;
 uint8_t print_incoming;
 uint8_t network_joined;
 nrk_sem_t* network_joined_mux;
+<<<<<<< HEAD
 uint8_t global_outlet_state;
 nrk_sem_t *global_outlet_state_mux;
+=======
+>>>>>>> master
 uint8_t glb_button_pressed;
 nrk_sem_t* glb_button_pressed_mux;
 
@@ -135,6 +141,7 @@ int main()
   nrk_led_clr(3);
 
   // flags
+<<<<<<< HEAD
 
   print_incoming      = TRUE;
   network_joined      = FALSE;
@@ -149,6 +156,19 @@ int main()
   seq_num_mux             = nrk_sem_create(1, 7);
   network_joined_mux      = nrk_sem_create(1, 7);
   global_outlet_state_mux = nrk_sem_create(1, 7);
+=======
+  print_incoming  = FALSE;
+  network_joined  = FALSE;
+  glb_button_pressed  = FALSE;
+
+  // mutexs
+  net_tx_buf_mux      = nrk_sem_create(1, 7);
+  act_queue_mux       = nrk_sem_create(1, 7);
+  cmd_tx_queue_mux    = nrk_sem_create(1, 7);
+  data_tx_queue_mux   = nrk_sem_create(1, 7);
+  seq_num_mux         = nrk_sem_create(1, 7);
+  network_joined_mux  = nrk_sem_create(1, 7);
+>>>>>>> master
   glb_button_pressed_mux  = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
@@ -638,7 +658,6 @@ void sample_task() {
             sensor_sampled = TRUE;
             printf("LIGHT: %d\r\n", local_light_val);
           }        
-
         }
       }
 
@@ -667,9 +686,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        local_network_joined = network_joined;
-        //network_joined = TRUE;
-        //local_network_joined = TRUE;
+        //local_network_joined = network_joined;
+        network_joined = TRUE;
+        local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);
 
@@ -693,6 +712,61 @@ void sample_task() {
       } else {
         nrk_led_clr(RED_LED);
         nrk_led_set(GREEN_LED);
+      }
+    }
+    nrk_wait_until_next_period();
+  }
+}
+
+void button_task() {
+  button_pressed_state curr_state = STATE_SNIFF;
+  uint8_t local_button_pressed = FALSE;
+
+  printf("button_task PID: %d.\r\n", nrk_get_pid());
+
+
+  while(1) {
+    switch(curr_state) {
+      // STATE_SNIFF: 
+      //    - if the button gets pressed set the flag and switch states
+      //    - otherwise, keep sniffing
+      case STATE_SNIFF: {
+        // get current button_pressed state
+        nrk_sem_pend(glb_button_pressed_mux); {
+          local_button_pressed = glb_button_pressed;
+        }
+        nrk_sem_post(glb_button_pressed_mux);
+
+        // check button input
+        if((nrk_gpio_get(BTN_IN) == BUTTON_PRESSED) && (local_button_pressed == FALSE)) {
+          // set flag
+          nrk_sem_pend(glb_button_pressed_mux); {
+            glb_button_pressed = TRUE;
+          }
+          nrk_sem_post(glb_button_pressed_mux);
+
+          // switch states
+          curr_state = STATE_WAIT;
+        }
+        // keep sniffing...
+        else {
+          curr_state = STATE_SNIFF;
+        }
+        break;
+      }
+
+      // STATE_WAIT:
+      //  - wait for button to be released and switch states
+      case STATE_WAIT: {
+        // if the button is released - start sniffing
+        if(nrk_gpio_get(BTN_IN) == BUTTON_RELEASED) {
+          curr_state = STATE_SNIFF;
+        }
+        // otherwise 
+        else { 
+          curr_state = STATE_WAIT;
+        }
+        break;
       }
     }
     nrk_wait_until_next_period();
@@ -914,7 +988,6 @@ void actuate_task() {
         // update global outlet state
         update_global_outlet_state(OFF);
 
-
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
         if(local_button_pressed = TRUE) {
@@ -924,9 +997,9 @@ void actuate_task() {
           nrk_sem_post(glb_button_pressed_mux);
         }   
 
-        curr_state = STATE_OFF;
-        break;   
-
+        // next state -> STATE_OFF
+        curr_state = STATE_OFF;  
+        break;     
       }
 
       // STATE_ACK_ON -
@@ -954,7 +1027,7 @@ void actuate_task() {
             push(&cmd_tx_queue, &tx_packet);
           }
 
-          nrk_sem_post(cmd_tx_queue_mux);
+          nrk_sem_post(cmd_tx_queue_mux);               
         }
 
         // update global outlet state
@@ -967,10 +1040,11 @@ void actuate_task() {
             glb_button_pressed = FALSE;
           }
           nrk_sem_post(glb_button_pressed_mux);
-        } 
+        }   
 
-        curr_state = STATE_ON;
-        break;
+        // next state -> STATE_ON
+        curr_state = STATE_ON;    
+        break;    
       }
     }
 
