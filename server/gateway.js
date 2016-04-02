@@ -113,17 +113,19 @@ function handleActionAckMessage(macAddress, payload) {
  */
 function handleHandshakeAckMessage(macAddress, payload) {
 	var payloadValues = payload.split(',');
-	if (payloadValues.length < 1) {
+	if (payloadValues.length < 2) {
 		return Promise.reject(new Error('Invalid payload' + payload));
 	}
-	var hardwareVersion = payloadValues[0];
-	return Outlet.find({mac_address: macAddress}).exec()
+	var newMacAddress		= payloadValues[0]
+	var hardwareVersion = payloadValues[1];
+
+	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length > 0) {
-	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
+	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
 	    }
 	    var outlet = new Outlet({
-	    	mac_address: macAddress,
+	    	mac_address: newMacAddress,
 	    	hardware_version: hardwareVersion});
 	    return outlet.save();
 	  }).then( outlet => {
