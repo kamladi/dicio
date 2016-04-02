@@ -117,7 +117,13 @@ function handleHandshakeAckMessage(macAddress, payload) {
 		return Promise.reject(new Error('Invalid payload' + payload));
 	}
 	var newMacAddress		= payloadValues[0]
-	var hardwareVersion = payloadValues[1];
+	var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
+	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
+	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
+	// left-pad second value
+	var hardwareVersion = hardwareVersion1 +
+		((hardwareVersion2.length < 2) ? ('0'+hardwareVersion2) : hardwareVersion2);
+	console.log(`hardwareVersion: ${hardwareVersion}`);
 
 	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
