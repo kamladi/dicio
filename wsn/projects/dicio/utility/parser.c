@@ -76,9 +76,9 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     uint8_t temp_buf[MAX_BUF_SIZE];
 
     parsed_packet->source_id = src[0];
-    parsed_packet->seq_num = src[1];
-    parsed_packet->type = src[2];
-    parsed_packet->num_hops = src[3];
+    parsed_packet->seq_num = (src[1] << 8) | (src[2]);
+    parsed_packet->type = src[3];
+    parsed_packet->num_hops = src[4];
 
     /*
     Payload has not been parsed into packet.
@@ -90,29 +90,29 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     {
         case MSG_CMD:
         {
-            parsed_packet->payload[CMD_ID_INDEX] = src[4];
-            parsed_packet->payload[CMD_ID_INDEX+1] = src[5];
-            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[6];
-            parsed_packet->payload[CMD_ACT_INDEX] = src[7];
+            parsed_packet->payload[CMD_ID_INDEX] = src[5];
+            parsed_packet->payload[CMD_ID_INDEX+1] = src[6];
+            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
+            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
             break;
         }
 
         case MSG_DATA:
         {
-            parsed_packet->payload[DATA_PWR_INDEX] = src[4];
-            parsed_packet->payload[DATA_PWR_INDEX+1] = src[5];
-            parsed_packet->payload[DATA_TEMP_INDEX] = src[6];
-            parsed_packet->payload[DATA_TEMP_INDEX+1] = src[7];
-            parsed_packet->payload[DATA_LIGHT_INDEX] = src[8];
-            parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[9];
+            parsed_packet->payload[DATA_PWR_INDEX] = src[5];
+            parsed_packet->payload[DATA_PWR_INDEX+1] = src[6];
+            parsed_packet->payload[DATA_TEMP_INDEX] = src[7];
+            parsed_packet->payload[DATA_TEMP_INDEX+1] = src[8];
+            parsed_packet->payload[DATA_LIGHT_INDEX] = src[9];
+            parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[10];
             //printf("payload:%d,%d,%d\r\n", src[4],src[6],src[8]);
             break;
         }
 
         case MSG_CMDACK:
         {
-            parsed_packet->payload[CMDACK_ID_INDEX] = src[4];
-            parsed_packet->payload[CMDACK_ID_INDEX+1] = src[5];
+            parsed_packet->payload[CMDACK_ID_INDEX] = src[5];
+            parsed_packet->payload[CMDACK_ID_INDEX+1] = src[6];
             break;
         }
 
@@ -124,7 +124,7 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 
         case MSG_HANDACK: // received hand ack
         {
-            parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[4];
+            parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[5];
             break;
         }
 
