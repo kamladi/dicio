@@ -61,6 +61,7 @@ NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_index = 0;
+uint8_t serv_tx_index = 0;
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_index = 0;
 nrk_sem_t* net_tx_buf_mux;
@@ -101,7 +102,7 @@ int main () {
   nrk_led_clr(3);
 
   // print flag
-  print_incoming = TRUE;
+  print_incoming = FALSE;
 
   // mutexs
   net_tx_buf_mux    = nrk_sem_create(1, 6);
@@ -151,7 +152,7 @@ uint8_t get_server_input() {
 
     // print if appropriate
     if(print_incoming == TRUE) {
-      printf("!%c", option);
+      printf("!%d", option);
     }
 
     // message has been completed
@@ -582,7 +583,11 @@ void tx_serv_task() {
       assemble_serv_packet(&serv_tx_buf, &tx_packet);
 
       // send the packet
-      printf("%s\r\n", serv_tx_buf);
+      //for (uint8_t x = 0; x < serv_tx_index; x++)
+      //{
+        printf("%s", serv_tx_buf);
+      //}
+      printf("\r\n");
     }
 
     nrk_wait_until_next_period();
