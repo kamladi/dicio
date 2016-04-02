@@ -4,6 +4,7 @@
  */
 'use strict';
 import React, {
+	AlertIOS,
   AppRegistry,
   Component,
   NavigatorIOS,
@@ -20,6 +21,7 @@ import {EventListView} from './src/components/EventListView';
 import {EventDetailView} from './src/components/EventDetailView';
 import OutletActions from './src/actions/OutletActions';
 import EventActions from './src/actions/EventActions';
+import {WEBSOCKET_URL} from './src/lib/Constants';
 
 class dicio_ios extends Component {
 	constructor(props) {
@@ -27,6 +29,58 @@ class dicio_ios extends Component {
 		this.state = {
 			tab: 'outlets'
 		};
+		this.initWebSocket();
+	}
+
+	initWebSocket() {
+		// TODO: refactor this to another file/class
+		this.ws = new WebSocket(WEBSOCKET_URL);
+
+		this.ws.onopen = () => {
+			console.log('Websocket connection open.');
+		}
+
+		this.ws.onmessage = (e) => {
+			var data = JSON.parse(e.data);
+			if (!data.type) {
+				console.error(`unrecognized socket message: ${e.data}`);
+			}
+			if (data.type === 'NEWNODE' && data.outlet_id && data.outlet_name) {
+				console.log(`NEW NODE: ${data.outlet_name}`);
+				// Handler function for when user taps 'OK' on new outlet notification.
+				var onNewOutletNameChosen = (newName) => {
+					console.log('OK Pressed');
+					OutletActions.updateOutletName(data.outlet_id, newName)
+						.then(() => OutletActions.fetchOutlets())
+						.catch(console.error);
+				}
+
+				// Prompt user for a new name for the new outlet.
+				AlertIOS.prompt(
+					'New outlet discovered!', // Title text
+					'Choose a name:', // Label above text field
+					[
+						{text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
+						{text: 'OK', onPress: onNewOutletNameChosen, style: 'cancel'},
+					],
+					'plain-text',
+					data.outlet_name // Default value for text field
+					);
+			} else if (data.type === 'LOSTNODE' && data.outlet_id && data.outlet_name) {
+				console.log(`LOST NODE: ${data.outlet_name}`);
+				AlertIOS.alert(`Lost Connection to outlet: ${data.outlet_name}`);
+			} else {
+				console.error(`unrecognized socket message: ${data}`);
+			}
+		}
+
+		this.ws.onerror = (err) => {
+			console.error(err);
+		}
+
+		this.ws.onclose = (data) => {
+			console.log('Websocket connection closed.');
+		}
 	}
 
 	render() {
