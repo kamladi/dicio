@@ -28,7 +28,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
 
         case MSG_DATA:
         {
-            sprintf(tx_buf, "%d:%d:%d:%d:%d,%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+            sprintf(tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
 
                 (uint16_t)tx->payload[DATA_PWR_INDEX], (uint16_t)tx->payload[DATA_TEMP_INDEX],
                  (uint16_t)tx->payload[DATA_LIGHT_INDEX], tx->payload[DATA_STATE_INDEX]);

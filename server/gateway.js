@@ -65,15 +65,15 @@ function handleSensorDataMessage(macAddress, payload) {
   var sensorValues = payload.split(',').map(value => parseInt(value));
 
   // We're expecting five values: power, temp, light, (eventually status).
-  if (sensorValues.length !== 3) {
-    throw new Error(`Not enough sensor values in packet: ${sensorValues}`);
+  if (sensorValues.length !== 4) {
+    throw new Error(`Invalid number of sensor values in packet: ${sensorValues}`);
   }
 
   // Get data values from payload.
   var power = sensorValues[0];
       temperature = sensorValues[1],
       light = sensorValues[2],
-      status = sensorValues[3];
+      status = (sensorValues[3] === 0) ? 'OFF' : 'ON';
 
   // TODO: Trigger events as necessary.
   return saveSensorData(macAddress, power, temperature, light, status);
@@ -95,7 +95,7 @@ function handleActionAckMessage(macAddress, payload) {
 	    // Parse sensor data, convert to ints
   		var payloadValues = payload.split(',').map(value => parseInt(value));
   		if (payloadValues.length < 2) {
-  			throw New Error(`Not enough sensor values in packet: ${payloadValues}`);
+  			throw new Error(`Not enough sensor values in packet: ${payloadValues}`);
   		}
 
   		var status = payloadValues[1];
@@ -221,9 +221,10 @@ function sendAction(outletMacAddress, action) {
       var cmdIdLower = commandId & 0xFF;
       var cmdIdUpper = (commandId >> 8) & 0xFF;
 
+
       // 0x0D is the integer value for '\r' (carriage return)
       var packet = new Buffer([
-      	sourceMacAddr, seqNum, msgType, numHops,
+      	sourceMacAddr, 0, 0, msgType, numHops,
       	cmdIdUpper, cmdIdLower, destOutletAddr, action, 0x0D
       ]);
       console.log("Packet to be sent: ", packet);

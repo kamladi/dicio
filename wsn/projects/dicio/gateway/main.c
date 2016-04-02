@@ -102,7 +102,7 @@ int main () {
   nrk_led_clr(3);
 
   // print flag
-  print_incoming = TRUE;
+  print_incoming = FALSE;
 
   // mutexs
   net_tx_buf_mux    = nrk_sem_create(1, 6);

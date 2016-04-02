@@ -136,7 +136,7 @@ int main()
 
   // flags
 
-  print_incoming      = FALSE;
+  print_incoming      = TRUE;
   network_joined      = FALSE;
   global_outlet_state = OFF;
   glb_button_pressed  = FALSE;
@@ -667,9 +667,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(network_joined_mux); {
-        //local_network_joined = network_joined;
-        network_joined = TRUE;
-        local_network_joined = TRUE;
+        local_network_joined = network_joined;
+        //network_joined = TRUE;
+        //local_network_joined = TRUE;
       }
       nrk_sem_post(network_joined_mux);
 
