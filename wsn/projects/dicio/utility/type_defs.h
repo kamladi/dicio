@@ -41,7 +41,8 @@
 #define ON 1
 #define OFF 0
 #define ACT_NONE -1
-#define BTN_ACT 0
+#define BUTTON_PRESSED 0
+#define BUTTON_RELEASED 1
 
 // buffers/messages
 #define MAX_BUF_SIZE 24
