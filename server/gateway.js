@@ -5,7 +5,7 @@ var Event      = require('./models/Event');
 var WS 			= require('./websockets');
 
 // Constants
-const DEFAULT_SERIAL_PORT = '/dev/tty.usbserial-AE00BUMD';
+const DEFAULT_SERIAL_PORT = '/dev/ttty.usbserial-AM017Y3E';
 const BAUD_RATE = 115200;
 const OUTLET_SENSOR_MESSAGE         = 5;
 const OUTLET_ACTION_MESSAGE         = 6;
