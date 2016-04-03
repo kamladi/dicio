@@ -1,8 +1,8 @@
-var Outlet          = require('../models/Outlet');
-var ObjectId        = require('mongoose').Types.ObjectId;
-var utils           = require('../lib/utils');
 var BadRequestError = utils.BadRequestError;
-var Gateway         = require('../gateway');
+var Gateway         = require('../Gateway');
+var ObjectId        = require('mongoose').Types.ObjectId;
+var Outlet          = require('../models/Outlet');
+var utils           = require('../lib/utils');
 
 /*
  * Returns a list of all outlet names and id's

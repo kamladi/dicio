@@ -1,8 +1,8 @@
+var app     = require('./app');
 var db      = require('./db');
-var gateway = require('./gateway');
+var Gateway = require('./Gateway');
 var http 		= require('http');
 var WS 			= require('./websockets');
-var app     = require('./app');
 
 // Connect to database
 db.connect();
@@ -17,7 +17,7 @@ if (process.argv.length >= 3) {
 }
 
 // Start serial port handler
-gateway.start(port);
+Gateway.start(port);
 
 var server = http.createServer();
 

@@ -1,8 +1,8 @@
-var SP         = require('serialport');
-var SerialPort = SP.SerialPort;
-var Outlet     = require('./models/Outlet');
 var Event      = require('./models/Event');
-var WS 			= require('./websockets');
+var Outlet     = require('./models/Outlet');
+var SerialPort = SP.SerialPort;
+var SP         = require('serialport');
+var WS 				 = require('./websockets');
 
 // Constants
 const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
