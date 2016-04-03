@@ -23,6 +23,7 @@
 // this package
 #include <assembler.h>
 #include <dicio_spi.h>
+#include <power_sensor.h>
 #include <packet_queue.h>
 #include <parser.h>
 #include <pool.h>
@@ -118,7 +119,8 @@ int main()
   // setup ports/uart
   nrk_setup_ports();
   nrk_setup_uart(UART_BAUDRATE_115K2);
-  SPI_MasterInit();
+  SPI_Init();
+  pwr_init();
 
   nrk_init ();
   nrk_time_set (0, 0);
@@ -300,7 +302,7 @@ void rx_msg_task() {
                 break;
               }
               // gateway message -> for future expansion
-              case MSG_GATEWAY:{
+              case MSG_GATEWAY: {
                 // do nothing...no messages have been defined with this type yet
                 break;                
               }
@@ -510,6 +512,7 @@ void sample_task() {
   uint8_t local_network_joined = FALSE;
   int8_t val, chan;
   uint16_t adc_buf[2];
+  uint8_t pwr_rcvd[3];
 
   printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
@@ -546,20 +549,16 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
-        uint8_t s[3];
-        uint8_t r[3];
-        s[0] = 0x33;
-        s[1] = 0x99;
-        s[2] = 0xAA;
-        //TODO: SAMPLE POWER SENSOR
-        local_pwr_val++;
+        // requrest temperature
+        pwr_read(TEMPERATURE, &pwr_rcvd);
+
+        // pull out dinner location
+        local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
         sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
 
-        printf("SPI Send: %x%x%x\r\n", s[0], s[1], s[2]);
-        SPI_SendMessage(&s, &r, 3);
-        printf("SPI Recv: %x%x%x\r\n", r[0], r[1], r[2]);
-
+        // for debug -> print
+        printf("%x\r\n", local_pwr_val);
       }
 
       // sample temperature sensor if appropriate
@@ -936,6 +935,11 @@ void actuate_task() {
   }
 }
 
+void SPI_Init() {
+  SPI_MasterInit();
+  SPI_SlaveInit(PWR_CS);
+}
+
 void nrk_set_gpio() {
   nrk_gpio_direction(ON_COIL, NRK_PIN_OUTPUT);
   nrk_gpio_direction(OFF_COIL, NRK_PIN_OUTPUT);
@@ -976,7 +980,7 @@ void nrk_create_taskset ()
   BUTTON_TASK.Type = BASIC_TASK;
   BUTTON_TASK.SchType = PREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
-  BUTTON_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  BUTTON_TASK.period.nano_secs = 25*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
   BUTTON_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
   BUTTON_TASK.offset.secs = 0;
