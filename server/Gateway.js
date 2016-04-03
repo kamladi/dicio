@@ -120,9 +120,9 @@ function handleHandshakeAckMessage(macAddress, payload) {
 	}
 	var newMacAddress		= payloadValues[0]
 
-    // Next two payload values are the upper and lower halves of the hardware version string
-    // (converting each number to hexadecimal strings
-    var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
+  // Next two payload values are the upper and lower halves of the hardware version string
+  // (converting each number to hexadecimal strings
+  var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
 	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
 	// Left-pad second value with zeros
 	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
