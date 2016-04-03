@@ -5,15 +5,17 @@ var Event      = require('./models/Event');
 var WS 			= require('./websockets');
 
 // Constants
-const DEFAULT_SERIAL_PORT = '/dev/ttty.usbserial-AM017Y3E';
-const BAUD_RATE = 115200;
-const OUTLET_SENSOR_MESSAGE         = 5;
-const OUTLET_CMD_MESSAGE         		= 6;
-const OUTLET_CMD_ACK_MESSAGE     		= 7;
-const OUTLET_HANDSHAKE_MESSAGE      = 8;
-const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
-const OUTLET_LOST_NODE_MESSAGE 			= 10;
-const MAX_COMMAND_ID_NUM						= 65536;
+const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
+const BAUD_RATE             = 115200;
+const MAX_COMMAND_ID    = 65536;
+
+// Message Types
+const SENSOR_MESSAGE        = 5;
+const ACTION_MESSAGE        = 6;
+const ACTION_ACK_MESSAGE    = 7;
+const HANDSHAKE_MESSAGE     = 8;
+const HANDSHAKE_ACK_MESSAGE = 9;
+const LOST_NODE_MESSAGE     = 10;
 
 // Globals
 var gSerialPort = null;
@@ -191,13 +193,13 @@ function handleData(data) {
 	    payload = components[4];
 
 	switch(msgId) {
-		case OUTLET_SENSOR_MESSAGE:
+		case SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_CMD_ACK_MESSAGE:
+		case ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
-		case OUTLET_HANDSHAKE_ACK_MESSAGE:
+		case HANDSHAKE_ACK_MESSAGE:
     	return handleHandshakeAckMessage(macAddress, payload);
-    case OUTLET_LOST_NODE_MESSAGE:
+    case LOST_NODE_MESSAGE:
     	return handleLostNodeMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
@@ -224,15 +226,15 @@ function sendAction(outletMacAddress, action) {
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${OUTLET_CMD_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:0:${ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       var sourceMacAddr = 0x0,
       		seqNum = 0x0,
-      		msgType = OUTLET_CMD_MESSAGE,
+      		msgType = ACTION_MESSAGE,
       		numHops = 0x0,
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
       // increment command ID
-      gCommandId = (gCommandId + 1) % MAX_COMMAND_ID_NUM;
+      gCommandId = (gCommandId + 1) % MAX_COMMAND_ID;
 
       // split command id into two bytes
       var cmdIdLower = gCommandId & 0xFF;
