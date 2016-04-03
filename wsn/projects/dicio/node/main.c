@@ -564,8 +564,9 @@ void sample_task() {
 
   // Open ADC device as read
   g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-  if(g_adc_fd == NRK_ERROR)
+  if(g_adc_fd == NRK_ERROR) {
     nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+  }
 
   while (1) {
     if(local_network_joined == TRUE) {
@@ -662,9 +663,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(g_network_joined_mux); {
-        //local_network_joined = g_network_joined;
-        g_network_joined = TRUE;
-        local_network_joined = TRUE;
+        local_network_joined = g_network_joined;
+        //g_network_joined = TRUE;
+        //local_network_joined = TRUE;
       }
       nrk_sem_post(g_network_joined_mux);
 
