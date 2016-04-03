@@ -16,15 +16,15 @@ const OUTLET_LOST_NODE_MESSAGE 			= 10;
 const MAX_COMMAND_ID_NUM						= 65536;
 
 // Globals
-var serialPort = null;
-var commandId = 2048;
+var gSerialPort = null;
+var gCommandId = 0;
 
 /*
  * Returns True if we have made a successful connection to the gateway,
  * False otherwise.
  */
 function isConnected() {
-	return serialPort && serialPort.isOpen();
+	return gSerialPort && gSerialPort.isOpen();
 }
 
 
@@ -232,11 +232,11 @@ function sendAction(outletMacAddress, action) {
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
       // increment command ID
-      commandId = (commandId + 1) % MAX_COMMAND_ID_NUM;
+      gCommandId = (gCommandId + 1) % MAX_COMMAND_ID_NUM;
 
       // split command id into two bytes
-      var cmdIdLower = commandId & 0xFF;
-      var cmdIdUpper = (commandId >> 8) & 0xFF;
+      var cmdIdLower = gCommandId & 0xFF;
+      var cmdIdUpper = (gCommandId >> 8) & 0xFF;
 
 
       // 0x0D is the integer value for '\r' (carriage return)
@@ -246,11 +246,11 @@ function sendAction(outletMacAddress, action) {
       ]);
       console.log("Packet to be sent: ", packet);
 
-      serialPort.write(packet, (err) => {
+      gSerialPort.write(packet, (err) => {
         if (err) {
           return reject(err);
         } else {
-	      	serialPort.drain((err) => {
+	      	gSerialPort.drain((err) => {
 	      		if(err){
 	      			return reject(err);
 	      		} else {
@@ -275,24 +275,24 @@ function start(port) {
 	}
 
 	// Init serial port connection
-	serialPort = new SerialPort(port, {
+	gSerialPort = new SerialPort(port, {
 	    baudRate: BAUD_RATE,
 	    parser: SP.parsers.readline("\r")
 	});
 
 	// Listen for "open" event form serial port
-	serialPort.on('open', () => {
+	gSerialPort.on('open', () => {
 	    console.log('Serial Port opened');
 
 	    // Listen for "data" event from serial port
-	    serialPort.on('data', handleData);
+	    gSerialPort.on('data', handleData);
 	});
 
-	serialPort.on('error', (err) => {
+	gSerialPort.on('error', (err) => {
 		console.error('Serial Port Error: ', err);
 	});
 
-	serialPort.on('close', () => {
+	gSerialPort.on('close', () => {
 		console.log('Serial Port connection closed.');
 	});
 };
