@@ -113,29 +113,31 @@ function handleActionAckMessage(macAddress, payload) {
  */
 function handleHandshakeAckMessage(macAddress, payload) {
 	var payloadValues = payload.split(',');
-	if (payloadValues.length < 2) {
+	if (payloadValues.length < 3) {
 		return Promise.reject(new Error('Invalid payload' + payload));
 	}
 	var newMacAddress		= payloadValues[0]
-	var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
+
+    // Next two payload values are the upper and lower halves of the hardware version string
+    // (converting each number to hexadecimal strings
+    var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
 	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
+	// Left-pad second value with zeros
 	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
-	// left-pad second value
-	var hardwareVersion = hardwareVersion1 +
-		((hardwareVersion2.length < 2) ? ('0'+hardwareVersion2) : hardwareVersion2);
-	console.log(`hardwareVersion: ${hardwareVersion}`);
+	var hardwareVersion = hardwareVersion1 + hardwareVersion2;
 
 	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length > 0) {
 	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
 	    }
+        // Create new outlet object
 	    var outlet = new Outlet({
 	    	mac_address: newMacAddress,
 	    	hardware_version: hardwareVersion});
 	    return outlet.save();
 	  }).then( outlet => {
-	    // Send socket mesage to app announcing new node
+	    // Send socket mesage to app announcing new outlet
 	    return WS.sendNewNodeMessage(outlet._id, outlet.name);
 	  }).catch(console.error);
 }
