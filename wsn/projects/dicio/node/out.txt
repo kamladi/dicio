@@ -52,123 +52,133 @@ In file included from /opt/local/avr/include/avr/io.h:164:0,
  #define PF1                             1
  ^
 main.c: In function ‘main’:
-main.c:122:3: warning: implicit declaration of function ‘SPI_Init’ [-Wimplicit-function-declaration]
+main.c:126:3: warning: implicit declaration of function ‘SPI_Init’ [-Wimplicit-function-declaration]
    SPI_Init();
    ^
-main.c:123:3: warning: implicit declaration of function ‘pwr_init’ [-Wimplicit-function-declaration]
+main.c:127:3: warning: implicit declaration of function ‘pwr_init’ [-Wimplicit-function-declaration]
    pwr_init();
    ^
 main.c: In function ‘rx_msg_task’:
-main.c:222:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
-       parse_msg(&rx_packet, &net_rx_buf, len);
+main.c:253:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
+       parse_msg(&rx_packet, &g_net_rx_buf, len);
        ^
 In file included from main.c:28:0:
 ../../../projects/dicio/utility/parser.h:16:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
  void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
       ^
-main.c:223:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
+main.c:254:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
        local_buf = bmac_rx_pkt_get(&len, &rssi);
                    ^
 In file included from main.c:22:0:
 ../../../src/net/bmac/bmac.h:119:10: note: expected ‘int8_t *’ but argument is of type ‘uint8_t *’
  uint8_t *bmac_rx_pkt_get(uint8_t *len, int8_t *rssi);
           ^
-main.c:201:12: warning: variable ‘local_buf’ set but not used [-Wunused-but-set-variable]
+main.c:232:12: warning: variable ‘local_buf’ set but not used [-Wunused-but-set-variable]
    uint8_t *local_buf;
             ^
-main.c:198:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+main.c:229:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
    uint8_t LED_FLAG = 0;
            ^
 main.c: In function ‘tx_cmd_task’:
-main.c:401:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
-           net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+main.c:432:28: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+           g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+                            ^
+In file included from main.c:24:0:
+../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
+         ^
+main.c:387:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
+   uint8_t local_network_joined = FALSE;
+           ^
+main.c:382:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+   uint16_t val;
+            ^
+main.c:381:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: In function ‘tx_data_task’:
+main.c:512:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
                           ^
 In file included from main.c:24:0:
 ../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
  uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
          ^
-main.c:356:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
+main.c:463:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
    uint8_t local_network_joined = FALSE;
            ^
-main.c:351:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+main.c:458:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
    uint16_t val;
             ^
-main.c:350:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
-   uint8_t LED_FLAG = 0;
-           ^
-main.c: In function ‘tx_data_task’:
-main.c:481:24: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
-         net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
-                        ^
-In file included from main.c:24:0:
-../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
- uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
-         ^
-main.c:432:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
-   uint8_t local_network_joined = FALSE;
-           ^
-main.c:427:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
-   uint16_t val;
-            ^
-main.c:426:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+main.c:457:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
    uint8_t LED_FLAG = 0;
            ^
 main.c: In function ‘sample_task’:
-main.c:552:32: error: ‘rcrv’ undeclared (first use in this function)
-         pwr_read(TEMPERATURE, &rcrv);
-                                ^
-main.c:552:32: note: each undeclared identifier is reported only once for each function it appears in
-main.c:567:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
-           val = nrk_read(adc_fd, &adc_buf[0],2);
+main.c:575:7: error: ‘light_period_count’ undeclared (first use in this function)
+       light_period_count++;
+       ^
+main.c:575:7: note: each undeclared identifier is reported only once for each function it appears in
+main.c:584:9: warning: passing argument 2 of ‘pwr_read’ from incompatible pointer type
+         pwr_read(TEMPERATURE, &pwr_rcvd);
+         ^
+In file included from main.c:26:0:
+../../../projects/dicio/drivers/power_sensor.h:96:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[3]’
+ void pwr_read(uint16_t reg, uint8_t *read_buf);
+      ^
+main.c:602:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
+           val = nrk_read(g_adc_fd, &adc_buf[0],2);
                  ^
 In file included from main.c:20:0:
 ../../../src/kernel/include/nrk_driver.h:67:8: note: expected ‘uint8_t *’ but argument is of type ‘uint16_t *’
  int8_t nrk_read(uint8_t dev_fd,uint8_t *buffer,uint8_t size);
         ^
-main.c:590:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
-           val = nrk_read(adc_fd, &adc_buf[1],2);
+main.c:627:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
+           val = nrk_read(g_adc_fd, &adc_buf[1],2);
                  ^
 In file included from main.c:20:0:
 ../../../src/kernel/include/nrk_driver.h:67:8: note: expected ‘uint8_t *’ but argument is of type ‘uint16_t *’
  int8_t nrk_read(uint8_t dev_fd,uint8_t *buffer,uint8_t size);
         ^
-main.c:513:15: warning: unused variable ‘chan’ [-Wunused-variable]
+main.c:544:15: warning: unused variable ‘chan’ [-Wunused-variable]
    int8_t val, chan;
                ^
-main.c:503:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+main.c:537:11: warning: unused variable ‘g_light_period_count’ [-Wunused-variable]
+   uint8_t g_light_period_count = 0;
+           ^
+main.c:534:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
    uint8_t LED_FLAG = 0;
            ^
 main.c: In function ‘actuate_task’:
-main.c:870:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+main.c:914:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
          if(local_button_pressed = TRUE) {
          ^
-main.c:910:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+main.c:959:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
          if(local_button_pressed = TRUE) {
          ^
-main.c:725:11: warning: unused variable ‘btn_val’ [-Wunused-variable]
+main.c:764:11: warning: unused variable ‘btn_val’ [-Wunused-variable]
    uint8_t btn_val;
            ^
-main.c:723:25: warning: unused variable ‘act_required’ [-Wunused-variable]
+main.c:762:25: warning: unused variable ‘act_required’ [-Wunused-variable]
    uint8_t ack_required, act_required;
                          ^
-main.c:723:11: warning: unused variable ‘ack_required’ [-Wunused-variable]
+main.c:762:11: warning: unused variable ‘ack_required’ [-Wunused-variable]
    uint8_t ack_required, act_required;
            ^
-main.c:720:11: warning: unused variable ‘ACT_FLAG’ [-Wunused-variable]
+main.c:759:11: warning: unused variable ‘ACT_FLAG’ [-Wunused-variable]
    uint8_t ACT_FLAG = 0;
            ^
-main.c:719:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+main.c:758:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
    uint8_t LED_FLAG = 0;
            ^
 main.c: At top level:
-main.c:934:6: warning: conflicting types for ‘SPI_Init’
+main.c:983:6: warning: conflicting types for ‘SPI_Init’
  void SPI_Init() {
       ^
-main.c:122:3: note: previous implicit declaration of ‘SPI_Init’ was here
+main.c:126:3: note: previous implicit declaration of ‘SPI_Init’ was here
    SPI_Init();
    ^
 main.c: In function ‘SPI_Init’:
-main.c:936:3: warning: implicit declaration of function ‘SPI_SlaveInit’ [-Wimplicit-function-declaration]
+main.c:985:3: warning: implicit declaration of function ‘SPI_SlaveInit’ [-Wimplicit-function-declaration]
    SPI_SlaveInit(PWR_CS);
    ^
 make: *** [main.o] Error 1
