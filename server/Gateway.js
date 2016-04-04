@@ -1,30 +1,32 @@
-var SP         = require('serialport');
-var SerialPort = SP.SerialPort;
-var Outlet     = require('./models/Outlet');
 var Event      = require('./models/Event');
-var WS 			= require('./websockets');
+var Outlet     = require('./models/Outlet');
+var SP         = require('serialport');
+var WS 				 = require('./websockets');
 
 // Constants
-const DEFAULT_SERIAL_PORT = '/dev/ttty.usbserial-AM017Y3E';
-const BAUD_RATE = 115200;
-const OUTLET_SENSOR_MESSAGE         = 5;
-const OUTLET_CMD_MESSAGE         		= 6;
-const OUTLET_CMD_ACK_MESSAGE     		= 7;
-const OUTLET_HANDSHAKE_MESSAGE      = 8;
-const OUTLET_HANDSHAKE_ACK_MESSAGE  = 9;
-const OUTLET_LOST_NODE_MESSAGE 			= 10;
-const MAX_COMMAND_ID_NUM						= 65536;
+const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
+const BAUD_RATE             = 115200;
+const MAX_COMMAND_ID    = 65536;
+const SerialPort = SP.SerialPort;
+
+// Message Types
+const SENSOR_MESSAGE        = 5;
+const ACTION_MESSAGE        = 6;
+const ACTION_ACK_MESSAGE    = 7;
+const HANDSHAKE_MESSAGE     = 8;
+const HANDSHAKE_ACK_MESSAGE = 9;
+const LOST_NODE_MESSAGE     = 10;
 
 // Globals
-var serialPort = null;
-var commandId = 2048;
+var gSerialPort = null;
+var gCommandId = 0;
 
 /*
  * Returns True if we have made a successful connection to the gateway,
  * False otherwise.
  */
 function isConnected() {
-	return serialPort && serialPort.isOpen();
+	return gSerialPort && gSerialPort.isOpen();
 }
 
 
@@ -112,16 +114,49 @@ function handleActionAckMessage(macAddress, payload) {
  * And send a websocket message to the app to notify the user.
  */
 function handleHandshakeAckMessage(macAddress, payload) {
-	return Outlet.find({mac_address: macAddress}).exec()
+	var payloadValues = payload.split(',');
+	if (payloadValues.length < 3) {
+		return Promise.reject(new Error('Invalid payload: ' + payload));
+	}
+	var newMacAddress = payloadValues[0];
+
+  // Next two payload values are the upper and lower halves of the hardware version string
+  // (converting each number to hexadecimal strings
+  var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
+	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
+	// Left-pad second value with zeros (result should be 4 characters long)
+	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
+	var hardwareVersion = hardwareVersion1 + hardwareVersion2;
+
+	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length > 0) {
-	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + macAddress);
+	    	// if outlet already exists, update hardware version, and
+	    	//  mark outlet as active again.
+	    	var existingOutlet = outlets[0];
+	    	existingOutlet.hardware_version = hardwareVersion;
+	    	existingOutlet.active = true;
+	    	return existingOutlet.save()
+	    		.then( outlet => {
+				    // Send socket mesage to app announcing outlet has become
+				    // active again
+				    // TODO: Should we deal with the case where we receive a HAND-ACK
+				    // message for an outlet that is already active/connected?
+				    return WS.sendActiveNodeMessage(outlet._id, outlet.name);
+				  });
 	    }
-	    var outlet = new Outlet({mac_address: macAddress});
-	    return outlet.save();
-	  }).then( outlet => {
-	    // Send socket mesage to app announcing new node
-	    return WS.sendNewNodeMessage(outlet._id, outlet.name);
+
+      // Create new outlet object
+	    var outlet = new Outlet({
+	    	mac_address: newMacAddress,
+	    	hardware_version: hardwareVersion
+	    });
+
+	    return outlet.save()
+	    	.then( outlet => {
+			    // Send socket mesage to app announcing new outlet
+			    return WS.sendNewNodeMessage(outlet._id, outlet.name);
+			  });
 	  }).catch(console.error);
 }
 
@@ -174,13 +209,13 @@ function handleData(data) {
 	    payload = components[4];
 
 	switch(msgId) {
-		case OUTLET_SENSOR_MESSAGE:
+		case SENSOR_MESSAGE:
 			return handleSensorDataMessage(macAddress, payload);
-		case OUTLET_CMD_ACK_MESSAGE:
+		case ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
-		case OUTLET_HANDSHAKE_ACK_MESSAGE:
+		case HANDSHAKE_ACK_MESSAGE:
     	return handleHandshakeAckMessage(macAddress, payload);
-    case OUTLET_LOST_NODE_MESSAGE:
+    case LOST_NODE_MESSAGE:
     	return handleLostNodeMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
@@ -207,19 +242,19 @@ function sendAction(outletMacAddress, action) {
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${OUTLET_CMD_MESSAGE}:0:0,${outletMacAddress},${action},`;
+      var packet = `0:0:${ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       var sourceMacAddr = 0x0,
       		seqNum = 0x0,
-      		msgType = OUTLET_CMD_MESSAGE,
+      		msgType = ACTION_MESSAGE,
       		numHops = 0x0,
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
       // increment command ID
-      commandId = (commandId + 1) % MAX_COMMAND_ID_NUM;
+      gCommandId = (gCommandId + 1) % MAX_COMMAND_ID;
 
       // split command id into two bytes
-      var cmdIdLower = commandId & 0xFF;
-      var cmdIdUpper = (commandId >> 8) & 0xFF;
+      var cmdIdLower = gCommandId & 0xFF;
+      var cmdIdUpper = (gCommandId >> 8) & 0xFF;
 
 
       // 0x0D is the integer value for '\r' (carriage return)
@@ -229,11 +264,11 @@ function sendAction(outletMacAddress, action) {
       ]);
       console.log("Packet to be sent: ", packet);
 
-      serialPort.write(packet, (err) => {
+      gSerialPort.write(packet, (err) => {
         if (err) {
           return reject(err);
         } else {
-	      	serialPort.drain((err) => {
+	      	gSerialPort.drain((err) => {
 	      		if(err){
 	      			return reject(err);
 	      		} else {
@@ -258,24 +293,24 @@ function start(port) {
 	}
 
 	// Init serial port connection
-	serialPort = new SerialPort(port, {
+	gSerialPort = new SerialPort(port, {
 	    baudRate: BAUD_RATE,
 	    parser: SP.parsers.readline("\r")
 	});
 
 	// Listen for "open" event form serial port
-	serialPort.on('open', () => {
+	gSerialPort.on('open', () => {
 	    console.log('Serial Port opened');
 
 	    // Listen for "data" event from serial port
-	    serialPort.on('data', handleData);
+	    gSerialPort.on('data', handleData);
 	});
 
-	serialPort.on('error', (err) => {
+	gSerialPort.on('error', (err) => {
 		console.error('Serial Port Error: ', err);
 	});
 
-	serialPort.on('close', () => {
+	gSerialPort.on('close', () => {
 		console.log('Serial Port connection closed.');
 	});
 };

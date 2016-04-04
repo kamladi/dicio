@@ -43,14 +43,16 @@ void print_packet(packet *p)
 
         case MSG_HAND:
         {
-            printf("[payload:]\r\n");
+            printf("[payload:%d, %d, %d, %d]\r\n", payload[HAND_CONFIG_ID_INDEX], payload[HAND_CONFIG_ID_INDEX + 1],
+                payload[HAND_CONFIG_ID_INDEX + 2], payload[HAND_CONFIG_ID_INDEX + 3]);
             // what is the payload going to look like here?
             break;
         }
 
         case MSG_HANDACK:
         {
-            printf("[payload:%d]\r\n", payload[HANDACK_NODE_ID_INDEX]);
+            printf("[payload:%d, %d, %d, %d, %d]\r\n", payload[HANDACK_NODE_ID_INDEX], payload[HANDACK_CONFIG_ID_INDEX],
+                payload[HANDACK_CONFIG_ID_INDEX + 1], payload[HANDACK_CONFIG_ID_INDEX + 2], payload[HANDACK_CONFIG_ID_INDEX + 3]);
             break;
         }
 
@@ -75,7 +77,7 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     uint8_t temp_buf[MAX_BUF_SIZE];
 
     parsed_packet->source_id = src[0];
-    parsed_packet->seq_num = (src[2] << 8) | (src[1]);
+    parsed_packet->seq_num = (src[1] << 8) | (src[2]);
     parsed_packet->type = src[3];
     parsed_packet->num_hops = src[4];
 
@@ -119,6 +121,10 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 
         case MSG_HAND:
         {
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX] = src[5];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+1] = src[6];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+2] = src[7];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+3] = src[8];
             // no information is stored in payload
             break;
         }
@@ -126,6 +132,10 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
         case MSG_HANDACK: // received hand ack
         {
             parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[5];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX] = src[6];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+1] = src[7];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+2] = src[8];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+3] = src[9];
             break;
         }
 

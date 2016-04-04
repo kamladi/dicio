@@ -350,7 +350,7 @@ void rx_serv_task() {
       // update local sequence number
       //  g_server_seq_num = rx_packet.seq_num;
 
-      // Note: Right now the gateway is SETTING the server sequence number, making the 
+      // Note: Right now the gateway is SETTING the server sequence number, making the
       //  assumption that all messages from the server are unique and in order.
       rx_packet.seq_num = g_server_seq_num;
       g_server_seq_num++;
@@ -649,6 +649,11 @@ void hand_task() {
         g_seq_num++;
         tx_packet.seq_num = g_seq_num;
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
+
         print_packet(&tx_packet);
 
         // send response back to the node
@@ -659,7 +664,7 @@ void hand_task() {
 
         // forward the "hello" message from the node to the server
         nrk_sem_pend(g_serv_tx_queue_mux); {
-          push(&g_serv_tx_queue, &rx_packet);
+          push(&g_serv_tx_queue, &tx_packet);
         }
         nrk_sem_post(g_serv_tx_queue_mux);
       //}
