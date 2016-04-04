@@ -1,5 +1,5 @@
-var Outlet = require('./models/Outlet');
 var Event  = require('./models/Event');
+var Outlet = require('./models/Outlet');
 
 var outlets = [
 	{
