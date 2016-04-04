@@ -85,13 +85,15 @@ export class OutletListView extends Component {
   }
 
   renderRow(outlet) {
+    var titleStyle = (outlet.active) ? styles.title
+        : [styles.title,styles.inactive];
     return (
       <View key={outlet._id}>
         <TouchableHighlight
           style={styles.listItem}
           onPress={ () => this.onOutletPress(outlet)}
           underlayColor='#EEEEEE'>
-          <Text style={styles.title}>{outlet.name}</Text>
+          <Text style={titleStyle}>{outlet.name}</Text>
         </TouchableHighlight>
       </View>
     );
@@ -104,16 +106,6 @@ const styles = StyleSheet.create({
     padding: 30,
     marginTop: 65,
     backgroundColor: '#EEEEEE',
-  },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
   },
   listItem: {
     flex: 1,
@@ -130,6 +122,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginBottom: 8,
     textAlign: 'center',
+  },
+  inactive: {
+    color: '#999999'
   },
   listView: {
     flex: 1,

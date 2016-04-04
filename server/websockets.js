@@ -59,8 +59,18 @@ function sendLostNodeMessage(outlet_id, name) {
 	});
 }
 
+
+function sendActiveNodeMessage(outlet_id, name) {
+	return sendMessage({
+		type: 'ACTIVENODE',
+		outlet_id: outlet_id,
+		outlet_name: name
+	});
+}
+
 exports.init = init;
 exports.isConnected = isConnected;
 exports.sendNewNodeMessage = sendNewNodeMessage;
 exports.sendLostNodeMessage = sendLostNodeMessage;
+exports.sendActiveNodeMessage = sendActiveNodeMessage;
 

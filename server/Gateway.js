@@ -1,6 +1,5 @@
 var Event      = require('./models/Event');
 var Outlet     = require('./models/Outlet');
-var SerialPort = SP.SerialPort;
 var SP         = require('serialport');
 var WS 				 = require('./websockets');
 
@@ -8,6 +7,7 @@ var WS 				 = require('./websockets');
 const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
 const BAUD_RATE             = 115200;
 const MAX_COMMAND_ID    = 65536;
+const SerialPort = SP.SerialPort;
 
 // Message Types
 const SENSOR_MESSAGE        = 5;
@@ -116,31 +116,47 @@ function handleActionAckMessage(macAddress, payload) {
 function handleHandshakeAckMessage(macAddress, payload) {
 	var payloadValues = payload.split(',');
 	if (payloadValues.length < 3) {
-		return Promise.reject(new Error('Invalid payload' + payload));
+		return Promise.reject(new Error('Invalid payload: ' + payload));
 	}
-	var newMacAddress		= payloadValues[0]
+	var newMacAddress = payloadValues[0];
 
   // Next two payload values are the upper and lower halves of the hardware version string
   // (converting each number to hexadecimal strings
   var hardwareVersion1 = parseInt(payloadValues[1]).toString(16);
 	var hardwareVersion2 = parseInt(payloadValues[2]).toString(16);
-	// Left-pad second value with zeros
+	// Left-pad second value with zeros (result should be 4 characters long)
 	hardwareVersion2 = ('0000' + hardwareVersion2).slice(-4);
 	var hardwareVersion = hardwareVersion1 + hardwareVersion2;
 
 	return Outlet.find({mac_address: newMacAddress}).exec()
 	  .then( outlets => {
 	    if (outlets.length > 0) {
-	    	throw new Error("Handshake ack message received for existing outlet MAC address: " + newMacAddress);
+	    	// if outlet already exists, update hardware version, and
+	    	//  mark outlet as active again.
+	    	var existingOutlet = outlets[0];
+	    	existingOutlet.hardware_version = hardwareVersion;
+	    	existingOutlet.active = true;
+	    	return existingOutlet.save()
+	    		.then( outlet => {
+				    // Send socket mesage to app announcing outlet has become
+				    // active again
+				    // TODO: Should we deal with the case where we receive a HAND-ACK
+				    // message for an outlet that is already active/connected?
+				    return WS.sendActiveNodeMessage(outlet._id, outlet.name);
+				  });
 	    }
-        // Create new outlet object
+
+      // Create new outlet object
 	    var outlet = new Outlet({
 	    	mac_address: newMacAddress,
-	    	hardware_version: hardwareVersion});
-	    return outlet.save();
-	  }).then( outlet => {
-	    // Send socket mesage to app announcing new outlet
-	    return WS.sendNewNodeMessage(outlet._id, outlet.name);
+	    	hardware_version: hardwareVersion
+	    });
+
+	    return outlet.save()
+	    	.then( outlet => {
+			    // Send socket mesage to app announcing new outlet
+			    return WS.sendNewNodeMessage(outlet._id, outlet.name);
+			  });
 	  }).catch(console.error);
 }
 
