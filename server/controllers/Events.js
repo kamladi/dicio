@@ -1,7 +1,6 @@
+var BadRequestError = require('../lib/utils').BadRequestError;
 var Event           = require('../models/Event');
 var ObjectId        = require('mongoose').Types.ObjectId;
-var utils           = require('../lib/utils');
-var BadRequestError = utils.BadRequestError;
 
 /*
  * Returns a list of all event names and id's

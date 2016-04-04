@@ -28,8 +28,9 @@ SRC = $(TARGET).c
 SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/twi_base_calls.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c
+SRC += $(ROOT_DIR)/projects/dicio/drivers/dicio_spi.c
+SRC += $(ROOT_DIR)/projects/dicio/drivers/power_sensor.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
-SRC += $(ROOT_DIR)/projects/dicio/utility/dicio_spi.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/pool.c
@@ -40,6 +41,7 @@ EXTRAINCDIRS =
 EXTRAINCDIRS += $(ROOT_DIR)/src/net/bmac
 EXTRAINCDIRS += $(ROOT_DIR)/src/platform/$(PLATFORM_TYPE)/include
 EXTRAINCDIRS += $(ROOT_DIR)/projects/dicio/utility
+EXTRAINCDIRS += $(ROOT_DIR)/projects/dicio/drivers
 
 
 #  This is where the final compile and download happens

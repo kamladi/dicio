@@ -27,8 +27,6 @@ void print_packet(packet *p)
 
         case MSG_DATA:
         {
-            // TODO: I don't think this will print out 16bit data values properly,
-            // see above.
             uint16_t power = (payload[DATA_PWR_INDEX] << 8) | payload[DATA_PWR_INDEX+1];
             uint16_t temp = (payload[DATA_TEMP_INDEX] << 8) | payload[DATA_TEMP_INDEX+1];
             uint16_t light = (payload[DATA_LIGHT_INDEX] << 8) | payload[DATA_LIGHT_INDEX+1];
