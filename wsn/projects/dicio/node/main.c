@@ -572,7 +572,7 @@ void sample_task() {
   // Open ADC device as read
   g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
   if(g_adc_fd == NRK_ERROR) {
-    nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+    nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
   }
 
   while (1) {
@@ -589,7 +589,7 @@ void sample_task() {
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
         // requrest temperature
-        pwr_read(TEMPERATURE, &pwr_rcvd);
+        pwr_read(WATT, &pwr_rcvd);
 
         // pull out dinner location
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
