@@ -193,7 +193,7 @@ int main()
  * @return uint8_t current global outlet state (either ON or OFF)
  */
 uint8_t get_global_outlet_state() {
-  uint8_t outlet_state = 0;
+  uint8_t outlet_state = OFF;
   nrk_sem_pend(g_global_outlet_state_mux); {
     outlet_state = g_global_outlet_state;
   }
