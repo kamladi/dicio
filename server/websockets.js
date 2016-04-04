@@ -2,12 +2,12 @@ var WebSocket = require('ws');
 var WebSocketServer = WebSocket.Server;
 
 // Global reference to websocket server.
-var wss = null;
-var hasConnection = false;
+var gSocketServer = null;
+var gHasConnection = false;
 
 function onConnect(socket) {
 	console.log('New socket connection');
-	hasConnection = true;
+	gHasConnection = true;
 
 	socket.on('message', (message) => {
 		console.log(`Message from client: ${message}`);
@@ -15,22 +15,22 @@ function onConnect(socket) {
 }
 
 function init(server) {
-	wss = new WebSocketServer({server: server});
+	gSocketServer = new WebSocketServer({server: server});
 
-	wss.on('connection', onConnect);
+	gSocketServer.on('connection', onConnect);
 
-	wss.on('error', (err) => {
+	gSocketServer.on('error', (err) => {
 		console.error(err);
 	});
 
-	wss.on('close', (code, message) => {
+	gSocketServer.on('close', (code, message) => {
 		console.log('socket connection closed');
-		hasConnection = false;
+		gHasConnection = false;
 	});
 }
 
 function isConnected() {
-	return wss && hasConnection;
+	return gSocketServer && gHasConnection;
 }
 
 function sendMessage(message) {
@@ -38,7 +38,7 @@ function sendMessage(message) {
 		if (!isConnected()) {
 			return reject(new Error('Cannot send websocket message, client not connected'));
 		}
-		wss.clients.forEach(client => client.send(JSON.stringify(message)));
+		gSocketServer.clients.forEach(client => client.send(JSON.stringify(message)));
 		resolve(message);
 	}).catch(console.error);
 }
@@ -59,8 +59,18 @@ function sendLostNodeMessage(outlet_id, name) {
 	});
 }
 
+
+function sendActiveNodeMessage(outlet_id, name) {
+	return sendMessage({
+		type: 'ACTIVENODE',
+		outlet_id: outlet_id,
+		outlet_name: name
+	});
+}
+
 exports.init = init;
 exports.isConnected = isConnected;
 exports.sendNewNodeMessage = sendNewNodeMessage;
 exports.sendLostNodeMessage = sendLostNodeMessage;
+exports.sendActiveNodeMessage = sendActiveNodeMessage;
 

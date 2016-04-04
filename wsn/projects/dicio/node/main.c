@@ -31,6 +31,7 @@
 
 // DEFINES
 #define MAC_ADDR 3
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -107,7 +108,7 @@ pool_t g_seq_pool;
 uint16_t g_seq_num = 0;
 nrk_sem_t* g_seq_num_mux;
 
-// GLOBAL FLAGS 
+// GLOBAL FLAGS
 uint8_t g_print_incoming;
 uint8_t g_network_joined;
 nrk_sem_t* g_network_joined_mux;
@@ -561,6 +562,12 @@ void sample_task() {
   hello_packet.source_id = MAC_ADDR;
   hello_packet.type = MSG_HAND;
   hello_packet.num_hops = 0;
+  hello_packet.payload[0] = (HARDWARE_REV >> 24) & 0xff;
+  hello_packet.payload[1] = (HARDWARE_REV >> 16) & 0xff;
+  hello_packet.payload[2] = (HARDWARE_REV >> 8) & 0xff;
+  hello_packet.payload[3] = (HARDWARE_REV) & 0xff;
+
+  print_packet(&hello_packet);
 
   // Open ADC device as read
   g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
@@ -608,7 +615,7 @@ void sample_task() {
             g_sensor_pkt.temp_val = local_temp_val;
 
             sensor_sampled = TRUE;
-            printf("TEMP: %d\r\n", local_temp_val);        
+            printf("TEMP: %d\r\n", local_temp_val);
 
           }
         }
@@ -634,7 +641,7 @@ void sample_task() {
 
             sensor_sampled = TRUE;
             printf("LIGHT: %d\r\n", local_light_val);
-          }        
+          }
         }
       }
 
@@ -704,7 +711,7 @@ void button_task() {
 
   while(1) {
     switch(curr_state) {
-      // STATE_SNIFF: 
+      // STATE_SNIFF:
       //    - if the button gets pressed set the flag and switch states
       //    - otherwise, keep sniffing
       case STATE_SNIFF: {
@@ -739,8 +746,8 @@ void button_task() {
         if(nrk_gpio_get(BTN_IN) == BUTTON_RELEASED) {
           curr_state = STATE_SNIFF;
         }
-        // otherwise 
-        else { 
+        // otherwise
+        else {
           curr_state = STATE_WAIT;
         }
         break;
@@ -917,11 +924,11 @@ void actuate_task() {
             g_button_pressed = FALSE;
           }
           nrk_sem_post(g_button_pressed_mux);
-        }   
+        }
 
         // next state -> STATE_OFF
-        curr_state = STATE_OFF;  
-        break;     
+        curr_state = STATE_OFF;
+        break;
       }
 
       // STATE_ACK_ON -
@@ -949,7 +956,7 @@ void actuate_task() {
             push(&g_cmd_tx_queue, &tx_packet);
           }
 
-          nrk_sem_post(g_cmd_tx_queue_mux);               
+          nrk_sem_post(g_cmd_tx_queue_mux);
         }
 
         // update global outlet state
@@ -962,11 +969,11 @@ void actuate_task() {
             g_button_pressed = FALSE;
           }
           nrk_sem_post(g_button_pressed_mux);
-        }   
+        }
 
         // next state -> STATE_ON
-        curr_state = STATE_ON;    
-        break;    
+        curr_state = STATE_ON;
+        break;
       }
     }
 
