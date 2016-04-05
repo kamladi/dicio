@@ -1,11 +1,12 @@
+var bodyParser       = require('body-parser');
+var eventsCtrl       = require('./controllers/Events');
 var express          = require('express');
 var expressValidator = require('express-validator');
-var ObjectId         = require('mongoose').Types.ObjectId;
-var path             = require('path');
+var Gateway					 = require('./Gateway');
 var logger           = require('morgan');
-var bodyParser       = require('body-parser');
+var ObjectId         = require('mongoose').Types.ObjectId;
 var outletsCtrl      = require('./controllers/Outlets');
-var eventsCtrl       = require('./controllers/Events');
+var path             = require('path');
 
 var app = express();
 
@@ -41,6 +42,11 @@ app.post('/events/', eventsCtrl.createEvent);
 app.get('/events/clear', eventsCtrl.clearEvents);
 app.get('/events/:id', eventsCtrl.getEventDetails);
 app.post('/events/:id', eventsCtrl.updateEvent);
+app.get('/handlepacket/:packet', (req, res, next) => {
+	return Gateway.handleData(req.params.packet)
+		.then(result => res.json(result))
+		.catch(next);
+});
 
 // Undefined Route Handler
 // (request url doesn't match any routes)

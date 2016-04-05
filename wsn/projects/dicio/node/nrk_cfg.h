@@ -1,11 +1,3 @@
-/**
- * 18-748 Wireless Sensor Networks
- * Spring 2016
- * Lab 3: Multi-Hop Communication
- * nrk_cfg.h (node)
- * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
- */
- 
 /***************************************************************
 *                            NanoRK CONFIG                     *
 ***************************************************************/
@@ -16,7 +8,13 @@
 // This is a special kernel flag that records various timer
 // related functions.  This is not necessary for normal operation
 // #define NRK_KERNEL_TEST
-
+/**
+ * 18-748 Wireless Sensor Networks
+ * Spring 2016
+ * Dicio - A Smart Outlet Mesh Network
+ * nrk_cfg.h (node)
+ * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+ */
 
 // NRK_REPORT_ERRORS will cause the kernel to print out information about
 // missed deadlines or reserve violations
@@ -32,7 +30,7 @@
 
 // Leave NRK_NO_POWER_DOWN define in if the target can not wake up from sleep 
 // because it has no asynchronously clocked
-//#define NRK_NO_POWER_DOWN
+#define NRK_NO_POWER_DOWN
 
 // This protects radio access to allow for multiple devices accessing
 // the radio
@@ -41,19 +39,20 @@
 // Enable buffered and signal controlled serial RX
 #define NRK_UART_BUF   1
 
+#define IGNORE_EXT_RST_ERROR
 
 // Max number of tasks in your application
 // Be sure to include the idle task
 // Making this the correct size will save on BSS memory which
 // is both RAM and ROM...
-#define NRK_MAX_TASKS       8 
-#define	NRK_N_RES			1
+#define NRK_MAX_TASKS       9
+#define	NRK_N_RES			1	
                            
-#define NRK_TASK_IDLE_STK_SIZE         512   // Idle task stack size min=32 
+#define NRK_TASK_IDLE_STK_SIZE         128   // Idle task stack size min=32 
 #define NRK_APP_STACKSIZE              512 
-#define NRK_KERNEL_STACKSIZE           512 
+#define NRK_KERNEL_STACKSIZE           128 
 #define NRK_MAX_RESOURCE_CNT           2
-#define NRK_MAX_DRIVER_CNT		        1
+#define NRK_MAX_DRIVER_CNT		1
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)

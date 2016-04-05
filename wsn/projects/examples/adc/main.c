@@ -112,8 +112,8 @@ nrk_create_taskset()
   TaskOne.FirstActivation = TRUE;
   TaskOne.Type = BASIC_TASK;
   TaskOne.SchType = PREEMPTIVE;
-  TaskOne.period.secs = 0;
-  TaskOne.period.nano_secs = 5*NANOS_PER_MS;
+  TaskOne.period.secs = 1;
+  TaskOne.period.nano_secs = 0*NANOS_PER_MS;
   TaskOne.cpu_reserve.secs = 0;
   TaskOne.cpu_reserve.nano_secs =  50*NANOS_PER_MS;
   TaskOne.offset.secs = 0;

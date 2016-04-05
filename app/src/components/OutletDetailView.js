@@ -74,17 +74,22 @@ export class OutletDetailView extends Component {
 	}
 
 	componentDidMount() {
-    // this.fetchData();
     this.setState({
       outlet: OutletStore.getState().outlets.filter( (outlet) => outlet._id === this.props.outlet_id)[0],
       loaded: true
     });
     OutletStore.listen(this.onChange);
     OutletActions.fetchOutlet(this.props.outlet_id);
+
+    // Regularly ping the server for the latest outlet data.
+    this.updateIntervalId = setInterval(() => {
+      OutletActions.fetchOutlet(this.props.outlet_id);
+    }, 500);
   }
 
   componentWillUnmount() {
     OutletStore.unlisten(this.onChange);
+    clearInterval(this.updateIntervalId);
   }
 
   onChange(state) {

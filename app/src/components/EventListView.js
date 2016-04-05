@@ -104,16 +104,6 @@ const styles = StyleSheet.create({
     marginTop: 65,
     backgroundColor: '#EEEEEE',
   },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
-  },
   listItem: {
     flex: 1,
     flexDirection: 'row',

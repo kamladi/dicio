@@ -1,0 +1,183 @@
+
+
+-------- begin --------
+avr-gcc (GCC) 4.9.1
+Copyright (C) 2014 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Compiling: main.c
+avr-gcc -g -c -mmcu=atmega128rfa1 -Os -I. -g -D NANORK -D NODE_ADDR=0 -Os -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wa,-adhlns=main.lst -I../../../src/net/bmac -I../../../src/platform/firefly3/include -I../../../projects/dicio/utility -I../../../projects/dicio/drivers -I../../../src/platform/include -I../../../src/platform/firefly3/include -I../../../src/radio/rf231_soc/include -I../../../src/radio/rf231_soc/hal/atmega128rfa1 -I../../../src/radio/rf231_soc/platform/firefly3 -I../../../src/drivers/include -I../../../src/drivers/platform/firefly3/include -I../../../src/kernel/include -I../../../src/kernel/hal/include -std=gnu99 -fgnu89-inline -DCC2420DB main.c -o main.o
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+../../../src/platform/firefly3/include/nrk_pin_define.h:126:0: warning: "ANT_0" redefined
+ #define ANT_0  1 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+/opt/local/avr/include/avr/iom128rfa1.h:4152:0: note: this is the location of the previous definition
+ #define ANT_0                           2
+ ^
+In file included from ../../../src/platform/include/ulib.h:32:0,
+                 from ../../../src/kernel/include/nrk_time.h:33,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+../../../src/platform/firefly3/include/nrk_pin_define.h:127:0: warning: "ANT_1" redefined
+ #define ANT_1  2 // invalid 
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+/opt/local/avr/include/avr/iom128rfa1.h:4151:0: note: this is the location of the previous definition
+ #define ANT_1                           1
+ ^
+In file included from main.c:27:0:
+../../../projects/dicio/drivers/power_sensor.h:48:0: warning: "PF1" redefined
+ #define PF1         0x165 // unscaled power factor
+ ^
+In file included from /opt/local/avr/include/avr/io.h:164:0,
+                 from ../../../src/platform/firefly3/include/include.h:76,
+                 from ../../../src/kernel/include/nrk_time.h:32,
+                 from ../../../src/kernel/include/nrk.h:38,
+                 from main.c:11:
+/opt/local/avr/include/avr/iom128rfa1.h:355:0: note: this is the location of the previous definition
+ #define PF1                             1
+ ^
+main.c: In function ‘main’:
+main.c:134:3: warning: implicit declaration of function ‘SPI_Init’ [-Wimplicit-function-declaration]
+   SPI_Init();
+   ^
+main.c:135:3: warning: implicit declaration of function ‘pwr_init’ [-Wimplicit-function-declaration]
+   pwr_init();
+   ^
+main.c: In function ‘rx_msg_task’:
+main.c:262:7: warning: passing argument 2 of ‘parse_msg’ from incompatible pointer type
+       parse_msg(&rx_packet, &g_net_rx_buf, len);
+       ^
+In file included from main.c:29:0:
+../../../projects/dicio/utility/parser.h:16:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len);
+      ^
+main.c:263:19: warning: pointer targets in passing argument 2 of ‘bmac_rx_pkt_get’ differ in signedness [-Wpointer-sign]
+       local_buf = bmac_rx_pkt_get(&len, &rssi);
+                   ^
+In file included from main.c:22:0:
+../../../src/net/bmac/bmac.h:119:10: note: expected ‘int8_t *’ but argument is of type ‘uint8_t *’
+ uint8_t *bmac_rx_pkt_get(uint8_t *len, int8_t *rssi);
+          ^
+main.c:241:12: warning: variable ‘local_buf’ set but not used [-Wunused-but-set-variable]
+   uint8_t *local_buf;
+            ^
+main.c:238:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: In function ‘tx_cmd_task’:
+main.c:465:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+                          ^
+In file included from main.c:25:0:
+../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
+         ^
+main.c:420:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
+   uint8_t local_network_joined = FALSE;
+           ^
+main.c:415:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+   uint16_t val;
+            ^
+main.c:414:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: In function ‘tx_data_task’:
+main.c:545:26: warning: passing argument 1 of ‘assemble_packet’ from incompatible pointer type
+         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+                          ^
+In file included from main.c:25:0:
+../../../projects/dicio/utility/assembler.h:15:9: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[116]’
+ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx);
+         ^
+main.c:496:11: warning: unused variable ‘local_network_joined’ [-Wunused-variable]
+   uint8_t local_network_joined = FALSE;
+           ^
+main.c:491:12: warning: variable ‘val’ set but not used [-Wunused-but-set-variable]
+   uint16_t val;
+            ^
+main.c:490:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: In function ‘sample_task’:
+main.c:624:9: warning: passing argument 2 of ‘pwr_read’ from incompatible pointer type
+         pwr_read(WATT, &pwr_rcvd);
+         ^
+In file included from main.c:27:0:
+../../../projects/dicio/drivers/power_sensor.h:96:6: note: expected ‘uint8_t *’ but argument is of type ‘uint8_t (*)[3]’
+ void pwr_read(uint16_t reg, uint8_t *read_buf);
+      ^
+main.c:642:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
+           val = nrk_read(g_adc_fd, &adc_buf[0],2);
+                 ^
+In file included from main.c:20:0:
+../../../src/kernel/include/nrk_driver.h:67:8: note: expected ‘uint8_t *’ but argument is of type ‘uint16_t *’
+ int8_t nrk_read(uint8_t dev_fd,uint8_t *buffer,uint8_t size);
+        ^
+main.c:648:68: error: unknown type name ‘a’
+             printf("TEMP: %d\r\n", transform_temp(local_temp_val));a
+                                                                    ^
+main.c:649:13: warning: unused variable ‘sensor_sampled’ [-Wunused-variable]
+             sensor_sampled = TRUE;
+             ^
+main.c:666:17: warning: passing argument 2 of ‘nrk_read’ from incompatible pointer type
+           val = nrk_read(g_adc_fd, &adc_buf[1],2);
+                 ^
+In file included from main.c:20:0:
+../../../src/kernel/include/nrk_driver.h:67:8: note: expected ‘uint8_t *’ but argument is of type ‘uint16_t *’
+ int8_t nrk_read(uint8_t dev_fd,uint8_t *buffer,uint8_t size);
+        ^
+main.c:577:15: warning: unused variable ‘chan’ [-Wunused-variable]
+   int8_t val, chan;
+               ^
+main.c:567:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: In function ‘actuate_task’:
+main.c:948:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+         if(local_button_pressed = TRUE) {
+         ^
+main.c:993:9: warning: suggest parentheses around assignment used as truth value [-Wparentheses]
+         if(local_button_pressed = TRUE) {
+         ^
+main.c:798:11: warning: unused variable ‘btn_val’ [-Wunused-variable]
+   uint8_t btn_val;
+           ^
+main.c:796:25: warning: unused variable ‘act_required’ [-Wunused-variable]
+   uint8_t ack_required, act_required;
+                         ^
+main.c:796:11: warning: unused variable ‘ack_required’ [-Wunused-variable]
+   uint8_t ack_required, act_required;
+           ^
+main.c:793:11: warning: unused variable ‘ACT_FLAG’ [-Wunused-variable]
+   uint8_t ACT_FLAG = 0;
+           ^
+main.c:792:11: warning: unused variable ‘LED_FLAG’ [-Wunused-variable]
+   uint8_t LED_FLAG = 0;
+           ^
+main.c: At top level:
+main.c:1071:6: warning: conflicting types for ‘SPI_Init’
+ void SPI_Init() {
+      ^
+main.c:134:3: note: previous implicit declaration of ‘SPI_Init’ was here
+   SPI_Init();
+   ^
+main.c: In function ‘SPI_Init’:
+main.c:1073:3: warning: implicit declaration of function ‘SPI_SlaveInit’ [-Wimplicit-function-declaration]
+   SPI_SlaveInit(PWR_CS);
+   ^
+make: *** [main.o] Error 1

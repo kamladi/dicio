@@ -1,4 +1,10 @@
-# Platform name  cc2420DK, firefly, micaZ
+## 18-748 Wireless Sensor Networks
+## Spring 2016
+## Dicio - A Smart Outlet Mesh Network
+## makefile (node)
+## Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+
+#Platform name  cc2420DK, firefly, micaZ
 #PLATFORM = firefly2_2
 PLATFORM = firefly3
 #PLATFORM = firefly2_3
@@ -7,7 +13,7 @@ PLATFORM = firefly3
 TARGET = main
 
 # Set the Port that you programmer is connected to 
-PROGRAMMING_PORT = /dev/ttyUSB0 # Default FireFly port 
+PROGRAMMING_PORT = /dev/tty.usbserial-AM017Y4D # Default FireFly port 
 # PROGRAMMING_PORT = /dev/ttyUSB0 # Default micaZ port 
 
 # Set this such that the nano-RK directory is the base path
@@ -26,8 +32,11 @@ SRC = $(TARGET).c
 # Add extra source files. 
 # For example:
 SRC += $(ROOT_DIR)/src/net/bmac/$(RADIO)/bmac.c
-SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/ff_basic_sensor.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/twi_base_calls.c
+SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c
+SRC += $(ROOT_DIR)/projects/dicio/drivers/dicio_spi.c
+SRC += $(ROOT_DIR)/projects/dicio/drivers/power_sensor.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/adc.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c
@@ -37,7 +46,9 @@ SRC += $(ROOT_DIR)/projects/dicio/utility/pool.c
 # For example:
 EXTRAINCDIRS =
 EXTRAINCDIRS += $(ROOT_DIR)/src/net/bmac
+EXTRAINCDIRS += $(ROOT_DIR)/src/platform/$(PLATFORM_TYPE)/include
 EXTRAINCDIRS += $(ROOT_DIR)/projects/dicio/utility
+EXTRAINCDIRS += $(ROOT_DIR)/projects/dicio/drivers
 
 
 #  This is where the final compile and download happens

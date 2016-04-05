@@ -4,6 +4,7 @@
  */
 'use strict';
 import React, {
+	AlertIOS,
   AppRegistry,
   Component,
   NavigatorIOS,
@@ -20,6 +21,7 @@ import {EventListView} from './src/components/EventListView';
 import {EventDetailView} from './src/components/EventDetailView';
 import OutletActions from './src/actions/OutletActions';
 import EventActions from './src/actions/EventActions';
+import {WebSocketHandler} from './src/lib/WebSocketHandler';
 
 class dicio_ios extends Component {
 	constructor(props) {
@@ -27,6 +29,46 @@ class dicio_ios extends Component {
 		this.state = {
 			tab: 'outlets'
 		};
+		this.webSocketHandler = new WebSocketHandler();
+		this.webSocketHandler.addListener('newNode', this.handleNewNode.bind(this));
+		this.webSocketHandler.addListener('lostNode', this.handleLostNode.bind(this));
+		this.webSocketHandler.addListener('activeNode', this.handleActiveNode.bind(this));
+	}
+
+	handleNewNode(outletId, outletName) {
+		console.log(`NEW NODE: ${outletName}`);
+
+		// Handler function for when user taps 'OK' on new outlet notification.
+		function onNewOutletNameChosen (newName) {
+			console.log('OK Pressed');
+			OutletActions.updateOutletName(outletId, newName)
+				.then(() => OutletActions.fetchOutlets())
+				.catch(console.error);
+		}
+
+		// Prompt user for a new name for the new outlet.
+		AlertIOS.prompt(
+			'New outlet discovered!', // Title text
+			'Choose a name:', // Label above text field
+			[
+				{text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
+				{text: 'OK', onPress: onNewOutletNameChosen, style: 'cancel'},
+			],
+			'plain-text',
+			outletName // Default value for text field
+			);
+	}
+
+	handleLostNode(outletId, outletName) {
+		console.log(`LOST NODE: ${outletName}`);
+		AlertIOS.alert(`Lost Connection to outlet: ${outletName}`);
+		OutletActions.fetchOutlets();
+	}
+
+	handleActiveNode(outletId, outletName) {
+		console.log(`ACTIVE NODE: ${outletName}`);
+		AlertIOS.alert(`Connection restored to outlet: ${outletName}`);
+		OutletActions.fetchOutlets();
 	}
 
 	render() {
@@ -74,16 +116,6 @@ class dicio_ios extends Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1
-  },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
   },
   title: {
     fontSize: 20,

@@ -1,12 +1,12 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * type_defs.h
+ * Dicio - A Smart Outlet Mesh Network
+ * typedefs.h
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
- 
-#ifndef __type_defs_h	
+
+#ifndef __type_defs_h
 #define __type_defs_h
 
 /*** INCLUDE STATEMENTS ***/
@@ -40,14 +40,18 @@
 #define SAMPLE_SENSOR 0
 #define ON 1
 #define OFF 0
+#define ACT_NONE -1
+#define BUTTON_PRESSED 0
+#define BUTTON_RELEASED 1
 
-// buffers/messages
+// MISC
 #define MAX_BUF_SIZE 24
 #define MAX_PAYLOAD_SIZE 8
 #define MAX_NEIGHBOR_BUF_SIZE 4
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
+#define HEART_FACTOR 15
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
@@ -62,15 +66,23 @@
 #define CMDG_GROUP_INDEX 2
 #define CMDG_ACTION_INDEX 3
 #define CMDACK_ID_INDEX 0
+#define CMDACK_STATE_INDEX 2
 #define DATA_PWR_INDEX 0
 #define DATA_TEMP_INDEX 2
 #define DATA_LIGHT_INDEX 4
+#define DATA_STATE_INDEX 6
 #define HANDACK_NODE_ID_INDEX 0
+#define HANDACK_CONFIG_ID_INDEX 1
+#define HAND_CONFIG_ID_INDEX 0
+
+#define ON_COIL NRK_PORTB_6
+#define OFF_COIL NRK_PORTB_7
+#define BTN_IN NRK_PORTE_3
 
 /*** ENUMERATIONS ***/
 typedef enum {
   // NOTE: These are the messages that will be used by Dicio. The
-  //  ennumeration values should be updated when when parser.c and 
+  //  ennumeration values should be updated when when parser.c and
   //  assembeler.c are updated.
   MSG_NO_MESSAGE = 0,
   MSG_GATEWAY = 3,
@@ -78,16 +90,17 @@ typedef enum {
   MSG_CMD = 6,
   MSG_CMDACK = 7,
   MSG_HAND = 8,
-  MSG_HANDACK = 9, 
+  MSG_HANDACK = 9,
+  MSG_HEARTBEAT = 10,
 } msg_type;
 
 /**
- * sequence_pool_t struct - hold all neighbor id's and the last seen sequence 
+ * sequence_pool_t struct - hold all neighbor id's and the last seen sequence
  *  number for that neighbor
- * 
+ *
  * @param size - number of seen neighbors
  * @param neighbor_id - array of neighbor ids
- * @param seq_num - array of the last seen sequence numbers for each neighbor. 
+ * @param seq_num - array of the last seen sequence numbers for each neighbor.
  *    NOTE: maps directly to neighbor_id array
  */
 typedef struct {
@@ -98,13 +111,13 @@ typedef struct {
 
 /**
  * paket struct - defines a network packet
- * 
+ *
  * @param source_id - sending node
  * @param seq_num - message sequence number of the origin node
  * @param num_hops - number of hops this message has taken
  * @param light_value - value of light sensor
  * @param neighbor_table - neighbor_table of the sending node
- * 
+ *
  */
 typedef struct{
   uint8_t source_id;

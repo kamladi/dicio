@@ -1,8 +1,7 @@
-var Outlet          = require('../models/Outlet');
+var BadRequestError = require('../lib/utils').BadRequestError;
+var Gateway         = require('../Gateway');
 var ObjectId        = require('mongoose').Types.ObjectId;
-var utils           = require('../lib/utils');
-var BadRequestError = utils.BadRequestError;
-var Gateway         = require('../gateway');
+var Outlet          = require('../models/Outlet');
 
 /*
  * Returns a list of all outlet names and id's
@@ -59,11 +58,13 @@ exports.sendOutletAction = (req, res, next) => {
 				// Forward command to gateway to propagate to the outlet. Eventually,
 				// the outlet will respond with its new state, and the database will
 				// be updated. Because of this, the outlet is not immediately updated.
-				Gateway.sendAction(outlet.mac_address, action);
+				Gateway.sendAction(outlet.mac_address, action)
+					.catch(console.error);
 				return outlet;
 			} else {
 				// If we aren't connected to the gateway node, 'fake' an update by
 				// simply updating the status of the node in our database.
+				console.warn("Gateway not connected, faking the result of the action");
 				outlet.status = action;
 				return outlet.save();
 			}
