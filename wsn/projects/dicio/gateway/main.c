@@ -517,6 +517,8 @@ void tx_node_task() {
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux); {
         net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+
+        print_packet(&tx_packet);
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
