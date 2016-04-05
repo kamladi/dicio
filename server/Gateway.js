@@ -1,8 +1,9 @@
-var Event      = require('./models/Event');
-var Outlet     = require('./models/Outlet');
-var SP         = require('serialport');
-var Watchdog   = require('./lib/Watchdog');
-var WS 				 = require('./websockets');
+var Event          = require('./models/Event');
+var EventScheduler = require('./lib/EventScheduler');
+var Outlet         = require('./models/Outlet');
+var SP             = require('serialport');
+var Watchdog       = require('./lib/Watchdog');
+var WS 				     = require('./websockets');
 
 // Constants
 const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
@@ -30,7 +31,6 @@ var gWatchdogTimer = null;
 function isConnected() {
 	return gSerialPort && gSerialPort.isOpen();
 }
-
 
 /*
  * Saves the given sensor data into the database for the outlet with the given
@@ -79,8 +79,16 @@ function handleSensorDataMessage(macAddress, payload) {
       light = sensorValues[2],
       status = (sensorValues[3] === 0) ? 'OFF' : 'ON';
 
-  // TODO: Trigger events as necessary.
-  return saveSensorData(macAddress, power, temperature, light, status);
+  return saveSensorData(macAddress, power, temperature, light, status)
+  	.then(EventScheduler.triggerCommandsFromEvents)
+  	.then( commands => {
+  		console.log('Triggering commands: ', commands);
+  		// Send and action to the gateway for each command object given
+  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
+  		// Wait until all actions are sent.
+  		return Promise.all(commandPromises);
+  	})
+  	.catch(console.error);
 }
 
 /*
@@ -110,6 +118,7 @@ function handleActionAckMessage(macAddress, payload) {
 	    return outlet.save();
 		}).catch(console.error);
 }
+
 
 /*
  * Handle a Handshake Ack Message. Create a new outlet object in database,
@@ -211,7 +220,7 @@ function handleData(data) {
   console.log("[Gateway] >>>>>>>>>>", data);
 
   // Kick Watchdog timer.
-	gWatchdogTimer.kick();
+	if (gWatchdogTimer) gWatchdogTimer.kick();
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
