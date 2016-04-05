@@ -39,7 +39,9 @@ void tx_cmd_task(void);
 void tx_node_task(void);
 void tx_serv_task(void);
 void hand_task(void);
-void nrk_create_taskset ();
+void heartbeat_task(void);
+void nrk_create_taskset (void);
+void nrk_register_drivers();
 
 // TASKS
 nrk_task_type RX_NODE_TASK;
@@ -48,6 +50,7 @@ nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_NODE_TASK;
 nrk_task_type TX_SERV_TASK;
 nrk_task_type HAND_TASK;
+nrk_task_type HEARTBEAT_TASK;
 
 // TASK STACKS
 NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
@@ -56,16 +59,21 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_node_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
 NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
+NRK_STK heartbeat_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
+
 uint8_t serv_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_index = 0;
-uint8_t serv_tx_index = 0;
+
+nrk_sem_t* net_tx_buf_mux;
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_index = 0;
-nrk_sem_t* net_tx_buf_mux;
+
 uint8_t serv_tx_buf[RF_MAX_PAYLOAD_SIZE];
+uint8_t serv_tx_index = 0;
+
 
 // QUEUES
 packet_queue cmd_tx_queue;
@@ -77,13 +85,10 @@ nrk_sem_t* serv_tx_queue_mux;
 packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
-// DRIVERS
-void nrk_register_drivers();
-
 // SEQUENCE POOLS/NUMBER
 pool_t seq_pool;
-//uint16_t server_seq_num;
 uint16_t seq_num = 0;
+nrk_sem_t* seq_num_mux;
 uint16_t cmd_id = 0;
 
 // GLOBAL FLAG
@@ -110,6 +115,7 @@ int main () {
   node_tx_queue_mux = nrk_sem_create(1, 6);
   serv_tx_queue_mux = nrk_sem_create(1, 6);
   hand_rx_queue_mux = nrk_sem_create(1, 6);
+  seq_num_mux       = nrk_sem_create(1, 6);
 
   // packet queues
   packet_queue_init(&cmd_tx_queue);
@@ -200,6 +206,8 @@ void rx_node_task() {
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
 
+  printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
+
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
 
@@ -224,8 +232,6 @@ void rx_node_task() {
         print_packet(&rx_packet);
       }
 
-
-
       // only receive the message if it's not from the gateway
       //  NOTE: this is required because the gateway will hear re-transmitted packets
       //    originally from itself.
@@ -249,7 +255,7 @@ void rx_node_task() {
           // put the message in the right queue based on the type
           switch(rx_packet.type) {
             // command -> do nothing
-            case MSG_CMD:
+            case MSG_CMD: 
               // do nothing...commands are sent by the gateway, so there is no
               //  no need to pass it along.
               break;
@@ -318,6 +324,8 @@ void rx_serv_task() {
   uint8_t LED_FLAG = 0;
   packet rx_packet;
   uint16_t server_seq_num = 0;
+
+  printf("rx_serv_task PID: %d.\r\n", nrk_get_pid());
 
   // get the UART signal and register it
   nrk_sig_t uart_rx_signal = nrk_uart_rx_signal_get();
@@ -401,6 +409,8 @@ void tx_cmd_task() {
   packet tx_packet;
   uint8_t tx_cmd_queue_size;
 
+  printf("tx_cmd_task PID: %d.\r\n", nrk_get_pid());
+
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
   while(!bmac_started()) {
@@ -474,6 +484,8 @@ void tx_node_task() {
   packet tx_packet;
   uint8_t tx_node_queue_size;
 
+  printf("tx_node_task PID: %d.\r\n", nrk_get_pid());
+
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
   while(!bmac_started ()) {
@@ -542,6 +554,8 @@ void tx_serv_task() {
   uint8_t tx_serv_queue_size;
   packet tx_packet;
 
+  printf("tx_serv_task PID: %d.\r\n", nrk_get_pid());
+
   while(1) {
     LED_FLAG += 1;
     LED_FLAG %= 2;
@@ -594,11 +608,19 @@ void tx_serv_task() {
   }
 }
 
+/** 
+ * hand_task() - 
+ *  handle handshakes.
+ */
 void hand_task() {
+  // initialize local variables
   uint8_t hand_rx_size;
   packet rx_packet, tx_packet;
   uint8_t in_node_pool;
 
+  printf("hand_task PID: %d.\r\n", nrk_get_pid());
+
+  // set tx_packet parameters
   tx_packet.source_id = MAC_ADDR;
   tx_packet.type = MSG_HANDACK;
   tx_packet.num_hops = 0;
@@ -635,41 +657,65 @@ void hand_task() {
       nrk_sem_post(hand_rx_queue_mux);
       print_packet(&rx_packet);
 
-      // check to see if the node is in the pool. If so, send HANDACK. Otherwise, ignore
-      //in_node_pool = in_pool(&node_pool, rx_packet.source_id);
-      //if(in_node_pool == -1) {
-       //add_to_pool(&node_pool, rx_packet.source_id, rx_packet.seq_num);
-
-        // finish TX packet
-        // NOTE: no mutex is required for seq_num because this is the only task that
-        //  uses the gateway's sequence number.
+      // update seqence number
+      nrk_sem_pend(seq_num_mux); {
         seq_num++;
-        tx_packet.seq_num = seq_num;
-        tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
-        tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
-        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
-        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
-        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
+        tx_packet.seq_num = seq_num;        
+      }
+      nrk_sem_post(seq_num_mux);
 
-        print_packet(&tx_packet);
+      // update with the correct payload
+      tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
+      tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
+      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
+      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
+      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
-        // send response back to the node
-        nrk_sem_pend(cmd_tx_queue_mux); {
-          push(&cmd_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(cmd_tx_queue_mux);
+      print_packet(&tx_packet);
 
-        // forward the "hello" message from the node to the server
-        nrk_sem_pend(serv_tx_queue_mux); {
-          push(&serv_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(serv_tx_queue_mux);
-      //}
+      // send response back to the node
+      nrk_sem_pend(cmd_tx_queue_mux); {
+        push(&cmd_tx_queue, &tx_packet);
+      }
+      nrk_sem_post(cmd_tx_queue_mux);
+
+      // forward the "hello" message from the node to the server
+      nrk_sem_pend(serv_tx_queue_mux); {
+        push(&serv_tx_queue, &tx_packet);
+      }
+      nrk_sem_post(serv_tx_queue_mux);
     }
     nrk_wait_until_next_period();
-
   }
+}
 
+void heartbeat_task() {
+  // initialize packet
+  packet heartbeat_packet;
+  heartbeat_packet.source_id = MAC_ADDR;
+  heartbeat_packet.type = MSG_HEARTBEAT;
+  heartbeat_packet.num_hops = 0;
+
+  printf("heartbeat_task PID: %d.\r\n", nrk_get_pid());
+
+  // loop forever
+  while(1) {
+    // update sequence number
+    nrk_sem_pend(seq_num_mux); {
+      seq_num++;
+      heartbeat_packet.seq_num = seq_num;        
+    }
+    nrk_sem_post(seq_num_mux);
+
+    // push new packet into the node tx queue
+    nrk_sem_pend(node_tx_queue_mux); {
+      push(&node_tx_queue, &heartbeat_packet);
+    }
+    nrk_sem_post(node_tx_queue_mux);
+
+    // wait until the next period
+    nrk_wait_until_next_period();
+  }
 }
 
 /**
@@ -680,7 +726,7 @@ void hand_task() {
 void nrk_create_taskset () {
   RX_NODE_TASK.task = rx_node_task;
   nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE);
-  RX_NODE_TASK.prio = 6;
+  RX_NODE_TASK.prio = 7;
   RX_NODE_TASK.FirstActivation = TRUE;
   RX_NODE_TASK.Type = BASIC_TASK;
   RX_NODE_TASK.SchType = PREEMPTIVE;
@@ -693,7 +739,7 @@ void nrk_create_taskset () {
 
   RX_SERV_TASK.task = rx_serv_task;
   nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task, NRK_APP_STACKSIZE);
-  RX_SERV_TASK.prio = 5;
+  RX_SERV_TASK.prio = 6;
   RX_SERV_TASK.FirstActivation = TRUE;
   RX_SERV_TASK.Type = BASIC_TASK;
   RX_SERV_TASK.SchType = PREEMPTIVE;
@@ -706,12 +752,12 @@ void nrk_create_taskset () {
 
   TX_CMD_TASK.task = tx_cmd_task;
   nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE);
-  TX_CMD_TASK.prio = 4;
+  TX_CMD_TASK.prio = 5;
   TX_CMD_TASK.FirstActivation = TRUE;
   TX_CMD_TASK.Type = BASIC_TASK;
   TX_CMD_TASK.SchType = PREEMPTIVE;
   TX_CMD_TASK.period.secs = 0;
-  TX_CMD_TASK.period.nano_secs = 150*NANOS_PER_MS;
+  TX_CMD_TASK.period.nano_secs = 200*NANOS_PER_MS;
   TX_CMD_TASK.cpu_reserve.secs = 0;
   TX_CMD_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   TX_CMD_TASK.offset.secs = 0;
@@ -719,11 +765,11 @@ void nrk_create_taskset () {
 
   TX_NODE_TASK.task = tx_node_task;
   nrk_task_set_stk(&TX_NODE_TASK, tx_node_task_stack, NRK_APP_STACKSIZE);
-  TX_NODE_TASK.prio = 3;
+  TX_NODE_TASK.prio = 4;
   TX_NODE_TASK.FirstActivation = TRUE;
   TX_NODE_TASK.Type = BASIC_TASK;
   TX_NODE_TASK.SchType = PREEMPTIVE;
-  TX_NODE_TASK.period.secs = 5;
+  TX_NODE_TASK.period.secs = 2;
   TX_NODE_TASK.period.nano_secs = 0;
   TX_NODE_TASK.cpu_reserve.secs = 0;
   TX_NODE_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
@@ -732,7 +778,7 @@ void nrk_create_taskset () {
 
   TX_SERV_TASK.task = tx_serv_task;
   nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
-  TX_SERV_TASK.prio = 2;
+  TX_SERV_TASK.prio = 3;
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
   TX_SERV_TASK.SchType = PREEMPTIVE;
@@ -745,7 +791,7 @@ void nrk_create_taskset () {
 
   HAND_TASK.task = hand_task;
   nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE);
-  HAND_TASK.prio = 1;
+  HAND_TASK.prio = 2;
   HAND_TASK.FirstActivation = TRUE;
   HAND_TASK.Type = BASIC_TASK;
   HAND_TASK.SchType = PREEMPTIVE;
@@ -756,12 +802,26 @@ void nrk_create_taskset () {
   HAND_TASK.offset.secs = 0;
   HAND_TASK.offset.nano_secs = 0;
 
+  HEARTBEAT_TASK.task = heartbeat_task;
+  nrk_task_set_stk(&HEARTBEAT_TASK, heartbeat_task_stack, NRK_APP_STACKSIZE);
+  HEARTBEAT_TASK.prio = 1;
+  HEARTBEAT_TASK.FirstActivation = TRUE;
+  HEARTBEAT_TASK.Type = BASIC_TASK;
+  HEARTBEAT_TASK.SchType = PREEMPTIVE;
+  HEARTBEAT_TASK.period.secs = 5;
+  HEARTBEAT_TASK.period.nano_secs = 0;
+  HEARTBEAT_TASK.cpu_reserve.secs = 0;
+  HEARTBEAT_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  HEARTBEAT_TASK.offset.secs = 0;
+  HEARTBEAT_TASK.offset.nano_secs = 0;
+
   nrk_activate_task(&RX_NODE_TASK);
   nrk_activate_task(&RX_SERV_TASK);
   nrk_activate_task(&TX_CMD_TASK);
   nrk_activate_task(&TX_NODE_TASK);
   nrk_activate_task(&TX_SERV_TASK);
   nrk_activate_task(&HAND_TASK);
+  //nrk_activate_task(&HEARTBEAT_TASK);
 
   nrk_kprintf(PSTR("Create done.\r\n"));
 }
