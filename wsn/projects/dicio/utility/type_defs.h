@@ -1,8 +1,8 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * type_defs.h
+ * Dicio - A Smart Outlet Mesh Network
+ * typedefs.h
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 

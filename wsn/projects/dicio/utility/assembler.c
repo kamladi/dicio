@@ -54,6 +54,8 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
                 tx->payload[HANDACK_NODE_ID_INDEX], hardware_config_1, hardware_config_2);
             break;
         }
+        default:
+            break;
     }
 }
 
@@ -136,6 +138,8 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             //printf("asm ack: %d:%d:%d:%d:%d\r\n", tx_buf[0], tx_buf[1], tx_buf[2], tx_buf[3], tx_buf[4]);
             break;
         }
+        default:
+            break;
     }
     return length;
 }

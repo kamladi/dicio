@@ -1,8 +1,8 @@
-/*
+/**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * main.c (gateway)
+ * Dicio - A Smart Outlet Mesh Network
+ * main.c (node)
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
@@ -1090,31 +1090,32 @@ void nrk_register_drivers() {
 }
 
 void nrk_create_taskset () {
-  RX_MSG_TASK.task = rx_msg_task;
-  nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
-  RX_MSG_TASK.prio = 7;
-  RX_MSG_TASK.FirstActivation = TRUE;
-  RX_MSG_TASK.Type = BASIC_TASK;
-  RX_MSG_TASK.SchType = PREEMPTIVE;
-  RX_MSG_TASK.period.secs = 0;
-  RX_MSG_TASK.period.nano_secs = 50*NANOS_PER_MS;
-  RX_MSG_TASK.cpu_reserve.secs = 0;
-  RX_MSG_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
-  RX_MSG_TASK.offset.secs = 0;
-  RX_MSG_TASK.offset.nano_secs = 0;
 
   BUTTON_TASK.task = button_task;
   nrk_task_set_stk(&BUTTON_TASK, button_task_stack, NRK_APP_STACKSIZE);
-  BUTTON_TASK.prio = 6;
+  BUTTON_TASK.prio = 7;
   BUTTON_TASK.FirstActivation = TRUE;
   BUTTON_TASK.Type = BASIC_TASK;
   BUTTON_TASK.SchType = PREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
-  BUTTON_TASK.period.nano_secs = 25*NANOS_PER_MS;
+  BUTTON_TASK.period.nano_secs = 50*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
-  BUTTON_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  BUTTON_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
   BUTTON_TASK.offset.secs = 0;
   BUTTON_TASK.offset.nano_secs = 0;
+
+  RX_MSG_TASK.task = rx_msg_task;
+  nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
+  RX_MSG_TASK.prio = 6;
+  RX_MSG_TASK.FirstActivation = TRUE;
+  RX_MSG_TASK.Type = BASIC_TASK;
+  RX_MSG_TASK.SchType = PREEMPTIVE;
+  RX_MSG_TASK.period.secs = 0;
+  RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
+  RX_MSG_TASK.cpu_reserve.secs = 0;
+  RX_MSG_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
+  RX_MSG_TASK.offset.secs = 0;
+  RX_MSG_TASK.offset.nano_secs = 0;
 
   ACTUATE_TASK.task = actuate_task;
   nrk_task_set_stk(&ACTUATE_TASK, actuate_task_stack, NRK_APP_STACKSIZE);
@@ -1125,7 +1126,7 @@ void nrk_create_taskset () {
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
-  ACTUATE_TASK.cpu_reserve.nano_secs = 30*NANOS_PER_MS;
+  ACTUATE_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   ACTUATE_TASK.offset.secs = 0;
   ACTUATE_TASK.offset.nano_secs = 0;
 
@@ -1155,22 +1156,9 @@ void nrk_create_taskset () {
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
-  TX_DATA_TASK.task = tx_data_task;
-  nrk_task_set_stk(&TX_DATA_TASK, tx_data_task_stack, NRK_APP_STACKSIZE);
-  TX_DATA_TASK.prio = 2;
-  TX_DATA_TASK.FirstActivation = TRUE;
-  TX_DATA_TASK.Type = BASIC_TASK;
-  TX_DATA_TASK.SchType = PREEMPTIVE;
-  TX_DATA_TASK.period.secs = 5;
-  TX_DATA_TASK.period.nano_secs = 0;
-  TX_DATA_TASK.cpu_reserve.secs = 0;
-  TX_DATA_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
-  TX_DATA_TASK.offset.secs = 0;
-  TX_DATA_TASK.offset.nano_secs = 0;
-
   HEARTBEAT_TASK.task = heartbeat_task;
   nrk_task_set_stk(&HEARTBEAT_TASK, heartbeat_task_stack, NRK_APP_STACKSIZE);
-  HEARTBEAT_TASK.prio = 1;
+  HEARTBEAT_TASK.prio = 2;
   HEARTBEAT_TASK.FirstActivation = TRUE;
   HEARTBEAT_TASK.Type = BASIC_TASK;
   HEARTBEAT_TASK.SchType = PREEMPTIVE;
@@ -1181,13 +1169,26 @@ void nrk_create_taskset () {
   HEARTBEAT_TASK.offset.secs = 0;
   HEARTBEAT_TASK.offset.nano_secs = 0;
 
-  nrk_activate_task(&RX_MSG_TASK);
-  nrk_activate_task(&TX_CMD_TASK);
-  nrk_activate_task(&TX_DATA_TASK);
-  nrk_activate_task(&SAMPLE_TASK);
-  nrk_activate_task(&ACTUATE_TASK);
+  TX_DATA_TASK.task = tx_data_task;
+  nrk_task_set_stk(&TX_DATA_TASK, tx_data_task_stack, NRK_APP_STACKSIZE);
+  TX_DATA_TASK.prio = 1;
+  TX_DATA_TASK.FirstActivation = TRUE;
+  TX_DATA_TASK.Type = BASIC_TASK;
+  TX_DATA_TASK.SchType = PREEMPTIVE;
+  TX_DATA_TASK.period.secs = 5;
+  TX_DATA_TASK.period.nano_secs = 0;
+  TX_DATA_TASK.cpu_reserve.secs = 0;
+  TX_DATA_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
+  TX_DATA_TASK.offset.secs = 0;
+  TX_DATA_TASK.offset.nano_secs = 0;
+
   nrk_activate_task(&BUTTON_TASK);
+  nrk_activate_task(&RX_MSG_TASK);
+  nrk_activate_task(&ACTUATE_TASK);
+  nrk_activate_task(&TX_CMD_TASK);
+  nrk_activate_task(&SAMPLE_TASK);
   nrk_activate_task(&HEARTBEAT_TASK);
+  nrk_activate_task(&TX_DATA_TASK);
 
   nrk_kprintf( PSTR("Create done\r\n") );
 }

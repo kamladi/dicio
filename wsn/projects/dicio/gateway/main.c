@@ -1,12 +1,12 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
+ * Dicio - A Smart Outlet Mesh Network
  * main.c (gateway)
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
-// silly change
+/***** PREABLE *****/
 
 // INCLUDES
 // standard nrk
@@ -39,9 +39,7 @@ void tx_cmd_task(void);
 void tx_node_task(void);
 void tx_serv_task(void);
 void hand_task(void);
-void heartbeat_task(void);
-void nrk_create_taskset (void);
-void nrk_register_drivers();
+void nrk_create_taskset ();
 
 // TASKS
 nrk_task_type RX_NODE_TASK;
@@ -50,7 +48,7 @@ nrk_task_type TX_CMD_TASK;
 nrk_task_type TX_NODE_TASK;
 nrk_task_type TX_SERV_TASK;
 nrk_task_type HAND_TASK;
-nrk_task_type HEARTBEAT_TASK;
+nrk_task_type SEND_HEART_TASK;
 
 // TASK STACKS
 NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
@@ -59,21 +57,17 @@ NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_node_task_stack[NRK_APP_STACKSIZE];
 NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
 NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
-NRK_STK heartbeat_task_stack[NRK_APP_STACKSIZE];
+NRK_STK send_heart_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t net_rx_buf[RF_MAX_PAYLOAD_SIZE];
-
 uint8_t serv_rx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t serv_rx_index = 0;
-
-nrk_sem_t* net_tx_buf_mux;
+uint8_t serv_tx_index = 0;
 uint8_t net_tx_buf[RF_MAX_PAYLOAD_SIZE];
 uint8_t net_tx_index = 0;
-
+nrk_sem_t* net_tx_buf_mux;
 uint8_t serv_tx_buf[RF_MAX_PAYLOAD_SIZE];
-uint8_t serv_tx_index = 0;
-
 
 // QUEUES
 packet_queue cmd_tx_queue;
@@ -85,6 +79,9 @@ nrk_sem_t* serv_tx_queue_mux;
 packet_queue hand_rx_queue;
 nrk_sem_t* hand_rx_queue_mux;
 
+// DRIVERS
+void nrk_register_drivers();
+
 // SEQUENCE POOLS/NUMBER
 pool_t seq_pool;
 uint16_t seq_num = 0;
@@ -92,7 +89,11 @@ nrk_sem_t* seq_num_mux;
 uint16_t cmd_id = 0;
 
 // GLOBAL FLAG
-uint8_t print_incoming;
+uint8_t verbose;
+
+/***** END PREABMLE *****/
+
+/***** MAIN *****/
 
 int main () {
   // setup ports/uart
@@ -107,15 +108,15 @@ int main () {
   nrk_led_clr(3);
 
   // print flag
-  print_incoming = FALSE;
+  verbose = FALSE;
 
   // mutexs
-  net_tx_buf_mux    = nrk_sem_create(1, 6);
-  cmd_tx_queue_mux  = nrk_sem_create(1, 6);
-  node_tx_queue_mux = nrk_sem_create(1, 6);
-  serv_tx_queue_mux = nrk_sem_create(1, 6);
-  hand_rx_queue_mux = nrk_sem_create(1, 6);
-  seq_num_mux       = nrk_sem_create(1, 6);
+  net_tx_buf_mux    = nrk_sem_create(1, 8);
+  cmd_tx_queue_mux  = nrk_sem_create(1, 8);
+  node_tx_queue_mux = nrk_sem_create(1, 8);
+  serv_tx_queue_mux = nrk_sem_create(1, 8);
+  hand_rx_queue_mux = nrk_sem_create(1, 8);
+  seq_num_mux       = nrk_sem_create(1, 8);
 
   // packet queues
   packet_queue_init(&cmd_tx_queue);
@@ -131,10 +132,11 @@ int main () {
   return 0;
 }
 
-/**
- * get_server_input() -
- *  get UART data from server - end of message noted by a '\r'
- */
+/***** END MAIN *****/
+
+/***** HELPER FUNCTIONS *****/
+
+// get_server_input() - get UART data from server - end of message noted by a '\r'
 uint8_t get_server_input() {
   uint8_t option;
 
@@ -157,7 +159,7 @@ uint8_t get_server_input() {
     }
 
     // print if appropriate
-    if(print_incoming == TRUE) {
+    if(verbose == TRUE) {
       printf("!%d", option);
     }
 
@@ -165,7 +167,7 @@ uint8_t get_server_input() {
     if(option == '\r') {
       serv_rx_buf[serv_rx_index] = '\n';
       serv_rx_index++;
-      if(print_incoming == TRUE) {
+      if(verbose == TRUE) {
         nrk_kprintf(PSTR("\n"));
       }
       return SERV_MSG_RECEIVED;
@@ -174,10 +176,7 @@ uint8_t get_server_input() {
   return SERV_MSG_INCOMPLETE;
 }
 
-/**
- * clear_serv_buf() -
- *  clear the server buffer
- */
+// clear_serv_buf - clear the server recieve buffer
 void clear_serv_buf() {
   for(uint8_t i = 0; i < serv_rx_index; i++) {
     serv_rx_buf[i] = 0;
@@ -185,6 +184,7 @@ void clear_serv_buf() {
   serv_rx_index = 0;
 }
 
+// clear_tx_buf - clear the network transmit buffer
 void clear_tx_buf(){
   for(uint8_t i = 0; i < net_tx_index; i++){
     net_tx_buf[i] = 0;
@@ -192,10 +192,11 @@ void clear_tx_buf(){
   net_tx_index = 0;
 }
 
-/**
- * rx_node_task() -
- *  receive messages from the network
- */
+/***** END HELPER FUNCTIONS *****/
+
+/***** TASKS *****/
+
+// rx_node_task - receive messages from the network
 void rx_node_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -205,8 +206,6 @@ void rx_node_task() {
   int8_t in_seq_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
-
-  printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(net_rx_buf, RF_MAX_PAYLOAD_SIZE);
@@ -227,7 +226,7 @@ void rx_node_task() {
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
-      if(print_incoming == TRUE) {
+      if(verbose == TRUE) {
         nrk_kprintf (PSTR ("rx:\r\n"));
         print_packet(&rx_packet);
       }
@@ -255,10 +254,11 @@ void rx_node_task() {
           // put the message in the right queue based on the type
           switch(rx_packet.type) {
             // command -> do nothing
-            case MSG_CMD: 
+            case MSG_CMD: {
               // do nothing...commands are sent by the gateway, so there is no
-              //  no need to pass it along.
+              //  no need to pass it along again.
               break;
+            }
             // command ack -> forward to server
             case MSG_CMDACK: {
               rx_packet.num_hops++;
@@ -284,14 +284,18 @@ void rx_node_task() {
               nrk_sem_post(hand_rx_queue_mux);
               break;
             }
-
             case MSG_HANDACK: {
               // received an ACK. Do nothing?
               break;
             }
             // gateway message -> do nothing
-            case MSG_GATEWAY:{
+            case MSG_GATEWAY: { 
               // do nothing...no messages have been defined with this type yet
+              break;
+            }
+            case MSG_HEARTBEAT: { 
+              // do nothing...heartbeats are sent by the gateway, so there is no
+              //  no need to pass it along.              
               break;
             }
             // no message
@@ -315,17 +319,12 @@ void rx_node_task() {
   }
 }
 
-/**
- * rx_serv_task() -
- *  receive a message from the server
- */
+// rx_serv_task - receive messages from the server
 void rx_serv_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
   packet rx_packet;
   uint16_t server_seq_num = 0;
-
-  printf("rx_serv_task PID: %d.\r\n", nrk_get_pid());
 
   // get the UART signal and register it
   nrk_sig_t uart_rx_signal = nrk_uart_rx_signal_get();
@@ -338,7 +337,7 @@ void rx_serv_task() {
       nrk_led_set(BLUE_LED);
 
       // print message if appropriate
-      if(print_incoming == TRUE) {
+      if(verbose == TRUE) {
         printf("rx_serv:%s\r\n", serv_rx_buf);
       }
 
@@ -347,16 +346,7 @@ void rx_serv_task() {
       clear_serv_buf();
       print_packet(&rx_packet);
 
-      // check sequence number to determine if the packet should be received
-      // NOTE: This probably is unnecessary because the likelihood of an earlier
-      //  message being delivered serially is very slim. However, one can imagine
-      //  that if these were actual network messages that a delay would be much more
-      //  probable. Thus, in the spirit of correctness and completeness, we will
-      //  keep track of these sequence numbers.
-      //if(rx_packet.seq_num > server_seq_num) {
-
-      // update local sequence number
-      //  server_seq_num = rx_packet.seq_num;
+      // update server sequence number
       rx_packet.seq_num = server_seq_num;
       server_seq_num++;
       rx_packet.num_hops++;
@@ -375,6 +365,7 @@ void rx_serv_task() {
         case MSG_DATA:
         case MSG_HAND:
         case MSG_GATEWAY:
+        case MSG_HEARTBEAT:
          // do nothing
           // NOTICE: really, these should never happend. Eventually, throw an error here.
           break;
@@ -396,10 +387,7 @@ void rx_serv_task() {
   }
 }
 
-/**
- * tx_cmd_task() -
- *  send all commands out to the network.
- */
+// tx_cmd_task - send all commands out to the network
 void tx_cmd_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -408,8 +396,6 @@ void tx_cmd_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_cmd_queue_size;
-
-  printf("tx_cmd_task PID: %d.\r\n", nrk_get_pid());
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -429,19 +415,7 @@ void tx_cmd_task() {
     }
     nrk_sem_post(cmd_tx_queue_mux);
 
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(cmd_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
+    // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
       nrk_led_set(RED_LED);
       // get a packet out of the queue.
@@ -471,10 +445,39 @@ void tx_cmd_task() {
   }
 }
 
-/**
- * tx_node_task() -
- *  send standard messages out to the network (i.e. handshake messages, etc.)
- */
+// tx_serv_task - transmit message to the server
+void tx_serv_task() {
+  uint8_t tx_serv_queue_size;
+  packet tx_packet;
+
+  // loop forever
+  while(1) {
+    // atomically get the queue size
+    nrk_sem_pend(serv_tx_queue_mux); {
+      tx_serv_queue_size = serv_tx_queue.size;
+    }
+    nrk_sem_post(serv_tx_queue_mux);
+
+    // loop on queue size received above, and no more.
+    for(uint8_t i = 0; i < tx_serv_queue_size; i++) {
+      // get a packet out of the queue.
+      nrk_sem_pend(serv_tx_queue_mux); {
+        pop(&serv_tx_queue, &tx_packet);
+      }
+      nrk_sem_post(serv_tx_queue_mux);
+
+      // NOTE: unlike tx_cmd_task() and tx_node_task(), no mutex is required around
+      //  the sending buffer here because tx_serv_task() is the only task to use
+      //  the serial transmitting buffer (serv_tx_buff);
+      assemble_serv_packet(&serv_tx_buf, &tx_packet);
+      printf("%s\r\n", serv_tx_buf);
+    }
+
+    nrk_wait_until_next_period();
+  }
+}
+
+// tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
 void tx_node_task() {
   // local variable initialization
   uint8_t LED_FLAG = 0;
@@ -483,8 +486,6 @@ void tx_node_task() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t tx_node_queue_size;
-
-  printf("tx_node_task PID: %d.\r\n", nrk_get_pid());
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -503,19 +504,7 @@ void tx_node_task() {
     }
     nrk_sem_post(node_tx_queue_mux);
 
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
+    // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_node_queue_size; i++) {
       nrk_led_set(RED_LED);
       // get a packet out of the queue.
@@ -527,7 +516,7 @@ void tx_node_task() {
       // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(net_tx_buf_mux); {
-      net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
+        net_tx_index = assemble_packet(&net_tx_buf, &tx_packet);
         // send the packet
         val = bmac_tx_pkt_nonblocking(net_tx_buf, net_tx_index);
         ret = nrk_event_wait (SIG(tx_done_signal));
@@ -544,88 +533,60 @@ void tx_node_task() {
   }
 }
 
-/**
- * tx_serv_task() _
- *  send messages to the server
- */
-void tx_serv_task() {
-  // local variable initialization
+// send_heart_task - send heartbeat message to the network and user (LEDS)
+void send_heart_task() {
   uint8_t LED_FLAG = 0;
-  uint8_t tx_serv_queue_size;
-  packet tx_packet;
-
-  printf("tx_serv_task PID: %d.\r\n", nrk_get_pid());
+  packet heart_packet;
+  heart_packet.source_id = MAC_ADDR;
+  heart_packet.type = MSG_HEARTBEAT;
+  heart_packet.num_hops = 0;
 
   while(1) {
     LED_FLAG += 1;
     LED_FLAG %= 2;
     if(LED_FLAG == 0) {
-      nrk_led_set(ORANGE_LED);
+      nrk_led_set(GREEN_LED);
     }
     else {
-      nrk_led_clr(ORANGE_LED);
+      nrk_led_clr(GREEN_LED);
     }
-    // atomically get the queue size
+
+    // increment the sequence number
+    nrk_sem_pend(seq_num_mux); {
+      seq_num++;
+      heart_packet.seq_num = seq_num;        
+    }
+    nrk_sem_post(seq_num_mux);
+
+    // add to the node_tx_queue -> send out on network
+    nrk_sem_pend(node_tx_queue_mux); {
+      push(&node_tx_queue, &heart_packet);
+    }
+    nrk_sem_post(node_tx_queue_mux);
+
+    // add to the serv_tx_queue -> send to the server
     nrk_sem_pend(serv_tx_queue_mux); {
-      tx_serv_queue_size = serv_tx_queue.size;
+      push(&serv_tx_queue, &heart_packet);
     }
     nrk_sem_post(serv_tx_queue_mux);
 
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(serv_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
-    for(uint8_t i = 0; i < tx_serv_queue_size; i++) {
-      // get a packet out of the queue.
-      nrk_sem_pend(serv_tx_queue_mux); {
-        pop(&serv_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(serv_tx_queue_mux);
-
-      // NOTE: unlike tx_cmd_task() and tx_node_task(), no mutex is required around
-      //  the sending buffer here because tx_serv_task() is the only task to use
-      //  the serial transmitting buffer (serv_tx_buff);
-      assemble_serv_packet(&serv_tx_buf, &tx_packet);
-
-      // send the packet
-      //for (uint8_t x = 0; x < serv_tx_index; x++)
-      //{
-        printf("%s", serv_tx_buf);
-      //}
-      printf("\r\n");
-    }
-
+    // wait until next period to send again
     nrk_wait_until_next_period();
   }
 }
 
-/** 
- * hand_task() - 
- *  handle handshakes.
- */
+// hand_task - handle handshakes
 void hand_task() {
-  // initialize local variables
   uint8_t hand_rx_size;
   packet rx_packet, tx_packet;
   uint8_t in_node_pool;
 
-  printf("hand_task PID: %d.\r\n", nrk_get_pid());
-
-  // set tx_packet parameters
+  // initialize HANDACK packet
   tx_packet.source_id = MAC_ADDR;
   tx_packet.type = MSG_HANDACK;
   tx_packet.num_hops = 0;
 
-
+  // loop forever
   while(1) {
     // every iteration of this task will yield a new pool
     pool_t node_pool;
@@ -636,19 +597,7 @@ void hand_task() {
     }
     nrk_sem_post(hand_rx_queue_mux);
 
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(hand_rx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
+    // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < hand_rx_size; i++) {
       // get a packet out of the queue.
       nrk_sem_pend(hand_rx_queue_mux); {
@@ -657,21 +606,23 @@ void hand_task() {
       nrk_sem_post(hand_rx_queue_mux);
       print_packet(&rx_packet);
 
-      // update seqence number
+      // increment sequence number atomically
       nrk_sem_pend(seq_num_mux); {
         seq_num++;
         tx_packet.seq_num = seq_num;        
       }
       nrk_sem_post(seq_num_mux);
 
-      // update with the correct payload
+      // finish transmit packet
       tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
       tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
       tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
       tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
       tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
-      print_packet(&tx_packet);
+      if(verbose == TRUE) {
+        print_packet(&tx_packet);
+      }
 
       // send response back to the node
       nrk_sem_pend(cmd_tx_queue_mux); {
@@ -689,35 +640,9 @@ void hand_task() {
   }
 }
 
-void heartbeat_task() {
-  // initialize packet
-  packet heartbeat_packet;
-  heartbeat_packet.source_id = MAC_ADDR;
-  heartbeat_packet.type = MSG_HEARTBEAT;
-  heartbeat_packet.num_hops = 0;
+/***** END TASKS ****/
 
-  printf("heartbeat_task PID: %d.\r\n", nrk_get_pid());
-
-  // loop forever
-  while(1) {
-    // update sequence number
-    nrk_sem_pend(seq_num_mux); {
-      seq_num++;
-      heartbeat_packet.seq_num = seq_num;        
-    }
-    nrk_sem_post(seq_num_mux);
-
-    // push new packet into the node tx queue
-    nrk_sem_pend(node_tx_queue_mux); {
-      push(&node_tx_queue, &heartbeat_packet);
-    }
-    nrk_sem_post(node_tx_queue_mux);
-
-    // wait until the next period
-    nrk_wait_until_next_period();
-  }
-}
-
+/***** CONFIGURATION *****/
 /**
  * nrk_create_taskset - create the tasks in this application
  *
@@ -744,7 +669,7 @@ void nrk_create_taskset () {
   RX_SERV_TASK.Type = BASIC_TASK;
   RX_SERV_TASK.SchType = PREEMPTIVE;
   RX_SERV_TASK.period.secs = 0;
-  RX_SERV_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  RX_SERV_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_SERV_TASK.cpu_reserve.secs = 0;
   RX_SERV_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
   RX_SERV_TASK.offset.secs = 0;
@@ -763,66 +688,67 @@ void nrk_create_taskset () {
   TX_CMD_TASK.offset.secs = 0;
   TX_CMD_TASK.offset.nano_secs = 0;
 
-  TX_NODE_TASK.task = tx_node_task;
-  nrk_task_set_stk(&TX_NODE_TASK, tx_node_task_stack, NRK_APP_STACKSIZE);
-  TX_NODE_TASK.prio = 4;
-  TX_NODE_TASK.FirstActivation = TRUE;
-  TX_NODE_TASK.Type = BASIC_TASK;
-  TX_NODE_TASK.SchType = PREEMPTIVE;
-  TX_NODE_TASK.period.secs = 2;
-  TX_NODE_TASK.period.nano_secs = 0;
-  TX_NODE_TASK.cpu_reserve.secs = 0;
-  TX_NODE_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
-  TX_NODE_TASK.offset.secs = 0;
-  TX_NODE_TASK.offset.nano_secs = 0;
-
   TX_SERV_TASK.task = tx_serv_task;
   nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
-  TX_SERV_TASK.prio = 3;
+  TX_SERV_TASK.prio = 4;
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
   TX_SERV_TASK.SchType = PREEMPTIVE;
   TX_SERV_TASK.period.secs = 1;
   TX_SERV_TASK.period.nano_secs = 0;
   TX_SERV_TASK.cpu_reserve.secs = 0;
-  TX_SERV_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
+  TX_SERV_TASK.cpu_reserve.nano_secs = 25*NANOS_PER_MS;
   TX_SERV_TASK.offset.secs = 0;
   TX_SERV_TASK.offset.nano_secs = 0;
 
+  TX_NODE_TASK.task = tx_node_task;
+  nrk_task_set_stk(&TX_NODE_TASK, tx_node_task_stack, NRK_APP_STACKSIZE);
+  TX_NODE_TASK.prio = 3;
+  TX_NODE_TASK.FirstActivation = TRUE;
+  TX_NODE_TASK.Type = BASIC_TASK;
+  TX_NODE_TASK.SchType = PREEMPTIVE;
+  TX_NODE_TASK.period.secs = 1;
+  TX_NODE_TASK.period.nano_secs = 0;
+  TX_NODE_TASK.cpu_reserve.secs = 0;
+  TX_NODE_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
+  TX_NODE_TASK.offset.secs = 0;
+  TX_NODE_TASK.offset.nano_secs = 0;
+
+  SEND_HEART_TASK.task = send_heart_task;
+  nrk_task_set_stk(&SEND_HEART_TASK, send_heart_task_stack, NRK_APP_STACKSIZE);
+  SEND_HEART_TASK.prio = 2;
+  SEND_HEART_TASK.FirstActivation = TRUE;
+  SEND_HEART_TASK.Type = BASIC_TASK;
+  SEND_HEART_TASK.SchType = PREEMPTIVE;
+  SEND_HEART_TASK.period.secs = 5;
+  SEND_HEART_TASK.period.nano_secs = 0;
+  SEND_HEART_TASK.cpu_reserve.secs = 0;
+  SEND_HEART_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  SEND_HEART_TASK.offset.secs = 0;
+  SEND_HEART_TASK.offset.nano_secs = 0;
+
   HAND_TASK.task = hand_task;
   nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE);
-  HAND_TASK.prio = 2;
+  HAND_TASK.prio = 1;
   HAND_TASK.FirstActivation = TRUE;
   HAND_TASK.Type = BASIC_TASK;
   HAND_TASK.SchType = PREEMPTIVE;
   HAND_TASK.period.secs = 5;
   HAND_TASK.period.nano_secs = 0;
   HAND_TASK.cpu_reserve.secs = 0;
-  HAND_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
+  HAND_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   HAND_TASK.offset.secs = 0;
   HAND_TASK.offset.nano_secs = 0;
-
-  HEARTBEAT_TASK.task = heartbeat_task;
-  nrk_task_set_stk(&HEARTBEAT_TASK, heartbeat_task_stack, NRK_APP_STACKSIZE);
-  HEARTBEAT_TASK.prio = 1;
-  HEARTBEAT_TASK.FirstActivation = TRUE;
-  HEARTBEAT_TASK.Type = BASIC_TASK;
-  HEARTBEAT_TASK.SchType = PREEMPTIVE;
-  HEARTBEAT_TASK.period.secs = 5;
-  HEARTBEAT_TASK.period.nano_secs = 0;
-  HEARTBEAT_TASK.cpu_reserve.secs = 0;
-  HEARTBEAT_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
-  HEARTBEAT_TASK.offset.secs = 0;
-  HEARTBEAT_TASK.offset.nano_secs = 0;
 
   nrk_activate_task(&RX_NODE_TASK);
   nrk_activate_task(&RX_SERV_TASK);
   nrk_activate_task(&TX_CMD_TASK);
-  nrk_activate_task(&TX_NODE_TASK);
   nrk_activate_task(&TX_SERV_TASK);
+  nrk_activate_task(&TX_NODE_TASK);
+  nrk_activate_task(&SEND_HEART_TASK);
   nrk_activate_task(&HAND_TASK);
-  //nrk_activate_task(&HEARTBEAT_TASK);
 
   nrk_kprintf(PSTR("Create done.\r\n"));
 }
 
+/***** END CONFIGURATION *****/

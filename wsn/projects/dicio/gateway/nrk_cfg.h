@@ -1,7 +1,7 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
+ * Dicio - A Smart Outlet Mesh Network
  * nrk_cfg.h (gateway)
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
@@ -46,13 +46,13 @@
 // Be sure to include the idle task
 // Making this the correct size will save on BSS memory which
 // is both RAM and ROM...
-#define NRK_MAX_TASKS       		    9
+#define NRK_MAX_TASKS       		    10
 #define	NRK_N_RES			            1	
                            
-#define NRK_TASK_IDLE_STK_SIZE         512   // Idle task stack size min=32 
+#define NRK_TASK_IDLE_STK_SIZE         1024   // Idle task stack size min=32 
 #define NRK_APP_STACKSIZE              512 
-#define NRK_KERNEL_STACKSIZE           512 
-#define NRK_MAX_RESOURCE_CNT           8
+#define NRK_KERNEL_STACKSIZE           1024 
+#define NRK_MAX_RESOURCE_CNT           2
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
