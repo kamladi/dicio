@@ -697,7 +697,7 @@ void nrk_create_taskset () {
   TX_SERV_TASK.period.secs = 1;
   TX_SERV_TASK.period.nano_secs = 0;
   TX_SERV_TASK.cpu_reserve.secs = 0;
-  TX_SERV_TASK.cpu_reserve.nano_secs = 25*NANOS_PER_MS;
+  TX_SERV_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   TX_SERV_TASK.offset.secs = 0;
   TX_SERV_TASK.offset.nano_secs = 0;
 

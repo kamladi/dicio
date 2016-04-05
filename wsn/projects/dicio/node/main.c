@@ -113,8 +113,8 @@ uint16_t g_seq_num = 0;
 nrk_sem_t* g_seq_num_mux;
 
 // WATCHDOG TIMER
-int8_t g_serv_watchdog = HEART_FACTOR;
-nrk_sem_t* g_serv_watchdog_mux;
+int8_t g_net_watchdog = HEART_FACTOR;
+nrk_sem_t* g_net_watchdog_mux;
 
 // GLOBAL FLAGS
 uint8_t g_print_incoming;
@@ -158,7 +158,7 @@ int main() {
   g_network_joined_mux      = nrk_sem_create(1, 7);
   g_global_outlet_state_mux = nrk_sem_create(1, 7);
   g_button_pressed_mux      = nrk_sem_create(1, 7);
-  g_serv_watchdog_mux       = nrk_sem_create(1, 7);
+  g_net_watchdog_mux       = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
   g_pwr_period = 1;
@@ -371,10 +371,10 @@ void rx_msg_task() {
                 }
                 nrk_sem_post(g_data_tx_queue_mux);
 
-                nrk_sem_pend(g_serv_watchdog_mux); {
-                  g_serv_watchdog = HEART_FACTOR;
+                nrk_sem_pend(g_net_watchdog_mux); {
+                  g_net_watchdog = HEART_FACTOR;
                 }
-                nrk_sem_post(g_serv_watchdog_mux);
+                nrk_sem_post(g_net_watchdog_mux);
                 break;
               }
               default: {
@@ -1036,11 +1036,11 @@ void heartbeat_task() {
     //  otherwise, wait.
     if(local_network_joined == TRUE) {
       // update watchdog timer
-      nrk_sem_pend(g_serv_watchdog_mux); {
-        g_serv_watchdog--;
-        local_watchdog = g_serv_watchdog;
+      nrk_sem_pend(g_net_watchdog_mux); {
+        g_net_watchdog--;
+        local_watchdog = g_net_watchdog;
       }
-      nrk_sem_post(g_serv_watchdog_mux);    
+      nrk_sem_post(g_net_watchdog_mux);    
 
       // if the watchdog has been exceeded, set network joined flag to false
       if(local_watchdog <= 0) {
@@ -1055,10 +1055,10 @@ void heartbeat_task() {
       nrk_led_set(GREEN_LED);
     } else {
       // reset the watchdog timer
-      nrk_sem_pend(g_serv_watchdog_mux); {
-        g_serv_watchdog = HEART_FACTOR;
+      nrk_sem_pend(g_net_watchdog_mux); {
+        g_net_watchdog = HEART_FACTOR;
       }
-      nrk_sem_post(g_serv_watchdog_mux);  
+      nrk_sem_post(g_net_watchdog_mux);  
 
       // set red LED / clear green LED
       nrk_led_set(RED_LED);
