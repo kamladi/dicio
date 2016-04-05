@@ -701,9 +701,9 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, check status
     else {
       nrk_sem_pend(g_network_joined_mux); {
-        //local_network_joined = g_network_joined;
-        local_network_joined = TRUE;
-        g_network_joined = TRUE;
+        local_network_joined = g_network_joined;
+        //local_network_joined = TRUE;
+        //g_network_joined = TRUE;
       }
       nrk_sem_post(g_network_joined_mux);
 
