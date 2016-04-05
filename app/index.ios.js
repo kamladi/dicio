@@ -33,6 +33,7 @@ class dicio_ios extends Component {
 		this.webSocketHandler.addListener('newNode', this.handleNewNode.bind(this));
 		this.webSocketHandler.addListener('lostNode', this.handleLostNode.bind(this));
 		this.webSocketHandler.addListener('activeNode', this.handleActiveNode.bind(this));
+		this.webSocketHandler.addListener('deadGateway', this.handleDeadGateway.bind(this));
 	}
 
 	handleNewNode(outletId, outletName) {
@@ -69,6 +70,11 @@ class dicio_ios extends Component {
 		console.log(`ACTIVE NODE: ${outletName}`);
 		AlertIOS.alert(`Connection restored to outlet: ${outletName}`);
 		OutletActions.fetchOutlets();
+	}
+
+	handleDeadGateway() {
+		console.log('DEAD GATEWAY');
+		AlertIOS.alert('Lost connection to gateway node');
 	}
 
 	render() {

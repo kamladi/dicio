@@ -1,6 +1,7 @@
 var Event      = require('./models/Event');
 var Outlet     = require('./models/Outlet');
 var SP         = require('serialport');
+var Watchdog   = require('./lib/Watchdog');
 var WS 				 = require('./websockets');
 
 // Constants
@@ -20,6 +21,7 @@ const LOST_NODE_MESSAGE     = 10;
 // Globals
 var gSerialPort = null;
 var gCommandId = 0;
+var gWatchdogTimer = null;
 
 /*
  * Returns True if we have made a successful connection to the gateway,
@@ -134,16 +136,21 @@ function handleHandshakeAckMessage(macAddress, payload) {
 	    	// if outlet already exists, update hardware version, and
 	    	//  mark outlet as active again.
 	    	var existingOutlet = outlets[0];
-	    	existingOutlet.hardware_version = hardwareVersion;
-	    	existingOutlet.active = true;
-	    	return existingOutlet.save()
-	    		.then( outlet => {
-				    // Send socket mesage to app announcing outlet has become
-				    // active again
-				    // TODO: Should we deal with the case where we receive a HAND-ACK
-				    // message for an outlet that is already active/connected?
-				    return WS.sendActiveNodeMessage(outlet._id, outlet.name);
-				  });
+	    	if (existingOutlet.active) {
+	    		// If the outlet is already active, ignore.
+	    		console.log(`Received HAND-ACK message for already active outlet ${newMacAddress}`);
+	    		return existingOutlet;
+	    	} else {
+	    		// Outlet exists, but is inactive: mark outlet as active again.
+	    		existingOutlet.active = true;
+		    	return existingOutlet.save()
+		    		.then( outlet => {
+					    // Send socket mesage to app announcing outlet has become
+					    // active again.
+					    return WS.sendActiveNodeMessage(outlet._id, outlet.name);
+					  });
+	    	}
+
 	    }
 
       // Create new outlet object
@@ -178,13 +185,20 @@ function handleLostNodeMessage(macAddress, payload) {
 	    	throw new Error("Received LOST NODE message for unknown outlet " + lostMacAddress);
 	    }
 
-	    // Mark outlet as inactive in database.
 	    var outlet = outlets[0];
-	    outlet.active = false;
-	    return outlet.save()
-	  }).then( outlet => {
-	  	// Send socket mesage to app announcing new node.
-	    return WS.sendLostNodeMessage(outlet._id, outlet.name);
+	    if (!outlet.active) {
+	    	// If the outlet is already inactive, ignore.
+	    	console.log(`Received LOST NODE message for already inactive outlet ${lostMacAddress}`);
+	    	return outlet;
+	    } else {
+	    	// Mark outlet as inactive in database.
+	    	outlet.active = false;
+	    	return outlet.save()
+	    		.then( outlet => {
+				  	// Send socket mesage to app announcing new node.
+				    return WS.sendLostNodeMessage(outlet._id, outlet.name);
+				  });
+	    }
 	  }).catch(console.error);
 }
 
@@ -195,6 +209,9 @@ function handleLostNodeMessage(macAddress, payload) {
 // 			execute any actions is applicable
 function handleData(data) {
   console.log("[Gateway] >>>>>>>>>>", data);
+
+  // Kick Watchdog timer.
+	gWatchdogTimer.kick();
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
@@ -302,6 +319,15 @@ function start(port) {
 	gSerialPort.on('open', () => {
 	    console.log('Serial Port opened');
 
+	 		// Start watchdog timer.
+	 		gWatchdogTimer = new Watchdog();
+
+	 		// Notify app if watchdog timer expires.
+	 		gWatchdogTimer.on('timeout', () => {
+	 			console.error('Gateway watchdog timer expired!');
+	 			WS.sendDeadGatewayMessage();
+	 		});
+
 	    // Listen for "data" event from serial port
 	    gSerialPort.on('data', handleData);
 	});
@@ -312,6 +338,7 @@ function start(port) {
 
 	gSerialPort.on('close', () => {
 		console.log('Serial Port connection closed.');
+		gWatchdogTimer.dispose();
 	});
 };
 
