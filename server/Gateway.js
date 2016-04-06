@@ -11,12 +11,13 @@ const MAX_COMMAND_ID    = 65536;
 const SerialPort = SP.SerialPort;
 
 // Message Types
+const LOST_NODE_MESSAGE     = 1;
 const SENSOR_MESSAGE        = 5;
 const ACTION_MESSAGE        = 6;
 const ACTION_ACK_MESSAGE    = 7;
 const HANDSHAKE_MESSAGE     = 8;
 const HANDSHAKE_ACK_MESSAGE = 9;
-const LOST_NODE_MESSAGE     = 10;
+const HEARTBEAT_MESSAGE		= 10;
 
 // Globals
 var gSerialPort = null;
@@ -167,6 +168,12 @@ function handleHandshakeAckMessage(macAddress, payload) {
 	  }).catch(console.error);
 }
 
+function handleHeartbeatMessage(macAddress, payload) {
+    var msg = 'Heartbeat from gateway received';
+	console.log(msg);
+    return Promise.resolve(msg);
+}
+
 /**
  * Handle a Lost Node. Sends a Websocket message to the client with the outlet's
  * name and id.
@@ -211,7 +218,7 @@ function handleData(data) {
   console.log("[Gateway] >>>>>>>>>>", data);
 
   // Kick Watchdog timer.
-	gWatchdogTimer.kick();
+	if (gWatchdogTimer) gWatchdogTimer.kick();
 
 	/** Parse Packet **/
 	/** Packet format: "mac_addr:seq_num:msg_id:payload" **/
@@ -231,9 +238,11 @@ function handleData(data) {
 		case ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		case HANDSHAKE_ACK_MESSAGE:
-    	return handleHandshakeAckMessage(macAddress, payload);
-    case LOST_NODE_MESSAGE:
-    	return handleLostNodeMessage(macAddress, payload);
+    	    return handleHandshakeAckMessage(macAddress, payload);
+        case HEARTBEAT_MESSAGE:
+    	    return handleHeartbeatMessage(macAddress, payload);
+        case LOST_NODE_MESSAGE:
+    	    return handleLostNodeMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
