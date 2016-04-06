@@ -143,33 +143,33 @@ int main () {
 
 // get_server_input() - get UART data from server - end of message noted by a '\r'
 uint8_t get_server_input() {
-  uint8_t option;
+  uint8_t received;
 
   // loop until all bytes have been received
   while(nrk_uart_data_ready(NRK_DEFAULT_UART)) {
 
     // get UART byte and add to buffer
-    option = getchar();
+    received = getchar();
 
     // if there is room, add it to the buffer.
     if(g_serv_rx_index < (RF_MAX_PAYLOAD_SIZE -1)) {
-      g_serv_rx_buf[g_serv_rx_index] = option;
+      g_serv_rx_buf[g_serv_rx_index] = received;
       g_serv_rx_index++;
     }
     // if there is not room, clear the buffer and then add the new byte.
     else {
       clear_serv_buf();
-      g_serv_rx_buf[g_serv_rx_index] = option;
+      g_serv_rx_buf[g_serv_rx_index] = received;
       g_serv_rx_index++;
     }
 
     // print if appropriate
     if(g_verbose == TRUE) {
-      printf("!%d", option);
+      printf("!%d", received);
     }
 
     // message has been completed
-    if(option == '\r') {
+    if(received == '\r') {
       g_serv_rx_buf[g_serv_rx_index] = '\n';
       g_serv_rx_index++;
       if(g_verbose == TRUE) {
@@ -227,6 +227,7 @@ void rx_node_task() {
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
       nrk_led_set(GREEN_LED);
+
       // get the packet, parse and release
       parse_msg(&rx_packet, &g_net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
@@ -234,7 +235,7 @@ void rx_node_task() {
 
       // print incoming packet if appropriate
       if(g_verbose == TRUE) {
-        nrk_kprintf (PSTR ("rx:\r\n"));
+        nrk_kprintf(PSTR("RX network: "));
         print_packet(&rx_packet);
       }
 
@@ -260,9 +261,7 @@ void rx_node_task() {
             in_alive_pool = in_pool(&g_alive_pool, rx_packet.source_id);
             if(in_alive_pool == -1) {
               add_to_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
-            }
-            else
-            {
+            } else {
               update_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
             }
           } 
@@ -359,7 +358,7 @@ void rx_serv_task() {
 
       // print message if appropriate
       if(g_verbose == TRUE) {
-        printf("rx_serv:%s\r\n", g_serv_rx_buf);
+        printf("RX server: %s\r\n", g_serv_rx_buf);
       }
 
       // parse message
@@ -416,7 +415,7 @@ void tx_cmd_task() {
   nrk_sig_t tx_done_signal;
   nrk_sig_mask_t ret;
   packet tx_packet;
-  uint8_t tx_cmd_queue_size;
+  uint8_t local_tx_cmd_queue_size;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -432,21 +431,21 @@ void tx_cmd_task() {
   while(1){
     // atomically get the queue size
     nrk_sem_pend(g_cmd_tx_queue_mux); {
-      tx_cmd_queue_size = g_cmd_tx_queue.size;
+      local_tx_cmd_queue_size = g_cmd_tx_queue.size;
     }
     nrk_sem_post(g_cmd_tx_queue_mux);
 
     // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
+    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
       nrk_led_set(RED_LED);
+
       // get a packet out of the queue.
       nrk_sem_pend(g_cmd_tx_queue_mux); {
         pop(&g_cmd_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because
-      //  tx_cmd_task() also uses it.
+      // transmit the command
       nrk_sem_pend(g_net_tx_buf_mux); {
         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
 
@@ -468,29 +467,29 @@ void tx_cmd_task() {
 
 // tx_serv_task - transmit message to the server
 void tx_serv_task() {
-  uint8_t tx_serv_queue_size;
+  uint8_t local_tx_serv_queue_size;
   packet tx_packet;
 
   // loop forever
   while(1) {
     // atomically get the queue size
     nrk_sem_pend(g_serv_tx_queue_mux); {
-      tx_serv_queue_size = g_serv_tx_queue.size;
+      local_tx_serv_queue_size = g_serv_tx_queue.size;
     }
     nrk_sem_post(g_serv_tx_queue_mux);
 
     // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < tx_serv_queue_size; i++) {
+    for(uint8_t i = 0; i < local_tx_serv_queue_size; i++) {
       // get a packet out of the queue.
       nrk_sem_pend(g_serv_tx_queue_mux); {
         pop(&g_serv_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_serv_tx_queue_mux);
 
-      // NOTE: unlike tx_cmd_task() and tx_node_task(), no mutex is required around
-      //  the sending buffer here because tx_serv_task() is the only task to use
-      //  the serial transmitting buffer (serv_tx_buff);
+      // assemble the packet
       assemble_serv_packet(&g_serv_tx_buf, &tx_packet);
+
+      // send the packet
       printf("%s\r\n", g_serv_tx_buf);
     }
 
@@ -506,7 +505,7 @@ void tx_node_task() {
   nrk_sig_t tx_done_signal;
   nrk_sig_mask_t ret;
   packet tx_packet;
-  uint8_t tx_node_queue_size;
+  uint8_t local_tx_node_queue_size;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -518,24 +517,25 @@ void tx_node_task() {
   tx_done_signal = bmac_get_tx_done_signal();
   nrk_signal_register(tx_done_signal);
 
+  // loop forever
   while(1) {
     // atomically get the queue size
     nrk_sem_pend(g_node_tx_queue_mux); {
-      tx_node_queue_size = g_node_tx_queue.size;
+      local_tx_node_queue_size = g_node_tx_queue.size;
     }
     nrk_sem_post(g_node_tx_queue_mux);
 
     // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < tx_node_queue_size; i++) {
+    for(uint8_t i = 0; i < local_tx_node_queue_size; i++) {
       nrk_led_set(RED_LED);
+
       // get a packet out of the queue.
       nrk_sem_pend(g_node_tx_queue_mux); {
         pop(&g_node_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_node_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because
-      //  tx_cmd_task() also uses it.
+      // transmit to nodes
       nrk_sem_pend(g_net_tx_buf_mux); {
         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
 
@@ -556,21 +556,28 @@ void tx_node_task() {
   }
 }
 
-// send_heart_task - send heartbeat message to the network and user (LEDS)
+// send_heart_task 
+//  - send heartbeat message to the network and user (LEDS) 
+//  - check heartbeat status of all nodes in the network
 void send_heart_task() {
   uint8_t LED_FLAG = 0;
-  packet heart_packet;
-  packet lost_packet;
+  packet heart_packet, lost_packet;
+  uint8_t temp_id;
+  uint8_t local_alive_pool_size;
+
+  // initialize lost_packet
   lost_packet.source_id = MAC_ADDR;
   lost_packet.type = MSG_LOST;
   lost_packet.num_hops = 0;
+
+  // initialize heart_packet
   heart_packet.source_id = MAC_ADDR;
   heart_packet.type = MSG_HEARTBEAT;
   heart_packet.num_hops = 0;
-  uint8_t temp_id = 0;
-  uint8_t local_alive_pool_size = 0;
 
+  // loop forever
   while(1) {
+    // LED functionality gives visible indication of functionality of the gateway
     LED_FLAG += 1;
     LED_FLAG %= 2;
     if(LED_FLAG == 0) {
@@ -599,15 +606,20 @@ void send_heart_task() {
     }
     nrk_sem_post(g_serv_tx_queue_mux);
 
+    // decrement all items in alive pool
     nrk_sem_pend(g_alive_pool_mux);{
-      // decrement all items in alive pool
       decrement_all(&g_alive_pool);
       local_alive_pool_size = g_alive_pool.size;
     }
     nrk_sem_post(g_alive_pool_mux);
 
+    // check all items in the alive pool to determine if any 
+    //  counters have expired
     for(uint8_t i = 0; i < local_alive_pool_size; i ++){
+      // set temp_id to an invalid id
       temp_id = 0;
+
+      // if alive_pool[i] is NOT_ALIVE set temp_id flag
       nrk_sem_pend(g_alive_pool_mux);{
         if(g_alive_pool.data_vals[i] == ALIVE_LIMIT){
           g_alive_pool.data_vals[i] = NOT_ALIVE;
@@ -616,6 +628,7 @@ void send_heart_task() {
       }
       nrk_sem_post(g_alive_pool_mux);
 
+      // if alive_pool[i] is NOT_ALIVE - send message to the server
       if(temp_id != 0){
         lost_packet.payload[LOST_NODE_INDEX] = temp_id;
         nrk_sem_pend(g_serv_tx_queue_mux);{
@@ -632,7 +645,7 @@ void send_heart_task() {
 
 // hand_task - handle handshakes
 void hand_task() {
-  uint8_t hand_rx_size;
+  uint8_t local_hand_rx_queue_size;
   packet rx_packet, tx_packet;
   uint8_t in_node_pool;
 
@@ -648,12 +661,12 @@ void hand_task() {
 
     // atomically get queue size
     nrk_sem_pend(g_hand_rx_queue_mux); {
-      hand_rx_size = g_hand_rx_queue.size;
+      local_hand_rx_queue_size = g_hand_rx_queue.size;
     }
     nrk_sem_post(g_hand_rx_queue_mux);
 
     // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < hand_rx_size; i++) {
+    for(uint8_t i = 0; i < local_hand_rx_queue_size; i++) {
       // get a packet out of the queue.
       nrk_sem_pend(g_hand_rx_queue_mux); {
         pop(&g_hand_rx_queue, &rx_packet);
@@ -685,7 +698,7 @@ void hand_task() {
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
 
-      // forward the "hello" message from the node to the server
+      // forward the ack to the server
       nrk_sem_pend(g_serv_tx_queue_mux); {
         push(&g_serv_tx_queue, &tx_packet);
       }
