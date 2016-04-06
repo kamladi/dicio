@@ -116,7 +116,7 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_HAND:
         {
             length = 9;
-            printf("hand asm \r\n");
+            //printf("hand asm \r\n");
             tx_buf[5] = tx->payload[0];
             tx_buf[6] = tx->payload[1];
             tx_buf[7] = tx->payload[2];

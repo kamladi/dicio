@@ -26,6 +26,12 @@ int8_t in_pool(pool_t *pool, uint8_t node_address) {
     return (int8_t)-1;
 }
 
+void clear_pool(pool_t *pool) { 
+    for(uint8_t i = 0; i < pool->size; i++) {
+        pool->data_vals[i] = 0;
+    }
+}
+
 /**
  * get_pool_index:
  *  - return the index of teh node_address in the sequence pool

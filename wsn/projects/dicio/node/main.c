@@ -158,7 +158,7 @@ int main() {
   g_network_joined_mux      = nrk_sem_create(1, 7);
   g_global_outlet_state_mux = nrk_sem_create(1, 7);
   g_button_pressed_mux      = nrk_sem_create(1, 7);
-  g_net_watchdog_mux       = nrk_sem_create(1, 7);
+  g_net_watchdog_mux        = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
   g_pwr_period = 1;
@@ -272,6 +272,12 @@ void rx_msg_task() {
       //  NOTE: this is required because the node will hear re-transmitted packets
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
+        // determine if the network has been joined
+        nrk_sem_pend(g_network_joined_mux); { 
+          local_network_joined = g_network_joined;
+        }
+        nrk_sem_post(g_network_joined_mux);
+
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
           // check to see if this node is in the sequence pool, if not then add it
@@ -388,6 +394,9 @@ void rx_msg_task() {
         }
         // if the local_network_joined flag hasn't been set yet, check status
         else {
+          // clear the pool if we're not in the network
+          clear_pool(&g_seq_pool);
+
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
             nrk_sem_pend(g_network_joined_mux); {
@@ -534,11 +543,6 @@ void tx_data_task() {
       }
       nrk_sem_post(g_data_tx_queue_mux);
 
-      if(g_print_incoming == TRUE){
-        //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
-        //print_packet(&tx_packet);
-      }
-
       // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
       nrk_sem_pend(g_net_tx_buf_mux); {
@@ -599,7 +603,7 @@ void sample_task() {
   hello_packet.payload[2] = (HARDWARE_REV >> 8) & 0xff;
   hello_packet.payload[3] = (HARDWARE_REV) & 0xff;
 
-  print_packet(&hello_packet);
+  //print_packet(&hello_packet);
 
   // Open ADC device as read
   g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
@@ -608,6 +612,13 @@ void sample_task() {
   }
 
   while (1) {
+    nrk_sem_pend(g_network_joined_mux); {
+      local_network_joined = g_network_joined;
+      //local_network_joined = TRUE;
+      //g_network_joined = TRUE;
+    }
+    nrk_sem_post(g_network_joined_mux);
+
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -627,9 +638,6 @@ void sample_task() {
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
         g_sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
-
-        // for debug -> print
-        printf("%x\r\n", local_pwr_val);
       }
 
       // sample temperature sensor if appropriate
@@ -645,7 +653,6 @@ void sample_task() {
           } else {
             local_temp_val = (uint16_t)adc_buf[0];
             g_sensor_pkt.temp_val = transform_temp(local_temp_val);
-            printf("TEMP: %d\r\n", transform_temp(local_temp_val));
             sensor_sampled = TRUE;
 
           }
@@ -671,7 +678,6 @@ void sample_task() {
             g_sensor_pkt.light_val = local_light_val;
 
             sensor_sampled = TRUE;
-            printf("LIGHT: %d\r\n", local_light_val);
           }
         }
       }
@@ -698,31 +704,21 @@ void sample_task() {
         nrk_sem_post(g_data_tx_queue_mux);
       }
     }
-    // if the local_network_joined flag hasn't been set yet, check status
+    // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
-      nrk_sem_pend(g_network_joined_mux); {
-        local_network_joined = g_network_joined;
-        //local_network_joined = TRUE;
-        //g_network_joined = TRUE;
+      // update seq num
+      nrk_sem_pend(g_seq_num_mux); {
+        g_seq_num++;
+        hello_packet.seq_num = g_seq_num;
       }
-      nrk_sem_post(g_network_joined_mux);
+      nrk_sem_post(g_seq_num_mux);
 
-      // if the network has not yet been joined, then add "Hello" message
-      //  to the g_data_tx_queue
-      if(local_network_joined == FALSE) {
-        // update seq num
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          hello_packet.seq_num = g_seq_num;
-        }
-        nrk_sem_post(g_seq_num_mux);
-
-        // push to queue
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          push(&g_cmd_tx_queue, &hello_packet);
-        }
-        nrk_sem_post(g_cmd_tx_queue_mux);
+      // push to queue
+      nrk_sem_pend(g_cmd_tx_queue_mux); {
+        printf("adding hello packet to queue....\r\n");
+        push(&g_cmd_tx_queue, &hello_packet);
       }
+      nrk_sem_post(g_cmd_tx_queue_mux);
     }
     nrk_wait_until_next_period();
   }
@@ -817,6 +813,12 @@ void actuate_task() {
 
   // loop forever
   while(1) {
+    // determine if the network has been joined
+    nrk_sem_pend(g_network_joined_mux); {
+      local_network_joined = g_network_joined;
+    }
+    nrk_sem_post(g_network_joined_mux);
+
     // get action queue size / reset action flag
     nrk_sem_pend(g_act_queue_mux); {
       act_queue_size = g_act_queue.size;
@@ -1002,14 +1004,6 @@ void actuate_task() {
         break;
       }
     }
-
-    if(local_network_joined == FALSE) {
-      // determine if the network has been joined
-      nrk_sem_pend(g_network_joined_mux); {
-        local_network_joined = g_network_joined;
-      }
-      nrk_sem_post(g_network_joined_mux);
-    }
     nrk_wait_until_next_period();
   }
 }
@@ -1041,7 +1035,6 @@ void heartbeat_task() {
         local_watchdog = g_net_watchdog;
       }
       nrk_sem_post(g_net_watchdog_mux);    
-
       // if the watchdog has been exceeded, set network joined flag to false
       if(local_watchdog <= 0) {
         nrk_sem_pend(g_network_joined_mux); {
@@ -1057,6 +1050,7 @@ void heartbeat_task() {
       // reset the watchdog timer
       nrk_sem_pend(g_net_watchdog_mux); {
         g_net_watchdog = HEART_FACTOR;
+        local_watchdog = g_net_watchdog;
       }
       nrk_sem_post(g_net_watchdog_mux);  
 

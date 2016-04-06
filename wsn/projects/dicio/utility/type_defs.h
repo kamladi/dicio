@@ -51,7 +51,7 @@
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
-#define HEART_FACTOR 15
+#define HEART_FACTOR 5
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3

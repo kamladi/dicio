@@ -55,7 +55,10 @@ void print_packet(packet *p)
                 payload[HANDACK_CONFIG_ID_INDEX + 1], payload[HANDACK_CONFIG_ID_INDEX + 2], payload[HANDACK_CONFIG_ID_INDEX + 3]);
             break;
         }
-
+        case MSG_HEARTBEAT: {
+            printf("\r\n"); 
+            break;
+        }
         default:{
         }
     }
