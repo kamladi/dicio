@@ -203,6 +203,7 @@ function handleLostNodeMessage(macAddress, payload) {
 	    	return outlet.save()
 	    		.then( outlet => {
 				  	// Send socket mesage to app announcing new node.
+				  	console.log(`Received LOST NODE message for outlet ${lostMacAddress}`);
 				    return WS.sendLostNodeMessage(outlet._id, outlet.name);
 				  });
 	    }
