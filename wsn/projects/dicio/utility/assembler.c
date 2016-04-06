@@ -54,6 +54,19 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
                 tx->payload[HANDACK_NODE_ID_INDEX], hardware_config_1, hardware_config_2);
             break;
         }
+
+        case MSG_HEARTBEAT:
+        {
+            sprintf(tx_buf, "%d:%d:%d:%d:,", tx->source_id, tx->seq_num, tx->type, tx->num_hops);
+            break;
+        }
+
+        case MSG_LOST:
+        {
+            sprintf(tx_buf, "%d:%d:%d:%d:%d,", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+                tx->payload[LOST_NODE_INDEX]);
+            break;
+        }
         default:
             break;
     }
