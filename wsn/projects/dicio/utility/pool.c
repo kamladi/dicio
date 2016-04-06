@@ -32,6 +32,15 @@ void clear_pool(pool_t *pool) {
     }
 }
 
+void decrement_all(pool_t *pool) {
+    uint8_t temp;
+    for(uint8_t i = 0; i < pool->size; i++) {
+        if(pool->data_vals[i] > ALIVE_LIMIT) {
+            pool->data_vals[i]--;
+        }
+    }
+}
+
 /**
  * get_pool_index:
  *  - return the index of teh node_address in the sequence pool
