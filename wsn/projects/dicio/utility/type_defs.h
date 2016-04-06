@@ -52,6 +52,8 @@
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
 #define HEART_FACTOR 5
+#define ALIVE_LIMIT 1
+#define NOT_ALIVE 0
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
@@ -74,6 +76,7 @@
 #define HANDACK_NODE_ID_INDEX 0
 #define HANDACK_CONFIG_ID_INDEX 1
 #define HAND_CONFIG_ID_INDEX 0
+#define LOST_NODE_INDEX 0
 
 #define ON_COIL NRK_PORTB_6
 #define OFF_COIL NRK_PORTB_7
@@ -92,6 +95,7 @@ typedef enum {
   MSG_HAND = 8,
   MSG_HANDACK = 9,
   MSG_HEARTBEAT = 10,
+  MSG_LOST = 1
 } msg_type;
 
 /**

@@ -88,6 +88,10 @@ uint16_t seq_num = 0;
 nrk_sem_t* seq_num_mux;
 uint16_t cmd_id = 0;
 
+// ALIVE POOL
+pool_t alive_pool;
+nrk_sem_t* alive_pool_mux;
+
 // GLOBAL FLAG
 uint8_t verbose;
 
@@ -117,6 +121,7 @@ int main () {
   serv_tx_queue_mux = nrk_sem_create(1, 8);
   hand_rx_queue_mux = nrk_sem_create(1, 8);
   seq_num_mux       = nrk_sem_create(1, 8);
+  alive_pool_mux    = nrk_sem_create(1, 8);
 
   // packet queues
   packet_queue_init(&cmd_tx_queue);
@@ -204,7 +209,9 @@ void rx_node_task() {
   uint8_t len, rssi;
   uint8_t *local_buf;
   int8_t in_seq_pool;
+  int8_t in_alive_pool;
   uint16_t local_seq_num;
+  uint16_t local_alive_num;
   uint8_t new_node = NONE;
 
   // initialize network receive buffer
@@ -246,6 +253,20 @@ void rx_node_task() {
         // determine if we should act on this packet based on the sequence number
         local_seq_num = get_data_val(&seq_pool, rx_packet.source_id);
         if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
+
+          // check to see if this node is in the ALIVE pool, if not then add it,
+          // If it is in the alive pool, update the counter to HEART FACTOR
+          nrk_sem_pend(alive_pool_mux);{
+            in_alive_pool = in_pool(&alive_pool, rx_packet.source_id);
+            if(in_alive_pool == -1) {
+              add_to_pool(&alive_pool, rx_packet.source_id, HEART_FACTOR);
+            }
+            else
+            {
+              update_pool(&alive_pool, rx_packet.source_id, HEART_FACTOR);
+            }
+          } 
+          nrk_sem_post(alive_pool_mux);
 
           // update the sequence pool and reset the new_node flag
           update_pool(&seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -539,9 +560,15 @@ void tx_node_task() {
 void send_heart_task() {
   uint8_t LED_FLAG = 0;
   packet heart_packet;
+  packet lost_packet;
+  lost_packet.source_id = MAC_ADDR;
+  lost_packet.type = MSG_LOST;
+  lost_packet.num_hops = 0;
   heart_packet.source_id = MAC_ADDR;
   heart_packet.type = MSG_HEARTBEAT;
   heart_packet.num_hops = 0;
+  uint8_t temp_id = 0;
+  uint8_t local_alive_pool_size = 0;
 
   while(1) {
     LED_FLAG += 1;
@@ -571,6 +598,32 @@ void send_heart_task() {
       push(&serv_tx_queue, &heart_packet);
     }
     nrk_sem_post(serv_tx_queue_mux);
+
+    nrk_sem_pend(alive_pool_mux);{
+      // decrement all items in alive pool
+      decrement_all(&alive_pool);
+      local_alive_pool_size = alive_pool.size;
+    }
+    nrk_sem_post(alive_pool_mux);
+
+    for(uint8_t i = 0; i < local_alive_pool_size; i ++){
+      temp_id = 0;
+      nrk_sem_pend(alive_pool_mux);{
+        if(alive_pool.data_vals[i] == ALIVE_LIMIT){
+          alive_pool.data_vals[i] = NOT_ALIVE;
+          temp_id = alive_pool.node_id[i];
+        }
+      }
+      nrk_sem_post(alive_pool_mux);
+
+      if(temp_id != 0){
+        lost_packet.payload[LOST_NODE_INDEX] = temp_id;
+        nrk_sem_pend(serv_tx_queue_mux);{
+          push(&serv_tx_queue, &lost_packet);
+        }
+        nrk_sem_post(serv_tx_queue_mux);
+      }
+    }
 
     // wait until next period to send again
     nrk_wait_until_next_period();
