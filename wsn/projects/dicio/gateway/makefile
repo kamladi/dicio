@@ -1,3 +1,9 @@
+## 18-748 Wireless Sensor Networks
+## Spring 2016
+## Dicio - A Smart Outlet Mesh Network
+## makefile (gateway)
+## Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+
 # Platform name  cc2420DK, firefly, micaZ
 #PLATFORM = firefly2_2
 PLATFORM = firefly3

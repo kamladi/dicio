@@ -1,8 +1,8 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * type_defs.h
+ * Dicio - A Smart Outlet Mesh Network
+ * typedefs.h
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
@@ -44,13 +44,14 @@
 #define BUTTON_PRESSED 0
 #define BUTTON_RELEASED 1
 
-// buffers/messages
+// MISC
 #define MAX_BUF_SIZE 24
 #define MAX_PAYLOAD_SIZE 8
 #define MAX_NEIGHBOR_BUF_SIZE 4
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
+#define HEART_FACTOR 5
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
@@ -90,6 +91,7 @@ typedef enum {
   MSG_CMDACK = 7,
   MSG_HAND = 8,
   MSG_HANDACK = 9,
+  MSG_HEARTBEAT = 10,
 } msg_type;
 
 /**

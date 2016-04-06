@@ -1,3 +1,10 @@
+/**
+ * 18-748 Wireless Sensor Networks
+ * Spring 2016
+ * Dicio - A Smart Outlet Mesh Network
+ * power_sensor.c
+ * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+ */
 
 #include <power_sensor.h>
 #include <dicio_spi.h>

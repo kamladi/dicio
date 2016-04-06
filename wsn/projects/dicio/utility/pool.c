@@ -1,10 +1,11 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
+ * Dicio - A Smart Outlet Mesh Network
  * pool.c
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
+
 #include <pool.h>
 
 /*** SEQUENCE POOL OPERATIONS ***/
@@ -23,6 +24,12 @@ int8_t in_pool(pool_t *pool, uint8_t node_address) {
         }
     }
     return (int8_t)-1;
+}
+
+void clear_pool(pool_t *pool) { 
+    for(uint8_t i = 0; i < pool->size; i++) {
+        pool->data_vals[i] = 0;
+    }
 }
 
 /**

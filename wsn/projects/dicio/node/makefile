@@ -1,3 +1,9 @@
+## 18-748 Wireless Sensor Networks
+## Spring 2016
+## Dicio - A Smart Outlet Mesh Network
+## makefile (node)
+## Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+
 #Platform name  cc2420DK, firefly, micaZ
 #PLATFORM = firefly2_2
 PLATFORM = firefly3
@@ -30,6 +36,7 @@ SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/twi_base_calls.c
 SRC += $(ROOT_DIR)/src/drivers/platform/$(PLATFORM_TYPE)/source/adc_driver.c
 SRC += $(ROOT_DIR)/projects/dicio/drivers/dicio_spi.c
 SRC += $(ROOT_DIR)/projects/dicio/drivers/power_sensor.c
+SRC += $(ROOT_DIR)/projects/dicio/utility/adc.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/assembler.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/packet_queue.c
 SRC += $(ROOT_DIR)/projects/dicio/utility/parser.c

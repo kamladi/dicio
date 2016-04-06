@@ -1,8 +1,8 @@
-/*
+/**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * main.c (gateway)
+ * Dicio - A Smart Outlet Mesh Network
+ * main.c (node)
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
@@ -21,6 +21,7 @@
 #include <adc_driver.h>
 #include <bmac.h>
 // this package
+#include <adc.h>
 #include <assembler.h>
 #include <dicio_spi.h>
 #include <power_sensor.h>
@@ -42,6 +43,7 @@ void tx_data_task(void);
 void sample_task(void);
 void button_task(void);
 void actuate_task(void);
+void heartbeat_task(void);
 void nrk_set_gpio(void);
 uint8_t get_global_outlet_state();
 void update_global_outlet_state(uint8_t new_state);
@@ -70,6 +72,7 @@ nrk_task_type TX_DATA_TASK;
 nrk_task_type SAMPLE_TASK;
 nrk_task_type ACTUATE_TASK;
 nrk_task_type BUTTON_TASK;
+nrk_task_type HEARTBEAT_TASK;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
@@ -78,6 +81,7 @@ NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
 NRK_STK button_task_stack[NRK_APP_STACKSIZE];
+NRK_STK heartbeat_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t g_net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -108,6 +112,10 @@ pool_t g_seq_pool;
 uint16_t g_seq_num = 0;
 nrk_sem_t* g_seq_num_mux;
 
+// WATCHDOG TIMER
+int8_t g_net_watchdog = HEART_FACTOR;
+nrk_sem_t* g_net_watchdog_mux;
+
 // GLOBAL FLAGS
 uint8_t g_print_incoming;
 uint8_t g_network_joined;
@@ -117,8 +125,7 @@ nrk_sem_t *g_global_outlet_state_mux;
 uint8_t g_button_pressed;
 nrk_sem_t* g_button_pressed_mux;
 
-int main()
-{
+int main() {
   packet act_packet;
 
   // setup ports/uart
@@ -150,7 +157,8 @@ int main()
   g_seq_num_mux             = nrk_sem_create(1, 7);
   g_network_joined_mux      = nrk_sem_create(1, 7);
   g_global_outlet_state_mux = nrk_sem_create(1, 7);
-  g_button_pressed_mux  = nrk_sem_create(1, 7);
+  g_button_pressed_mux      = nrk_sem_create(1, 7);
+  g_net_watchdog_mux        = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
   g_pwr_period = 1;
@@ -194,7 +202,7 @@ int main()
  * @return uint8_t current global outlet state (either ON or OFF)
  */
 uint8_t get_global_outlet_state() {
-  uint8_t outlet_state = 0;
+  uint8_t outlet_state = OFF;
   nrk_sem_pend(g_global_outlet_state_mux); {
     outlet_state = g_global_outlet_state;
   }
@@ -264,6 +272,12 @@ void rx_msg_task() {
       //  NOTE: this is required because the node will hear re-transmitted packets
       //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
+        // determine if the network has been joined
+        nrk_sem_pend(g_network_joined_mux); { 
+          local_network_joined = g_network_joined;
+        }
+        nrk_sem_post(g_network_joined_mux);
+
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
           // check to see if this node is in the sequence pool, if not then add it
@@ -283,11 +297,32 @@ void rx_msg_task() {
 
             // put the message in the right queue based on the type
             switch(rx_packet.type) {
+              // no message
+              case MSG_NO_MESSAGE: {
+                // do nothing.
+                // NOTE: this is a valid case. If the message is not 'parsible' then it can be
+                //  given a 'NO_MESSAGE' type.
+                break;
+              }
+              // gateway message -> for future expansion
+              case MSG_GATEWAY: {
+                // do nothing...no messages have been defined with this type yet
+                break;
+              }
+              // data received -> forward to server
+              case MSG_DATA: {
+                rx_packet.num_hops++;
+                nrk_sem_pend(g_data_tx_queue_mux); {
+                  push(&g_data_tx_queue, &rx_packet);
+                }
+                nrk_sem_post(g_data_tx_queue_mux);
+                break;
+              }
+              // command received -> forward or actuate
               case MSG_CMD: {
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
-                /*(g_last_command < (uint16_t)rx_packet.payload[CMD_ID_INDEX]) &&*/
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_kprintf (PSTR ("Received command.\r\n"));
                   g_last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
@@ -305,7 +340,7 @@ void rx_msg_task() {
                 }
                 break;
               }
-              // command ack received -- forward to the server
+              // command ack received -> forward to the server
               case MSG_CMDACK: {
                 rx_packet.num_hops++;
                 nrk_sem_pend(g_cmd_tx_queue_mux); {
@@ -314,16 +349,7 @@ void rx_msg_task() {
                 nrk_sem_post(g_cmd_tx_queue_mux);
                 break;
               }
-              // data received -> forward to server
-              case MSG_DATA: {
-                rx_packet.num_hops++;
-                nrk_sem_pend(g_data_tx_queue_mux); {
-                  push(&g_data_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_data_tx_queue_mux);
-                break;
-              }
-              // handshake message recieved
+              // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
                 rx_packet.num_hops++;
@@ -333,16 +359,28 @@ void rx_msg_task() {
                 nrk_sem_post(g_data_tx_queue_mux);
                 break;
               }
-              // gateway message -> for future expansion
-              case MSG_GATEWAY: {
-                // do nothing...no messages have been defined with this type yet
+              // handshake ack message -> forward to the server
+              case MSG_HANDACK: {
+                rx_packet.num_hops++;
+                nrk_sem_pend(g_data_tx_queue_mux); {
+                  push(&g_data_tx_queue, &rx_packet);
+                }
+                nrk_sem_post(g_data_tx_queue_mux);
                 break;
               }
-              // no message
-              case MSG_NO_MESSAGE: {
-                // do nothing.
-                // NOTE: this is a valid case. If the message is not 'parsible' then it can be
-                //  given a 'NO_MESSAGE' type.
+              // heartbeat message -> forward to the server and
+              //  kick the watchdog counter
+              case MSG_HEARTBEAT: {
+                rx_packet.num_hops++;
+                nrk_sem_pend(g_data_tx_queue_mux); {
+                  push(&g_data_tx_queue, &rx_packet);
+                }
+                nrk_sem_post(g_data_tx_queue_mux);
+
+                nrk_sem_pend(g_net_watchdog_mux); {
+                  g_net_watchdog = HEART_FACTOR;
+                }
+                nrk_sem_post(g_net_watchdog_mux);
                 break;
               }
               default: {
@@ -356,6 +394,9 @@ void rx_msg_task() {
         }
         // if the local_network_joined flag hasn't been set yet, check status
         else {
+          // clear the pool if we're not in the network
+          clear_pool(&g_seq_pool);
+
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
             nrk_sem_pend(g_network_joined_mux); {
@@ -401,50 +442,50 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-      // atomically get the queue size
+    // atomically get the queue size
+    nrk_sem_pend(g_cmd_tx_queue_mux); {
+      tx_cmd_queue_size = g_cmd_tx_queue.size;
+    }
+    nrk_sem_post(g_cmd_tx_queue_mux);
+    /**
+     * loop on queue size received above, and no more.
+     *  NOTE: during this loop the queue can be added to. If, for instance,
+     *    a "while(g_cmd_tx_queue.size > 0)" was used a few bad things could happen
+     *      (1) a mutex would be required around the entire loop - BAD IDEA
+     *      (2) the queue could be added to while this loop is running, thus
+     *        making the loop unbounded - BAD IDEA
+     *      (3) the size the queue read and the actual size of the queue could be
+     *        incorrect due to preemtion - BAD IDEA
+     *    Doing it this way bounds this loop to the maximum size of the queue
+     *    at any given time, regardless of whether or not the queue has been
+     *    added to by another task.
+     */
+    for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
+      nrk_led_set(ORANGE_LED);
+      // get a packet out of the queue.
       nrk_sem_pend(g_cmd_tx_queue_mux); {
-        tx_cmd_queue_size = g_cmd_tx_queue.size;
+        pop(&g_cmd_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
-      /**
-       * loop on queue size received above, and no more.
-       *  NOTE: during this loop the queue can be added to. If, for instance,
-       *    a "while(g_cmd_tx_queue.size > 0)" was used a few bad things could happen
-       *      (1) a mutex would be required around the entire loop - BAD IDEA
-       *      (2) the queue could be added to while this loop is running, thus
-       *        making the loop unbounded - BAD IDEA
-       *      (3) the size the queue read and the actual size of the queue could be
-       *        incorrect due to preemtion - BAD IDEA
-       *    Doing it this way bounds this loop to the maximum size of the queue
-       *    at any given time, regardless of whether or not the queue has been
-       *    added to by another task.
-       */
-      for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
-        nrk_led_set(ORANGE_LED);
-        // get a packet out of the queue.
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          pop(&g_cmd_tx_queue, &tx_packet);
+
+      // NOTE: a mutex is required around the network transmit buffer because
+      //  tx_cmd_task() also uses it.
+      nrk_sem_pend(g_net_tx_buf_mux); {
+        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+
+        // send the packet
+        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+        ret = nrk_event_wait (SIG(tx_done_signal));
+
+        // Just check to be sure signal is okay
+        if(ret & (SIG(tx_done_signal) == 0)) {
+          nrk_kprintf(PSTR("TX done signal error\r\n"));
         }
-        nrk_sem_post(g_cmd_tx_queue_mux);
-
-        // NOTE: a mutex is required around the network transmit buffer because
-        //  tx_cmd_task() also uses it.
-        nrk_sem_pend(g_net_tx_buf_mux); {
-          g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
-          // send the packet
-          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-          ret = nrk_event_wait (SIG(tx_done_signal));
-
-          // Just check to be sure signal is okay
-          if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf(PSTR("TX done signal error\r\n"));
-          }
-          clear_tx_buf();
-        }
-        nrk_sem_post(g_net_tx_buf_mux);
-        nrk_led_clr(ORANGE_LED);
+        clear_tx_buf();
       }
+      nrk_sem_post(g_net_tx_buf_mux);
+      nrk_led_clr(ORANGE_LED);
+    }
     nrk_wait_until_next_period();
   }
 }
@@ -501,11 +542,6 @@ void tx_data_task() {
         pop(&g_data_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_data_tx_queue_mux);
-
-      if(g_print_incoming == TRUE){
-        //nrk_kprintf (PSTR ("Asm pkt:\r\n"));
-        //print_packet(&tx_packet);
-      }
 
       // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
@@ -567,15 +603,22 @@ void sample_task() {
   hello_packet.payload[2] = (HARDWARE_REV >> 8) & 0xff;
   hello_packet.payload[3] = (HARDWARE_REV) & 0xff;
 
-  print_packet(&hello_packet);
+  //print_packet(&hello_packet);
 
   // Open ADC device as read
   g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
   if(g_adc_fd == NRK_ERROR) {
-    nrk_kprintf( PSTR("Failed to open ADC driver\r\n"));
+    nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
   }
 
   while (1) {
+    nrk_sem_pend(g_network_joined_mux); {
+      local_network_joined = g_network_joined;
+      //local_network_joined = TRUE;
+      //g_network_joined = TRUE;
+    }
+    nrk_sem_post(g_network_joined_mux);
+
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -589,15 +632,12 @@ void sample_task() {
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
         // requrest temperature
-        pwr_read(TEMPERATURE, &pwr_rcvd);
+        pwr_read(WATT, &pwr_rcvd);
 
         // pull out dinner location
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
         g_sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
-
-        // for debug -> print
-        printf("%x\r\n", local_pwr_val);
       }
 
       // sample temperature sensor if appropriate
@@ -612,10 +652,8 @@ void sample_task() {
             nrk_kprintf(PSTR("Failed to read ADC\r\n"));
           } else {
             local_temp_val = (uint16_t)adc_buf[0];
-            g_sensor_pkt.temp_val = local_temp_val;
-
+            g_sensor_pkt.temp_val = transform_temp(local_temp_val);
             sensor_sampled = TRUE;
-            printf("TEMP: %d\r\n", local_temp_val);
 
           }
         }
@@ -640,7 +678,6 @@ void sample_task() {
             g_sensor_pkt.light_val = local_light_val;
 
             sensor_sampled = TRUE;
-            printf("LIGHT: %d\r\n", local_light_val);
           }
         }
       }
@@ -667,36 +704,21 @@ void sample_task() {
         nrk_sem_post(g_data_tx_queue_mux);
       }
     }
-    // if the local_network_joined flag hasn't been set yet, check status
+    // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
-      nrk_sem_pend(g_network_joined_mux); {
-        local_network_joined = g_network_joined;
-        //g_network_joined = TRUE;
-        //local_network_joined = TRUE;
+      // update seq num
+      nrk_sem_pend(g_seq_num_mux); {
+        g_seq_num++;
+        hello_packet.seq_num = g_seq_num;
       }
-      nrk_sem_post(g_network_joined_mux);
+      nrk_sem_post(g_seq_num_mux);
 
-      // if the network has not yet been joined, then add "Hello" message
-      //  to the g_data_tx_queue
-      if(local_network_joined == FALSE) {
-        // set red LED
-        nrk_led_set(RED_LED);
-        // update seq num
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          hello_packet.seq_num = g_seq_num;
-        }
-        nrk_sem_post(g_seq_num_mux);
-
-        // push to queue
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          push(&g_cmd_tx_queue, &hello_packet);
-        }
-        nrk_sem_post(g_cmd_tx_queue_mux);
-      } else {
-        nrk_led_clr(RED_LED);
-        nrk_led_set(GREEN_LED);
+      // push to queue
+      nrk_sem_pend(g_cmd_tx_queue_mux); {
+        printf("adding hello packet to queue....\r\n");
+        push(&g_cmd_tx_queue, &hello_packet);
       }
+      nrk_sem_post(g_cmd_tx_queue_mux);
     }
     nrk_wait_until_next_period();
   }
@@ -791,6 +813,12 @@ void actuate_task() {
 
   // loop forever
   while(1) {
+    // determine if the network has been joined
+    nrk_sem_pend(g_network_joined_mux); {
+      local_network_joined = g_network_joined;
+    }
+    nrk_sem_post(g_network_joined_mux);
+
     // get action queue size / reset action flag
     nrk_sem_pend(g_act_queue_mux); {
       act_queue_size = g_act_queue.size;
@@ -976,13 +1004,59 @@ void actuate_task() {
         break;
       }
     }
+    nrk_wait_until_next_period();
+  }
+}
 
-    if(local_network_joined == FALSE) {
-      // determine if the network has been joined
-      nrk_sem_pend(g_network_joined_mux); {
-        local_network_joined = g_network_joined;
+/**
+ * heartbeat_task() - 
+ *  updated heartbeat counter, check to see if the timer has been expired.
+ */
+void heartbeat_task() {
+  int8_t local_watchdog;
+  uint8_t local_network_joined = FALSE;
+
+  printf("heartbeat_task PID: %d.\r\n", nrk_get_pid());
+
+  // loop forever
+  while(1) {
+    // determine if the network has been joined
+    nrk_sem_pend(g_network_joined_mux); {
+      local_network_joined = g_network_joined;
+    }
+    nrk_sem_post(g_network_joined_mux);
+
+    // if the network has been joined, decrement the counter.
+    //  otherwise, wait.
+    if(local_network_joined == TRUE) {
+      // update watchdog timer
+      nrk_sem_pend(g_net_watchdog_mux); {
+        g_net_watchdog--;
+        local_watchdog = g_net_watchdog;
       }
-      nrk_sem_post(g_network_joined_mux);
+      nrk_sem_post(g_net_watchdog_mux);    
+      // if the watchdog has been exceeded, set network joined flag to false
+      if(local_watchdog <= 0) {
+        nrk_sem_pend(g_network_joined_mux); {
+          g_network_joined = FALSE;
+        }
+        nrk_sem_post(g_network_joined_mux);      
+      }
+
+      // clear red LED / set green LED
+      nrk_led_clr(RED_LED);
+      nrk_led_set(GREEN_LED);
+    } else {
+      // reset the watchdog timer
+      nrk_sem_pend(g_net_watchdog_mux); {
+        g_net_watchdog = HEART_FACTOR;
+        local_watchdog = g_net_watchdog;
+      }
+      nrk_sem_post(g_net_watchdog_mux);  
+
+      // set red LED / clear green LED
+      nrk_led_set(RED_LED);
+      nrk_led_clr(GREEN_LED);
     }
     nrk_wait_until_next_period();
   }
@@ -1009,9 +1083,21 @@ void nrk_register_drivers() {
       nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
 }
 
-void nrk_create_taskset ()
-{
-  // PRIORITY 6
+void nrk_create_taskset () {
+
+  BUTTON_TASK.task = button_task;
+  nrk_task_set_stk(&BUTTON_TASK, button_task_stack, NRK_APP_STACKSIZE);
+  BUTTON_TASK.prio = 7;
+  BUTTON_TASK.FirstActivation = TRUE;
+  BUTTON_TASK.Type = BASIC_TASK;
+  BUTTON_TASK.SchType = PREEMPTIVE;
+  BUTTON_TASK.period.secs = 0;
+  BUTTON_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  BUTTON_TASK.cpu_reserve.secs = 0;
+  BUTTON_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
+  BUTTON_TASK.offset.secs = 0;
+  BUTTON_TASK.offset.nano_secs = 0;
+
   RX_MSG_TASK.task = rx_msg_task;
   nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
   RX_MSG_TASK.prio = 6;
@@ -1019,44 +1105,28 @@ void nrk_create_taskset ()
   RX_MSG_TASK.Type = BASIC_TASK;
   RX_MSG_TASK.SchType = PREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
-  RX_MSG_TASK.period.nano_secs = 50*NANOS_PER_MS;
+  RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
   RX_MSG_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   RX_MSG_TASK.offset.secs = 0;
   RX_MSG_TASK.offset.nano_secs = 0;
 
-  // PRIORITY 5
-  BUTTON_TASK.task = button_task;
-  nrk_task_set_stk(&BUTTON_TASK, button_task_stack, NRK_APP_STACKSIZE);
-  BUTTON_TASK.prio = 5;
-  BUTTON_TASK.FirstActivation = TRUE;
-  BUTTON_TASK.Type = BASIC_TASK;
-  BUTTON_TASK.SchType = PREEMPTIVE;
-  BUTTON_TASK.period.secs = 0;
-  BUTTON_TASK.period.nano_secs = 25*NANOS_PER_MS;
-  BUTTON_TASK.cpu_reserve.secs = 0;
-  BUTTON_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
-  BUTTON_TASK.offset.secs = 0;
-  BUTTON_TASK.offset.nano_secs = 0;
-
-  // PRIORITY 4
   ACTUATE_TASK.task = actuate_task;
   nrk_task_set_stk(&ACTUATE_TASK, actuate_task_stack, NRK_APP_STACKSIZE);
-  ACTUATE_TASK.prio = 4;
+  ACTUATE_TASK.prio = 5;
   ACTUATE_TASK.FirstActivation = TRUE;
   ACTUATE_TASK.Type = BASIC_TASK;
   ACTUATE_TASK.SchType = PREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
-  ACTUATE_TASK.cpu_reserve.nano_secs = 30*NANOS_PER_MS;
+  ACTUATE_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   ACTUATE_TASK.offset.secs = 0;
   ACTUATE_TASK.offset.nano_secs = 0;
 
-  // PRIORITY 3
   TX_CMD_TASK.task = tx_cmd_task;
   nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE);
-  TX_CMD_TASK.prio = 3;
+  TX_CMD_TASK.prio = 4;
   TX_CMD_TASK.FirstActivation = TRUE;
   TX_CMD_TASK.Type = BASIC_TASK;
   TX_CMD_TASK.SchType = PREEMPTIVE;
@@ -1069,7 +1139,7 @@ void nrk_create_taskset ()
 
   SAMPLE_TASK.task = sample_task;
   nrk_task_set_stk( &SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
-  SAMPLE_TASK.prio = 2;
+  SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = PREEMPTIVE;
@@ -1080,7 +1150,19 @@ void nrk_create_taskset ()
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
-  // PRIORITY 1
+  HEARTBEAT_TASK.task = heartbeat_task;
+  nrk_task_set_stk(&HEARTBEAT_TASK, heartbeat_task_stack, NRK_APP_STACKSIZE);
+  HEARTBEAT_TASK.prio = 2;
+  HEARTBEAT_TASK.FirstActivation = TRUE;
+  HEARTBEAT_TASK.Type = BASIC_TASK;
+  HEARTBEAT_TASK.SchType = PREEMPTIVE;
+  HEARTBEAT_TASK.period.secs = 5;
+  HEARTBEAT_TASK.period.nano_secs = 0;
+  HEARTBEAT_TASK.cpu_reserve.secs = 0;
+  HEARTBEAT_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  HEARTBEAT_TASK.offset.secs = 0;
+  HEARTBEAT_TASK.offset.nano_secs = 0;
+
   TX_DATA_TASK.task = tx_data_task;
   nrk_task_set_stk(&TX_DATA_TASK, tx_data_task_stack, NRK_APP_STACKSIZE);
   TX_DATA_TASK.prio = 1;
@@ -1094,12 +1176,13 @@ void nrk_create_taskset ()
   TX_DATA_TASK.offset.secs = 0;
   TX_DATA_TASK.offset.nano_secs = 0;
 
-  nrk_activate_task(&RX_MSG_TASK);
-  nrk_activate_task(&TX_CMD_TASK);
-  nrk_activate_task(&TX_DATA_TASK);
-  nrk_activate_task(&SAMPLE_TASK);
-  nrk_activate_task(&ACTUATE_TASK);
   nrk_activate_task(&BUTTON_TASK);
+  nrk_activate_task(&RX_MSG_TASK);
+  nrk_activate_task(&ACTUATE_TASK);
+  nrk_activate_task(&TX_CMD_TASK);
+  nrk_activate_task(&SAMPLE_TASK);
+  nrk_activate_task(&HEARTBEAT_TASK);
+  nrk_activate_task(&TX_DATA_TASK);
 
   nrk_kprintf( PSTR("Create done\r\n") );
 }

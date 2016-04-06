@@ -1,3 +1,10 @@
+/**
+ * 18-748 Wireless Sensor Networks
+ * Spring 2016
+ * Dicio - A Smart Outlet Mesh Network
+ * packet_queue.c
+ * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+ */
 
 #include <packet_queue.h>
 

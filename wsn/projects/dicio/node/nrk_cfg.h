@@ -8,7 +8,13 @@
 // This is a special kernel flag that records various timer
 // related functions.  This is not necessary for normal operation
 // #define NRK_KERNEL_TEST
-
+/**
+ * 18-748 Wireless Sensor Networks
+ * Spring 2016
+ * Dicio - A Smart Outlet Mesh Network
+ * nrk_cfg.h (node)
+ * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+ */
 
 // NRK_REPORT_ERRORS will cause the kernel to print out information about
 // missed deadlines or reserve violations
@@ -39,7 +45,7 @@
 // Be sure to include the idle task
 // Making this the correct size will save on BSS memory which
 // is both RAM and ROM...
-#define NRK_MAX_TASKS       		8   
+#define NRK_MAX_TASKS       9
 #define	NRK_N_RES			1	
                            
 #define NRK_TASK_IDLE_STK_SIZE         128   // Idle task stack size min=32 
