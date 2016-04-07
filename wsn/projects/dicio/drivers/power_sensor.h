@@ -96,11 +96,22 @@
 #define FSCALE      0x129 // frequency scaling register
 #define TSCALE      0x12C // temperature scaling register
 #define TC1         0x14A // temperature compensation
-#define TC2         0x14D // temperature compensation      
+#define TC2         0x14D // temperature compensation 
 
-#define GET_ADDR(x) (((uint8_t)((uint16_t)x / 3)) & 0x3F) << 2
+// scale constants
+#define PWR_MULT  55
+#define PWR_SCALE 10
+#define IMAX        0x002710 // 10 A
+#define VMAX        0x01D4C0 // 120 V
+#define PMAX        0x124F80 // 1200 VA
+#define GET_LOW_BYTE(x) (uint8_t)(x & 0xFF)
+#define GET_MID_BYTE(x) (uint8_t)((x >> 8) & 0xFF)
+#define GET_TOP_BYTE(x) (uint8_t)((x >> 16) & 0xFF)
+
+#define GET_REG_ADDR(x) (((uint8_t)((uint16_t)x / 3)) & 0x3F) << 2
 
 void pwr_read(uint16_t reg, uint8_t *read_buf);
 void pwr_write(uint16_t reg, uint8_t *write_buf);
+int16_t transform_pwr(int16_t counts);
 
 #endif
