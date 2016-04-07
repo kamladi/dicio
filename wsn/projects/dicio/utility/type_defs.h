@@ -78,6 +78,12 @@
 #define HAND_CONFIG_ID_INDEX 0
 #define LOST_NODE_INDEX 0
 
+// hardware
+#define GET_REV(R) R & 0xFF;
+#define HW_REV0 0x00
+#define HW_REV1 0x01
+
+// GPIOs
 #define ON_COIL NRK_PORTB_6
 #define OFF_COIL NRK_PORTB_7
 #define BTN_IN NRK_PORTE_3

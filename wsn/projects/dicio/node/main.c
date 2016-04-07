@@ -32,7 +32,7 @@
 
 // DEFINES
 #define MAC_ADDR 3
-#define HARDWARE_REV 0xD1C10000
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -101,7 +101,7 @@ packet_queue g_data_tx_queue;
 nrk_sem_t* g_data_tx_queue_mux;
 
 // SENSOR VALUES
-uint8_t g_adc_fd;
+uint8_t g_atmega_adc_fd;
 uint8_t g_pwr_period;
 uint8_t g_temp_period;
 uint8_t g_light_period;
@@ -581,6 +581,7 @@ void sample_task() {
   int8_t val, chan;
   uint16_t adc_buf[2];
   uint8_t pwr_rcvd[3];
+  uint8_t hw_rev;
 
   printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
@@ -603,19 +604,21 @@ void sample_task() {
   hello_packet.payload[2] = (HARDWARE_REV >> 8) & 0xff;
   hello_packet.payload[3] = (HARDWARE_REV) & 0xff;
 
-  //print_packet(&hello_packet);
+  // get the hardware rev of this node
+  hw_rev = GET_REV(HARDWARE_REV);
 
-  // Open ADC device as read
-  g_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-  if(g_adc_fd == NRK_ERROR) {
-    nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
+  // Open the ATMEGA ADC device as read
+  if(hw_rev == HW_REV0) {
+     g_atmega_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
+    if(g_atmega_adc_fd == NRK_ERROR) {
+      nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
+    }   
   }
 
   while (1) {
     nrk_sem_pend(g_network_joined_mux); {
+      g_network_joined = TRUE;
       local_network_joined = g_network_joined;
-      //local_network_joined = TRUE;
-      //g_network_joined = TRUE;
     }
     nrk_sem_post(g_network_joined_mux);
 
@@ -642,43 +645,33 @@ void sample_task() {
 
       // sample temperature sensor if appropriate
       if(temp_period_count == SAMPLE_SENSOR) {
-        // SAMPLE TEMP SENSOR
-        val = nrk_set_status(g_adc_fd,ADC_CHAN,CHAN_6);
-        if(val == NRK_ERROR) {
-          nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
-        } else {
-          val = nrk_read(g_adc_fd, &adc_buf[0],2);
-          if(val == NRK_ERROR)  {
-            nrk_kprintf(PSTR("Failed to read ADC\r\n"));
+        // sample analog temperature sensor via Atmega ADC
+        if(hw_rev == HW_REV0) {
+          val = nrk_set_status(g_atmega_adc_fd,ADC_CHAN,CHAN_6);
+          if(val == NRK_ERROR) {
+            nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
           } else {
-            local_temp_val = (uint16_t)adc_buf[0];
-            g_sensor_pkt.temp_val = transform_temp(local_temp_val);
-            sensor_sampled = TRUE;
+            val = nrk_read(g_atmega_adc_fd, &adc_buf[0],2);
+            if(val == NRK_ERROR)  {
+              nrk_kprintf(PSTR("Failed to read ADC\r\n"));
+            } else {
+              local_temp_val = (uint16_t)adc_buf[0];
+              g_sensor_pkt.temp_val = transform_temp(local_temp_val);
+              sensor_sampled = TRUE;
 
-          }
+            }
+          }          
+        }
+        // read the analog sensor via SPI adc
+        else {
+          nrk_kprintf(PSTR("TODO: Read temp sensor from SPI ADC.\r\n"));
         }
       }
 
       // sample light sensor if appropriate
       if(light_period_count == SAMPLE_SENSOR) {
-        //TODO: SAMPLE LIGHT SENSOR
-        local_light_val++;
-        g_sensor_pkt.light_val = local_light_val;
-        sensor_sampled = TRUE;
-
-        val = nrk_set_status(g_adc_fd,ADC_CHAN,CHAN_5);
-        if(val == NRK_ERROR) {
-          nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
-        } else {
-          val = nrk_read(g_adc_fd, &adc_buf[1],2);
-          if(val == NRK_ERROR){
-            nrk_kprintf(PSTR("Failed to read ADC\r\n"));
-          } else {
-            local_light_val = (uint16_t)adc_buf[1];
-            g_sensor_pkt.light_val = local_light_val;
-
-            sensor_sampled = TRUE;
-          }
+        if(hw_rev == HW_REV1) {
+          nrk_kprintf(PSTR("TODO: Read light sensor from SPI ADC.\r\n"));          
         }
       }
 
