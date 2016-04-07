@@ -61,13 +61,18 @@
 #define MAX_GRAPH 8
 
 // payload indexes
-#define CMD_ID_INDEX 0
+#define HEADER_SRC_ID_INDEX 0
+#define HEADER_SEQ_NUM_INDEX 1
+#define HEADER_TYPE_INDEX 3
+#define HEADER_NUM_HOPS_INDEX 4
+#define HEADER_SIZE 5
+#define CMD_CMDID_INDEX 0
 #define CMD_NODE_ID_INDEX 2
 #define CMD_ACT_INDEX 3
-#define CMDG_ID_INDEX 0
+#define CMDG_CMDID_INDEX 0
 #define CMDG_GROUP_INDEX 2
 #define CMDG_ACTION_INDEX 3
-#define CMDACK_ID_INDEX 0
+#define CMDACK_CMDID_INDEX 0
 #define CMDACK_STATE_INDEX 2
 #define DATA_PWR_INDEX 0
 #define DATA_TEMP_INDEX 2

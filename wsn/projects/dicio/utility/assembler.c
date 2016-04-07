@@ -37,7 +37,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         case MSG_CMDACK:
         {
             sprintf(tx_buf, "%d:%d:%d:%d:%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
-                (uint16_t)tx->payload[CMDACK_ID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
+                (uint16_t)tx->payload[CMDACK_CMDID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
             break;
         }
 

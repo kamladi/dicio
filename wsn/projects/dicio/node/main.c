@@ -175,7 +175,7 @@ int main() {
   act_packet.type = MSG_CMD;
   act_packet.seq_num = 0;
   act_packet.num_hops = 0;
-  act_packet.payload[CMD_ID_INDEX] = (uint16_t)0;
+  act_packet.payload[CMD_CMDID_INDEX] = (uint16_t)0;
   act_packet.payload[CMD_NODE_ID_INDEX] = MAC_ADDR;
   act_packet.payload[CMD_ACT_INDEX] = OFF;
   nrk_sem_pend(g_act_queue_mux); {
@@ -323,7 +323,7 @@ void rx_msg_task() {
                 //  forwarding to other nodes.
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_kprintf (PSTR ("Received command.\r\n"));
-                  g_last_command = (uint16_t)rx_packet.payload[CMD_ID_INDEX]; // need to cast again here right?
+                  g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
                   nrk_sem_pend(g_act_queue_mux); {
                     push(&g_act_queue, &rx_packet);
                   }
@@ -905,7 +905,7 @@ void actuate_task() {
           nrk_sem_post(g_seq_num_mux);
 
           // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+          tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
           tx_packet.payload[CMDACK_STATE_INDEX] = OFF;
 
           // place message in the queue
@@ -950,7 +950,7 @@ void actuate_task() {
           nrk_sem_post(g_seq_num_mux);
 
           // set payload
-          tx_packet.payload[CMDACK_ID_INDEX] = (uint16_t)act_packet.payload[CMD_ID_INDEX];
+          tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
           tx_packet.payload[CMDACK_STATE_INDEX] = ON;
 
           // place message in the queue
