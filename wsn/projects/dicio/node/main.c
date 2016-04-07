@@ -32,7 +32,7 @@
 
 // DEFINES
 #define MAC_ADDR 3
-#define HARDWARE_REV 0xD1C10001
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -117,7 +117,7 @@ int8_t g_net_watchdog = HEART_FACTOR;
 nrk_sem_t* g_net_watchdog_mux;
 
 // GLOBAL FLAGS
-uint8_t g_print_incoming;
+uint8_t g_verbose;
 uint8_t g_network_joined;
 nrk_sem_t* g_network_joined_mux;
 uint8_t g_global_outlet_state;
@@ -144,7 +144,7 @@ int main() {
   nrk_led_clr(3);
 
   // flags
-  g_print_incoming      = TRUE;
+  g_verbose      = TRUE;
   g_network_joined      = FALSE;
   g_global_outlet_state = OFF;
   g_button_pressed  = FALSE;
@@ -229,10 +229,7 @@ void clear_tx_buf(){
   g_net_tx_index = 0;
 }
 
-/**
- * rx_msg_task() -
- *  receive messages from the network
- */
+// rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -245,6 +242,7 @@ void rx_msg_task() {
   uint8_t local_network_joined = FALSE;
 
   printf("rx_msg_task PID: %d.\r\n", nrk_get_pid());
+
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(g_net_rx_buf, RF_MAX_PAYLOAD_SIZE);
 
@@ -258,19 +256,19 @@ void rx_msg_task() {
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
       nrk_led_set(BLUE_LED);
+
       // get the packet, parse and release
       parse_msg(&rx_packet, &g_net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
-      if(g_print_incoming == TRUE) {
+      if(g_verbose == TRUE) {
+        nrk_kprintf(PSTR("RX msg: "));
         print_packet(&rx_packet);
       }
 
       // only receive the message if it's not from this node
-      //  NOTE: this is required because the node will hear re-transmitted packets
-      //    originally from itself.
       if(rx_packet.source_id != MAC_ADDR) {
         // determine if the network has been joined
         nrk_sem_pend(g_network_joined_mux); { 
@@ -414,10 +412,7 @@ void rx_msg_task() {
   }
 }
 
-/**
- * tx_cmd_task() -
- *  send all commands out to the network.
- */
+// tx_cmd_task() - send all commands out to the network.
 void tx_cmd_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -447,19 +442,8 @@ void tx_cmd_task() {
       tx_cmd_queue_size = g_cmd_tx_queue.size;
     }
     nrk_sem_post(g_cmd_tx_queue_mux);
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(g_cmd_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
+
+    // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
       nrk_led_set(ORANGE_LED);
       // get a packet out of the queue.
@@ -490,10 +474,7 @@ void tx_cmd_task() {
   }
 }
 
-/**
- * tx_data_task() -
- *  send standard messages out to the network (i.e. handshake messages, etc.)
- */
+// tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void tx_data_task() {
   // local variable initialization
   uint8_t LED_FLAG = 0;
@@ -522,29 +503,18 @@ void tx_data_task() {
       tx_data_queue_size = g_data_tx_queue.size;
     }
     nrk_sem_post(g_data_tx_queue_mux);
-    /**
-     * loop on queue size received above, and no more.
-     *  NOTE: during this loop the queue can be added to. If, for instance,
-     *    a "while(node_tx_queue.size > 0)" was used a few bad things could happen
-     *      (1) a mutex would be required around the entire loop - BAD IDEA
-     *      (2) the queue could be added to while this loop is running, thus
-     *        making the loop unbounded - BAD IDEA
-     *      (3) the size the queue read and the actual size of the queue could be
-     *        incorrect due to preemtion - BAD IDEA
-     *    Doing it this way bounds this loop to the maximum size of the queue
-     *    at any given time, regardless of whether or not the queue has been
-     *    added to by another task.
-     */
+
+    // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_data_queue_size; i++) {
       nrk_led_set(ORANGE_LED);
+
       // get a packet out of the queue.
       nrk_sem_pend(g_data_tx_queue_mux); {
         pop(&g_data_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_data_tx_queue_mux);
 
-      // NOTE: a mutex is required around the network transmit buffer because
-      //  tx_cmd_task() also uses it.
+      // assemble tx buf and send message
       nrk_sem_pend(g_net_tx_buf_mux); {
         g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
 
@@ -566,6 +536,7 @@ void tx_data_task() {
   }
 }
 
+// sample_task - sample sensors
 void sample_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
@@ -615,13 +586,16 @@ void sample_task() {
     }   
   }
 
+  // loop forever
   while (1) {
+    // check if the network has been joined
     nrk_sem_pend(g_network_joined_mux); {
-      g_network_joined = TRUE;
+      //g_network_joined = TRUE;
       local_network_joined = g_network_joined;
     }
     nrk_sem_post(g_network_joined_mux);
 
+    // if the network has been joined then start sampling sensors
     if(local_network_joined == TRUE) {
       // update period counts
       pwr_period_count++;
@@ -639,7 +613,7 @@ void sample_task() {
 
         // pull out dinner location
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
-        g_sensor_pkt.pwr_val = local_pwr_val;
+        g_sensor_pkt.pwr_val = transform_pwr(local_pwr_val);
         sensor_sampled = TRUE;
       }
 
@@ -658,20 +632,23 @@ void sample_task() {
               local_temp_val = (uint16_t)adc_buf[0];
               g_sensor_pkt.temp_val = transform_temp(local_temp_val);
               sensor_sampled = TRUE;
-
             }
           }          
         }
         // read the analog sensor via SPI adc
         else {
-          nrk_kprintf(PSTR("TODO: Read temp sensor from SPI ADC.\r\n"));
+          if(g_verbose == TRUE) {
+            nrk_kprintf(PSTR("TODO: Read temp sensor from SPI ADC.\r\n"));
+          }
         }
       }
 
       // sample light sensor if appropriate
       if(light_period_count == SAMPLE_SENSOR) {
         if(hw_rev == HW_REV1) {
-          nrk_kprintf(PSTR("TODO: Read light sensor from SPI ADC.\r\n"));          
+          if(g_verbose == TRUE) {
+            nrk_kprintf(PSTR("TODO: Read light sensor from SPI ADC.\r\n"));
+          }
         }
       }
 
@@ -689,6 +666,12 @@ void sample_task() {
         tx_packet.payload[DATA_TEMP_INDEX] = g_sensor_pkt.temp_val;
         tx_packet.payload[DATA_LIGHT_INDEX] = g_sensor_pkt.light_val;
         tx_packet.payload[DATA_STATE_INDEX] = get_global_outlet_state();
+
+        // print the sensor info
+        if(g_verbose == TRUE) {
+          printf("P: %d, T: %d, L: %d\r\n", 
+            g_sensor_pkt.pwr_val, g_sensor_pkt.temp_val, g_sensor_pkt.light_val);
+        }
 
         // add packet to data queue
         nrk_sem_pend(g_data_tx_queue_mux); {
@@ -717,13 +700,14 @@ void sample_task() {
   }
 }
 
+// button_task - check the state of the physical button
 void button_task() {
   button_pressed_state curr_state = STATE_SNIFF;
   uint8_t local_button_pressed = FALSE;
 
   printf("button_task PID: %d.\r\n", nrk_get_pid());
 
-
+  // loop forever
   while(1) {
     switch(curr_state) {
       // STATE_SNIFF:
@@ -772,10 +756,7 @@ void button_task() {
   }
 }
 
-/**
- * actuate_task() -
- *  actuate any commands that have been received for this node.
- */
+// actuate_task() - actuate any commands that have been received for this node.
 void actuate_task() {
   // local variable instantiation
   uint8_t LED_FLAG = 0;
