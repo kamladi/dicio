@@ -105,23 +105,23 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     parsed_packet->type = src[3];
     parsed_packet->num_hops = src[4];
 
-    /*
-    Payload has not been parsed into packet.
-    Once the loop has gone through the length of the message,
-    the payload will be stored in temp_buf.
-    Need to parse payload depending on message type
-    */
     switch(parsed_packet->type)
     {
-        case MSG_CMD:
+        case MSG_NO_MESSAGE: 
         {
-            parsed_packet->payload[CMD_CMDID_INDEX] = src[5];
-            parsed_packet->payload[CMD_CMDID_INDEX+1] = src[6];
-            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
-            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
+            // undefined message - should throw an error
             break;
         }
-
+        case MSG_LOST:
+        {
+            parsed_packet->payload[LOST_NODE_INDEX] = src[5];
+            break;
+        }
+        case MSG_GATEWAY:
+        {
+            // undefined message
+            break;
+        }
         case MSG_DATA:
         {
             parsed_packet->payload[DATA_PWR_INDEX] = src[5];
@@ -131,10 +131,16 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
             parsed_packet->payload[DATA_LIGHT_INDEX] = src[9];
             parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[10];
             parsed_packet->payload[DATA_STATE_INDEX]   = src[11];
-            //printf("payload:%d,%d,%d\r\n", src[4],src[6],src[8]);
             break;
         }
-
+        case MSG_CMD:
+        {
+            parsed_packet->payload[CMD_CMDID_INDEX] = src[5];
+            parsed_packet->payload[CMD_CMDID_INDEX+1] = src[6];
+            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
+            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
+            break;
+        }
         case MSG_CMDACK:
         {
             parsed_packet->payload[CMDACK_CMDID_INDEX] = src[5];
@@ -149,11 +155,10 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+1] = src[6];
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+2] = src[7];
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+3] = src[8];
-            // no information is stored in payload
             break;
         }
 
-        case MSG_HANDACK: // received hand ack
+        case MSG_HANDACK:
         {
             parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[5];
             parsed_packet->payload[HANDACK_CONFIG_ID_INDEX] = src[6];
