@@ -1,8 +1,8 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
- * type_defs.h
+ * Dicio - A Smart Outlet Mesh Network
+ * typedefs.h
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
 
@@ -44,13 +44,16 @@
 #define BUTTON_PRESSED 0
 #define BUTTON_RELEASED 1
 
-// buffers/messages
+// MISC
 #define MAX_BUF_SIZE 24
 #define MAX_PAYLOAD_SIZE 8
 #define MAX_NEIGHBOR_BUF_SIZE 4
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
+#define HEART_FACTOR 5
+#define ALIVE_LIMIT 1
+#define NOT_ALIVE 0
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
@@ -58,13 +61,18 @@
 #define MAX_GRAPH 8
 
 // payload indexes
-#define CMD_ID_INDEX 0
+#define HEADER_SRC_ID_INDEX 0
+#define HEADER_SEQ_NUM_INDEX 1
+#define HEADER_TYPE_INDEX 3
+#define HEADER_NUM_HOPS_INDEX 4
+#define HEADER_SIZE 5
+#define CMD_CMDID_INDEX 0
 #define CMD_NODE_ID_INDEX 2
 #define CMD_ACT_INDEX 3
-#define CMDG_ID_INDEX 0
+#define CMDG_CMDID_INDEX 0
 #define CMDG_GROUP_INDEX 2
 #define CMDG_ACTION_INDEX 3
-#define CMDACK_ID_INDEX 0
+#define CMDACK_CMDID_INDEX 0
 #define CMDACK_STATE_INDEX 2
 #define DATA_PWR_INDEX 0
 #define DATA_TEMP_INDEX 2
@@ -73,7 +81,14 @@
 #define HANDACK_NODE_ID_INDEX 0
 #define HANDACK_CONFIG_ID_INDEX 1
 #define HAND_CONFIG_ID_INDEX 0
+#define LOST_NODE_INDEX 0
 
+// hardware
+#define GET_REV(R) R & 0xFF;
+#define HW_REV0 0x00
+#define HW_REV1 0x01
+
+// GPIOs
 #define ON_COIL NRK_PORTB_6
 #define OFF_COIL NRK_PORTB_7
 #define BTN_IN NRK_PORTE_3
@@ -90,6 +105,8 @@ typedef enum {
   MSG_CMDACK = 7,
   MSG_HAND = 8,
   MSG_HANDACK = 9,
+  MSG_HEARTBEAT = 10,
+  MSG_LOST = 1
 } msg_type;
 
 /**

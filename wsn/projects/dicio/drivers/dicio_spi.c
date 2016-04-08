@@ -1,3 +1,11 @@
+/**
+ * 18-748 Wireless Sensor Networks
+ * Spring 2016
+ * Dicio - A Smart Outlet Mesh Network
+ * dicio_spi.c
+ * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
+ */
+
 #define DD_MOSI 2
 #define DD_SCK 1
 #define SPE 6
@@ -6,7 +14,6 @@
 #define CPHA 2
 #define SPR0 0
 #define SPIF 7
-
 
 #include <dicio_spi.h>
 

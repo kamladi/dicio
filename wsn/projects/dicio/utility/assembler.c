@@ -1,7 +1,7 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
+ * Dicio - A Smart Outlet Mesh Network
  * assembler.c
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
@@ -37,7 +37,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         case MSG_CMDACK:
         {
             sprintf(tx_buf, "%d:%d:%d:%d:%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
-                (uint16_t)tx->payload[CMDACK_ID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
+                (uint16_t)tx->payload[CMDACK_CMDID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
             break;
         }
 
@@ -54,6 +54,21 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
                 tx->payload[HANDACK_NODE_ID_INDEX], hardware_config_1, hardware_config_2);
             break;
         }
+
+        case MSG_HEARTBEAT:
+        {
+            sprintf(tx_buf, "%d:%d:%d:%d:,", tx->source_id, tx->seq_num, tx->type, tx->num_hops);
+            break;
+        }
+
+        case MSG_LOST:
+        {
+            sprintf(tx_buf, "%d:%d:%d:%d:%d,", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+                tx->payload[LOST_NODE_INDEX]);
+            break;
+        }
+        default:
+            break;
     }
 }
 
@@ -114,7 +129,7 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_HAND:
         {
             length = 9;
-            printf("hand asm \r\n");
+            //printf("hand asm \r\n");
             tx_buf[5] = tx->payload[0];
             tx_buf[6] = tx->payload[1];
             tx_buf[7] = tx->payload[2];
@@ -136,6 +151,14 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             //printf("asm ack: %d:%d:%d:%d:%d\r\n", tx_buf[0], tx_buf[1], tx_buf[2], tx_buf[3], tx_buf[4]);
             break;
         }
+
+        case MSG_HEARTBEAT:
+        {
+            length = 5;
+            break;
+        }
+        default:
+            break;
     }
     return length;
 }
