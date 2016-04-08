@@ -18,10 +18,12 @@ export class WebSocketHandler extends EventEmitter {
 
 	onMessage(event) {
 		var {type, outlet_id, outlet_name} = JSON.parse(event.data);
-		if (!type || !outlet_id || !outlet_name) {
+		if (!type) {
 			console.error(`unrecognized socket message: ${event.data}`);
 		}
-		if (type === 'NEWNODE') {
+		if (type == 'DEADGATEWAY') {
+			this.emit('deadGateway');
+		} else if (type === 'NEWNODE') {
 			this.emit('newNode', outlet_id, outlet_name);
 		} else if (type === 'LOSTNODE') {
 			this.emit('lostNode', outlet_id, outlet_name);
