@@ -660,8 +660,9 @@ void alive_task() {
 void hand_task() {
   uint8_t local_hand_rx_queue_size;
   packet rx_packet, tx_packet;
-  uint8_t in_node_pool;
-
+  int8_t in_node_pool;
+  pool_t node_pool;
+  
   printf("hand_task PID: %d.\r\n", nrk_get_pid());
 
   // initialize HANDACK packet
@@ -672,7 +673,7 @@ void hand_task() {
   // loop forever
   while(1) {
     // every iteration of this task will yield a new pool
-    pool_t node_pool;
+    clear_pool(&node_pool);
 
     // atomically get queue size
     nrk_sem_pend(g_hand_rx_queue_mux); {
@@ -688,31 +689,38 @@ void hand_task() {
       }
       nrk_sem_post(g_hand_rx_queue_mux);
 
-      // increment sequence number atomically
-      nrk_sem_pend(g_seq_num_mux); {
-        g_seq_num++;
-        tx_packet.seq_num = g_seq_num;        
-      }
-      nrk_sem_post(g_seq_num_mux);
+      // determine if this node has been seen during this iteration
+      in_node_pool = in_pool(&node_pool, rx_packet.source_id);
 
-      // finish transmit packet
-      tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
-      tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
-      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
-      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
-      tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
+      // if the node has not been seen yet this iteration, then send a HANDACK
+      if(in_node_pool == -1) {
+        add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
+        // increment sequence number atomically
+        nrk_sem_pend(g_seq_num_mux); {
+          g_seq_num++;
+          tx_packet.seq_num = g_seq_num;        
+        }
+        nrk_sem_post(g_seq_num_mux);
 
-      // send response back to the node
-      nrk_sem_pend(g_cmd_tx_queue_mux); {
-        push(&g_cmd_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(g_cmd_tx_queue_mux);
+        // finish transmit packet
+        tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX] = rx_packet.payload[HAND_CONFIG_ID_INDEX];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 1] = rx_packet.payload[HAND_CONFIG_ID_INDEX +1];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
+        tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
-      // forward the ack to the server
-      nrk_sem_pend(g_serv_tx_queue_mux); {
-        push(&g_serv_tx_queue, &tx_packet);
+        // send response back to the node
+        nrk_sem_pend(g_cmd_tx_queue_mux); {
+          push(&g_cmd_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(g_cmd_tx_queue_mux);
+
+        // forward the ack to the server
+        nrk_sem_pend(g_serv_tx_queue_mux); {
+          push(&g_serv_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(g_serv_tx_queue_mux);
       }
-      nrk_sem_post(g_serv_tx_queue_mux);
     }
     nrk_wait_until_next_period();
   }
