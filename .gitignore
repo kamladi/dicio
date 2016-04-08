@@ -42,3 +42,5 @@
 # Node.js dependencies
 **/node_modules
 **/npm-debug.log*
+
+wsn/projects/dicio/gateway/out.txt
