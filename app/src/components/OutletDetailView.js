@@ -9,7 +9,8 @@ import React, {
   View,
   TextInput,
   TouchableHighlight,
-  AlertIOS
+  AlertIOS,
+  ScrollView
 } from 'react-native';
 
 import {EditableTextField} from './EditableTextField';
@@ -126,7 +127,9 @@ export class OutletDetailView extends Component {
 
 		var outlet = this.state.outlet;
 		return (
-			<View style={styles.container}>
+			<ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps={false}>
         <View style={styles.row}>
 				  <Text style={styles.label}>Change name:</Text>
           <EditableTextField value={outlet.name} onSubmit={this.onNameChange} />
@@ -152,9 +155,7 @@ export class OutletDetailView extends Component {
           <Text style={styles.sensorValue}>{outlet.status}</Text>
           <OutletActionButton status={outlet.status} outlet_id={outlet._id} />
         </View>
-
-
-			</View>
+			</ScrollView>
 		);
 	}
 }
@@ -162,7 +163,6 @@ export class OutletDetailView extends Component {
 const styles = StyleSheet.create({
 	container: {
     flex: 1,
-    marginTop: 65,
     backgroundColor: '#EEEEEE',
     alignItems: 'center'
   },
