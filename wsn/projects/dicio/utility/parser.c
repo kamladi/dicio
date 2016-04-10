@@ -1,7 +1,7 @@
 /**
  * 18-748 Wireless Sensor Networks
  * Spring 2016
- * Lab 3: Multi-Hop Communication
+ * Dicio - A Smart Outlet Mesh Network
  * parser.c
  * Kedar Amladi // kamladi. Daniel Santoro // ddsantor. Adam Selevan // aselevan.
  */
@@ -17,46 +17,70 @@ void print_packet(packet *p)
     uint8_t *payload = p->payload;
     switch(p->type)
     {
-        case MSG_CMD:
+
+        case MSG_NO_MESSAGE:
         {
-            uint16_t cmdId = (payload[CMD_ID_INDEX] << 8) | payload[CMD_ID_INDEX+1];
-            printf("[payload:%d,%d,%d]\r\n", cmdId,
-                payload[CMD_NODE_ID_INDEX], payload[CMD_ACT_INDEX]);
+            printf("[INVALID]\r\n");
+            break;
+        }
+        case MSG_LOST:
+        {
+            printf("[%d]\r\n", 
+                        payload[LOST_NODE_INDEX]);
             break;
         }
 
+        case MSG_GATEWAY:
+        {
+            printf("[UNDEFINED]\r\n");
+            break;
+        }
         case MSG_DATA:
         {
-            uint16_t power = (payload[DATA_PWR_INDEX] << 8) | payload[DATA_PWR_INDEX+1];
-            uint16_t temp = (payload[DATA_TEMP_INDEX] << 8) | payload[DATA_TEMP_INDEX+1];
-            uint16_t light = (payload[DATA_LIGHT_INDEX] << 8) | payload[DATA_LIGHT_INDEX+1];
-            printf("[payload:%d, %d, %d, %d]\r\n", power, temp, light, payload[DATA_STATE_INDEX]);
+            printf("[%d, %d, %d, %d]\r\n",
+                        (uint16_t)payload[DATA_PWR_INDEX], 
+                        (uint16_t)payload[DATA_TEMP_INDEX], 
+                        (uint16_t)payload[DATA_LIGHT_INDEX], 
+                        payload[DATA_STATE_INDEX]);
             break;
         }
-
+        case MSG_CMD:
+        {
+            printf("[%d, %d, %d\r\n]", (uint16_t)payload[0], payload[2], payload[3]);
+            break;
+        }
         case MSG_CMDACK:
         {
-            printf("[payload:%d, %d]\r\n",
-                (uint16_t)payload[CMDACK_ID_INDEX], payload[CMDACK_STATE_INDEX]);
+            printf("[%d, %d]\r\n", 
+                        (uint16_t)payload[CMDACK_CMDID_INDEX], 
+                        payload[CMDACK_STATE_INDEX]);
             break;
         }
-
         case MSG_HAND:
         {
-            printf("[payload:%d, %d, %d, %d]\r\n", payload[HAND_CONFIG_ID_INDEX], payload[HAND_CONFIG_ID_INDEX + 1],
-                payload[HAND_CONFIG_ID_INDEX + 2], payload[HAND_CONFIG_ID_INDEX + 3]);
-            // what is the payload going to look like here?
+            printf("[%d, %d, %d, %d]\r\n", 
+                        payload[HAND_CONFIG_ID_INDEX], 
+                        payload[HAND_CONFIG_ID_INDEX + 1], 
+                        payload[HAND_CONFIG_ID_INDEX + 2], 
+                        payload[HAND_CONFIG_ID_INDEX + 3]);
             break;
         }
-
+        
         case MSG_HANDACK:
         {
-            printf("[payload:%d, %d, %d, %d, %d]\r\n", payload[HANDACK_NODE_ID_INDEX], payload[HANDACK_CONFIG_ID_INDEX],
-                payload[HANDACK_CONFIG_ID_INDEX + 1], payload[HANDACK_CONFIG_ID_INDEX + 2], payload[HANDACK_CONFIG_ID_INDEX + 3]);
+            printf("[%d, %d, %d, %d, %d]\r\n", payload[HANDACK_NODE_ID_INDEX], 
+                        payload[HANDACK_CONFIG_ID_INDEX], 
+                        payload[HANDACK_CONFIG_ID_INDEX + 1], 
+                        payload[HANDACK_CONFIG_ID_INDEX + 2], 
+                        payload[HANDACK_CONFIG_ID_INDEX + 3]);
             break;
         }
-
+        case MSG_HEARTBEAT: {
+            printf("\r\n"); 
+            break;
+        }
         default:{
+            break;
         }
     }
 }
@@ -81,23 +105,23 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     parsed_packet->type = src[3];
     parsed_packet->num_hops = src[4];
 
-    /*
-    Payload has not been parsed into packet.
-    Once the loop has gone through the length of the message,
-    the payload will be stored in temp_buf.
-    Need to parse payload depending on message type
-    */
     switch(parsed_packet->type)
     {
-        case MSG_CMD:
+        case MSG_NO_MESSAGE: 
         {
-            parsed_packet->payload[CMD_ID_INDEX] = src[5];
-            parsed_packet->payload[CMD_ID_INDEX+1] = src[6];
-            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
-            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
+            // undefined message - should throw an error
             break;
         }
-
+        case MSG_LOST:
+        {
+            parsed_packet->payload[LOST_NODE_INDEX] = src[5];
+            break;
+        }
+        case MSG_GATEWAY:
+        {
+            // undefined message
+            break;
+        }
         case MSG_DATA:
         {
             parsed_packet->payload[DATA_PWR_INDEX] = src[5];
@@ -107,14 +131,20 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
             parsed_packet->payload[DATA_LIGHT_INDEX] = src[9];
             parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[10];
             parsed_packet->payload[DATA_STATE_INDEX]   = src[11];
-            //printf("payload:%d,%d,%d\r\n", src[4],src[6],src[8]);
             break;
         }
-
+        case MSG_CMD:
+        {
+            parsed_packet->payload[CMD_CMDID_INDEX] = src[5];
+            parsed_packet->payload[CMD_CMDID_INDEX+1] = src[6];
+            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
+            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
+            break;
+        }
         case MSG_CMDACK:
         {
-            parsed_packet->payload[CMDACK_ID_INDEX] = src[5];
-            parsed_packet->payload[CMDACK_ID_INDEX+1] = src[6];
+            parsed_packet->payload[CMDACK_CMDID_INDEX] = src[5];
+            parsed_packet->payload[CMDACK_CMDID_INDEX+1] = src[6];
             parsed_packet->payload[CMDACK_STATE_INDEX] = src[7];
             break;
         }
@@ -125,17 +155,21 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+1] = src[6];
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+2] = src[7];
             parsed_packet->payload[HAND_CONFIG_ID_INDEX+3] = src[8];
-            // no information is stored in payload
             break;
         }
 
-        case MSG_HANDACK: // received hand ack
+        case MSG_HANDACK:
         {
             parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[5];
             parsed_packet->payload[HANDACK_CONFIG_ID_INDEX] = src[6];
             parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+1] = src[7];
             parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+2] = src[8];
             parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+3] = src[9];
+            break;
+        }
+
+        case MSG_HEARTBEAT:
+        {
             break;
         }
 

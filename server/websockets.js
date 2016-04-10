@@ -68,9 +68,16 @@ function sendActiveNodeMessage(outlet_id, name) {
 	});
 }
 
+function sendDeadGatewayMessage() {
+	return sendMessage({
+		type:'DEADGATEWAY'
+	});
+}
+
 exports.init = init;
 exports.isConnected = isConnected;
 exports.sendNewNodeMessage = sendNewNodeMessage;
 exports.sendLostNodeMessage = sendLostNodeMessage;
 exports.sendActiveNodeMessage = sendActiveNodeMessage;
+exports.sendDeadGatewayMessage = sendDeadGatewayMessage;
 
