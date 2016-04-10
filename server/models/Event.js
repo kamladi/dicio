@@ -6,7 +6,7 @@ var eventSchema = new mongoose.Schema({
 	input_outlet_id: ObjectId,
 	input: {
 		type: String,
-		enum: ['time', 'light', 'humidity', 'temperature'],
+		enum: ['time', 'light', 'temperature'],
 		default: 'time'
 	},
 	input_threshold: { type: String, enum: ['above','below'], default: 'above' },

@@ -32,9 +32,9 @@ var outlets = [
 ];
 
 var events = [
-	{ name: 'Event 1', input_threshold: 'above', input_value: 50 },
-	{ name: 'Event 2', input_threshold: 'above', input_value: 100 },
-	{ name: 'Event 3', input_threshold: 'below', input_value: 150 },
+	{ name: 'Event 1', input_threshold: 'above', input_value: 10, input: 'time' },
+	{ name: 'Event 2', input_threshold: 'below', input_value: 100, input: 'temperature' },
+	{ name: 'Event 3', input_threshold: 'above', input_value: 100, input: 'light' },
 ];
 
 function init() {
