@@ -92,6 +92,11 @@ uint16_t g_cmd_id = 0;
 pool_t g_alive_pool;
 nrk_sem_t* g_alive_pool_mux;
 
+// COMMAND FLAGS
+packet g_last_cmd;
+uint8_t g_cmd_ack_received = TRUE;
+nrk_sem_t * g_cmd_mux;
+
 // GLOBAL FLAG
 uint8_t g_verbose;
 
@@ -122,6 +127,7 @@ int main () {
   g_hand_rx_queue_mux = nrk_sem_create(1, 8);
   g_seq_num_mux       = nrk_sem_create(1, 8);
   g_alive_pool_mux    = nrk_sem_create(1, 8);
+  g_cmd_mux           = nrk_sem_create(1, 8);
 
   // packet queues
   packet_queue_init(&g_cmd_tx_queue);

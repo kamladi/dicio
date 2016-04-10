@@ -99,6 +99,7 @@ typedef enum {
   //  ennumeration values should be updated when when parser.c and
   //  assembeler.c are updated.
   MSG_NO_MESSAGE = 0,
+  MSG_LOST = 1,
   MSG_GATEWAY = 3,
   MSG_DATA = 5,
   MSG_CMD = 6,
@@ -106,7 +107,6 @@ typedef enum {
   MSG_HAND = 8,
   MSG_HANDACK = 9,
   MSG_HEARTBEAT = 10,
-  MSG_LOST = 1
 } msg_type;
 
 /**
