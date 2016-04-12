@@ -100,10 +100,10 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     uint8_t item = 0;
     uint8_t temp_buf[MAX_BUF_SIZE];
 
-    parsed_packet->source_id = src[0];
-    parsed_packet->seq_num = (src[1] << 8) | (src[2]);
-    parsed_packet->type = src[3];
-    parsed_packet->num_hops = src[4];
+    parsed_packet->source_id = src[HEADER_SRC_ID_INDEX];
+    parsed_packet->seq_num = (src[HEADER_SEQ_NUM_INDEX] << 8) | (src[HEADER_SEQ_NUM_INDEX + 1]);
+    parsed_packet->type = src[HEADER_TYPE_INDEX];
+    parsed_packet->num_hops = src[HEADER_NUM_HOPS_INDEX];
 
     switch(parsed_packet->type)
     {
@@ -114,7 +114,7 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
         }
         case MSG_LOST:
         {
-            parsed_packet->payload[LOST_NODE_INDEX] = src[5];
+            parsed_packet->payload[LOST_NODE_INDEX] = src[HEADER_SIZE];
             break;
         }
         case MSG_GATEWAY:
@@ -124,47 +124,47 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
         }
         case MSG_DATA:
         {
-            parsed_packet->payload[DATA_PWR_INDEX] = src[5];
-            parsed_packet->payload[DATA_PWR_INDEX+1] = src[6];
-            parsed_packet->payload[DATA_TEMP_INDEX] = src[7];
-            parsed_packet->payload[DATA_TEMP_INDEX+1] = src[8];
-            parsed_packet->payload[DATA_LIGHT_INDEX] = src[9];
-            parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[10];
-            parsed_packet->payload[DATA_STATE_INDEX]   = src[11];
+            parsed_packet->payload[DATA_PWR_INDEX] = src[HEADER_SIZE];
+            parsed_packet->payload[DATA_PWR_INDEX+1] = src[HEADER_SIZE + 1];
+            parsed_packet->payload[DATA_TEMP_INDEX] = src[HEADER_SIZE + 2];
+            parsed_packet->payload[DATA_TEMP_INDEX+1] = src[HEADER_SIZE + 3];
+            parsed_packet->payload[DATA_LIGHT_INDEX] = src[HEADER_SIZE + 4];
+            parsed_packet->payload[DATA_LIGHT_INDEX+1] = src[HEADER_SIZE + 5];
+            parsed_packet->payload[DATA_STATE_INDEX]   = src[HEADER_SIZE + 6];
             break;
         }
         case MSG_CMD:
         {
-            parsed_packet->payload[CMD_CMDID_INDEX] = src[5];
-            parsed_packet->payload[CMD_CMDID_INDEX+1] = src[6];
-            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[7];
-            parsed_packet->payload[CMD_ACT_INDEX] = src[8];
+            parsed_packet->payload[CMD_CMDID_INDEX] = src[HEADER_SIZE];
+            parsed_packet->payload[CMD_CMDID_INDEX+1] = src[HEADER_SIZE + 1];
+            parsed_packet->payload[CMD_NODE_ID_INDEX] = src[HEADER_SIZE + 2];
+            parsed_packet->payload[CMD_ACT_INDEX] = src[HEADER_SIZE + 3];
             break;
         }
         case MSG_CMDACK:
         {
-            parsed_packet->payload[CMDACK_CMDID_INDEX] = src[5];
-            parsed_packet->payload[CMDACK_CMDID_INDEX+1] = src[6];
-            parsed_packet->payload[CMDACK_STATE_INDEX] = src[7];
+            parsed_packet->payload[CMDACK_CMDID_INDEX] = src[HEADER_SIZE];
+            parsed_packet->payload[CMDACK_CMDID_INDEX+1] = src[HEADER_SIZE + 1];
+            parsed_packet->payload[CMDACK_STATE_INDEX] = src[HEADER_SIZE + 2];
             break;
         }
 
         case MSG_HAND:
         {
-            parsed_packet->payload[HAND_CONFIG_ID_INDEX] = src[5];
-            parsed_packet->payload[HAND_CONFIG_ID_INDEX+1] = src[6];
-            parsed_packet->payload[HAND_CONFIG_ID_INDEX+2] = src[7];
-            parsed_packet->payload[HAND_CONFIG_ID_INDEX+3] = src[8];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX] = src[HEADER_SIZE];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+1] = src[HEADER_SIZE + 1];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+2] = src[HEADER_SIZE + 2];
+            parsed_packet->payload[HAND_CONFIG_ID_INDEX+3] = src[HEADER_SIZE + 3];
             break;
         }
 
         case MSG_HANDACK:
         {
-            parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[5];
-            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX] = src[6];
-            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+1] = src[7];
-            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+2] = src[8];
-            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+3] = src[9];
+            parsed_packet->payload[HANDACK_NODE_ID_INDEX] = src[HEADER_SIZE];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX] = src[HEADER_SIZE + 1];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+1] = src[HEADER_SIZE + 2];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+2] = src[HEADER_SIZE + 3];
+            parsed_packet->payload[HANDACK_CONFIG_ID_INDEX+3] = src[HEADER_SIZE + 4];
             break;
         }
 
