@@ -178,11 +178,14 @@ int main() {
   act_packet.payload[CMD_CMDID_INDEX] = (uint16_t)0;
   act_packet.payload[CMD_NODE_ID_INDEX] = MAC_ADDR;
   act_packet.payload[CMD_ACT_INDEX] = OFF;
+  /*
   nrk_sem_pend(g_act_queue_mux); {
     push(&g_act_queue, &act_packet);
     push(&g_act_queue, &act_packet);
   }
   nrk_sem_post(g_act_queue_mux);
+  */
+  atomicPush(&g_act_queue, &act_packet, g_act_queue_mux);
 
   // initialize bmac
   bmac_task_config ();
@@ -310,10 +313,13 @@ void rx_msg_task() {
               // data received -> forward to server
               case MSG_DATA: {
                 rx_packet.num_hops++;
+                /*
                 nrk_sem_pend(g_data_tx_queue_mux); {
                   push(&g_data_tx_queue, &rx_packet);
                 }
                 nrk_sem_post(g_data_tx_queue_mux);
+                */
+                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -324,56 +330,74 @@ void rx_msg_task() {
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_kprintf (PSTR ("Received command.\r\n"));
                   g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
+                  /*
                   nrk_sem_pend(g_act_queue_mux); {
                     push(&g_act_queue, &rx_packet);
                   }
                   nrk_sem_post(g_act_queue_mux);
+                  */
+                  atomicPush(&g_act_queue, &rx_packet, g_act_queue_mux);
                 }
                 else {
                   rx_packet.num_hops++;
+                  /*
                   nrk_sem_pend(g_cmd_tx_queue_mux); {
                     push(&g_cmd_tx_queue, &rx_packet);
                   }
                   nrk_sem_post(g_cmd_tx_queue_mux);
+                  */
+                  atomicPush(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
                 rx_packet.num_hops++;
+                /*
                 nrk_sem_pend(g_cmd_tx_queue_mux); {
                   push(&g_cmd_tx_queue, &rx_packet);
                 }
                 nrk_sem_post(g_cmd_tx_queue_mux);
+                */
+                atomicPush(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
                 rx_packet.num_hops++;
+                /*
                 nrk_sem_pend(g_data_tx_queue_mux); {
                   push(&g_data_tx_queue, &rx_packet);
                 }
                 nrk_sem_post(g_data_tx_queue_mux);
+                */
+                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
                 rx_packet.num_hops++;
+                /*
                 nrk_sem_pend(g_data_tx_queue_mux); {
                   push(&g_data_tx_queue, &rx_packet);
                 }
                 nrk_sem_post(g_data_tx_queue_mux);
+                */
+                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
                 rx_packet.num_hops++;
+                /*
                 nrk_sem_pend(g_data_tx_queue_mux); {
                   push(&g_data_tx_queue, &rx_packet);
                 }
                 nrk_sem_post(g_data_tx_queue_mux);
+                */
+                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
 
                 nrk_sem_pend(g_net_watchdog_mux); {
                   g_net_watchdog = HEART_FACTOR;
@@ -438,19 +462,26 @@ void tx_cmd_task() {
   // loop forever
   while(1){
     // atomically get the queue size
+    /*
     nrk_sem_pend(g_cmd_tx_queue_mux); {
       tx_cmd_queue_size = g_cmd_tx_queue.size;
     }
     nrk_sem_post(g_cmd_tx_queue_mux);
+    */
+    tx_cmd_queue_size = atomicSize(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+    
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
       nrk_led_set(ORANGE_LED);
       // get a packet out of the queue.
+      /*
       nrk_sem_pend(g_cmd_tx_queue_mux); {
         pop(&g_cmd_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
+      */
+      atomicPop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
 
       // NOTE: a mutex is required around the network transmit buffer because
       //  tx_cmd_task() also uses it.
@@ -499,20 +530,26 @@ void tx_data_task() {
 
   while(1) {
     // atomically get the queue size
+    /*
     nrk_sem_pend(g_data_tx_queue_mux); {
       tx_data_queue_size = g_data_tx_queue.size;
     }
     nrk_sem_post(g_data_tx_queue_mux);
+    */
+    tx_data_queue_size = atomicSize(&g_data_tx_queue, g_data_tx_queue_mux);
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < tx_data_queue_size; i++) {
       nrk_led_set(ORANGE_LED);
 
       // get a packet out of the queue.
+      /*
       nrk_sem_pend(g_data_tx_queue_mux); {
         pop(&g_data_tx_queue, &tx_packet);
       }
       nrk_sem_post(g_data_tx_queue_mux);
+      */
+      atomicPop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
       // assemble tx buf and send message
       nrk_sem_pend(g_net_tx_buf_mux); {
@@ -674,10 +711,13 @@ void sample_task() {
         }
 
         // add packet to data queue
+        /*
         nrk_sem_pend(g_data_tx_queue_mux); {
           push(&g_data_tx_queue, &tx_packet);
         }
         nrk_sem_post(g_data_tx_queue_mux);
+        */
+        atomicPush(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
       }
     }
     // if the local_network_joined flag hasn't been set yet, send a hello packet
@@ -690,11 +730,13 @@ void sample_task() {
       nrk_sem_post(g_seq_num_mux);
 
       // push to queue
+      /*
       nrk_sem_pend(g_cmd_tx_queue_mux); {
-        printf("adding hello packet to queue....\r\n");
         push(&g_cmd_tx_queue, &hello_packet);
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
+      */
+      atomicPush(&g_cmd_tx_queue, &hello_packet, g_cmd_tx_queue_mux);
     }
     nrk_wait_until_next_period();
   }
@@ -794,10 +836,13 @@ void actuate_task() {
     nrk_sem_post(g_network_joined_mux);
 
     // get action queue size / reset action flag
+    /*
     nrk_sem_pend(g_act_queue_mux); {
       act_queue_size = g_act_queue.size;
     }
     nrk_sem_post(g_act_queue_mux);
+    */
+    act_queue_size = atomicSize(&g_act_queue, g_act_queue_mux);
     action = ACT_NONE;
 
     // get button pressed
@@ -819,10 +864,13 @@ void actuate_task() {
         // check act queue
         else if(act_queue_size > 0) {
           // get the action atomically
+          /*
           nrk_sem_pend(g_act_queue_mux); {
             pop(&g_act_queue, &act_packet);
           }
           nrk_sem_post(g_act_queue_mux);
+          */
+          atomicPop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
         }
         // if the action is ON -> actuate
@@ -850,10 +898,13 @@ void actuate_task() {
         }
         // check act queue
         else if(act_queue_size > 0) {
+          /*
           nrk_sem_pend(g_act_queue_mux); {
             pop(&g_act_queue, &act_packet);
           }
           nrk_sem_post(g_act_queue_mux);
+          */
+          atomicPop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
         }
 
@@ -909,11 +960,13 @@ void actuate_task() {
           tx_packet.payload[CMDACK_STATE_INDEX] = OFF;
 
           // place message in the queue
+          /*
           nrk_sem_pend(g_cmd_tx_queue_mux); {
             push(&g_cmd_tx_queue, &tx_packet);
           }
-
           nrk_sem_post(g_cmd_tx_queue_mux);
+          */
+          atomicPush(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
         }
 
         // update global outlet state
@@ -954,11 +1007,13 @@ void actuate_task() {
           tx_packet.payload[CMDACK_STATE_INDEX] = ON;
 
           // place message in the queue
+          /*
           nrk_sem_pend(g_cmd_tx_queue_mux); {
             push(&g_cmd_tx_queue, &tx_packet);
           }
-
           nrk_sem_post(g_cmd_tx_queue_mux);
+          */
+          atomicPush(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
         }
 
         // update global outlet state

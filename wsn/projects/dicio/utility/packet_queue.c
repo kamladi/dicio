@@ -15,7 +15,7 @@ void packet_queue_init(packet_queue* pq) {
 }
 
 // NEED TO test for all types of payload
-void push(packet_queue* pq, packet* p) {
+void push(packet_queue *pq, packet *p) {
 	if(pq->size < MAX_PACKET_BUFFER) {
 		pq->size++;
 
@@ -40,8 +40,10 @@ void push(packet_queue* pq, packet* p) {
 	return;
 }
 
+
+
 // NEED To test for all types of payload
-void pop(packet_queue* pq, packet* p) {
+void pop(packet_queue *pq, packet *p) {
 	if(pq->size > 0) {
 		p->type 		= pq->buffer[pq->front].type;
 		p->source_id 	= pq->buffer[pq->front].source_id;
@@ -61,4 +63,27 @@ void pop(packet_queue* pq, packet* p) {
 		pq->front++;
 		pq->front %= MAX_PACKET_BUFFER;	
 	}
+}
+
+uint8_t atomicSize(packet_queue *pq, nrk_sem_t *mux) {
+	uint8_t toReturn;
+	nrk_sem_pend(mux); {
+		toReturn = pq->size;
+	}
+	nrk_sem_post(mux);
+	return toReturn;
+}
+
+void atomicPush(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+  	push(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+void atomicPop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+	nrk_sem_pend(mux); {
+		pop(pq, p);
+	}
+	nrk_sem_post(mux);
 }
