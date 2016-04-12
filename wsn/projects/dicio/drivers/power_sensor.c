@@ -9,33 +9,7 @@
 #include <power_sensor.h>
 #include <dicio_spi.h>
 
-void pwr_read(uint16_t reg, uint8_t *read_buf) {
-    uint8_t send_receive_buf[5];
-
-    send_receive_buf[0] = 0x01;             // header
-    send_receive_buf[1] = GET_REG_ADDR(reg);    // address
-    send_receive_buf[2] = 0x00;             // padding for reading
-    send_receive_buf[3] = 0x00;             // padding for reading
-    send_receive_buf[4] = 0x00;             // padding for reading
-
-    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
-    read_buf[0] = send_receive_buf[2];
-    read_buf[1] = send_receive_buf[3];
-    read_buf[2] = send_receive_buf[4];
-}
-
-
-void pwr_write(uint16_t reg, uint8_t *write_buf) {
-    uint8_t send_receive_buf[5];
-    send_receive_buf[0] = 0x01;
-    send_receive_buf[1] = GET_REG_ADDR(reg);
-    send_receive_buf[2] = write_buf[0];
-    send_receive_buf[3] = write_buf[1];
-    send_receive_buf[4] = write_buf[2];
-
-    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
-}
-
+// pwr_init - initialize power sensor
 void pwr_init() {
     uint8_t Iscale[3];
     uint8_t Vscale[3];
@@ -69,6 +43,40 @@ void pwr_init() {
     pwr_write(ALARM_MASK2, Zeros);
 }
 
+// pwr_read - read from the power sensor
+void pwr_read(uint16_t reg, uint8_t *read_buf) {
+    // initialize the message
+    uint8_t send_receive_buf[5];
+    send_receive_buf[0] = 0x01;             // header
+    send_receive_buf[1] = GET_REG_ADDR(reg);    // address
+    send_receive_buf[2] = 0x00;             // padding for reading
+    send_receive_buf[3] = 0x00;             // padding for reading
+    send_receive_buf[4] = 0x00;             // padding for reading
+
+    // send message
+    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
+
+    // get the return value
+    read_buf[0] = send_receive_buf[2];
+    read_buf[1] = send_receive_buf[3];
+    read_buf[2] = send_receive_buf[4];
+}
+
+// pwr_write - write to the power sensor
+void pwr_write(uint16_t reg, uint8_t *write_buf) {
+    // initialize the message
+    uint8_t send_receive_buf[5];
+    send_receive_buf[0] = 0x01;
+    send_receive_buf[1] = GET_REG_ADDR(reg);
+    send_receive_buf[2] = write_buf[0];
+    send_receive_buf[3] = write_buf[1];
+    send_receive_buf[4] = write_buf[2];
+
+    // send the message
+    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
+}
+
+// transform_pwr - change power sensor reading to a fixed point value
 int16_t transform_pwr(int16_t counts) {
     int16_t integer = (counts / PWR_MULT) * PWR_SCALE;
     int16_t decimal = ((counts % PWR_MULT) * PWR_SCALE) / PWR_MULT;

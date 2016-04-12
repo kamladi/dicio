@@ -8,6 +8,7 @@
 
 #include <parser.h>
 
+// print_packet - print packet to the terminal
 void print_packet(packet *p)
 {
     printf("[source_id: %d]", p->source_id);
@@ -85,15 +86,7 @@ void print_packet(packet *p)
     }
 }
 
-/*
-Function : parse_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
-
-Input parameters:
-parsed_packet - pointer to the output packet struct.
-src - the pointer to the received data buffer
-len - the length of the received data buffer
-msg_type - the type of message
-*/
+// parse message - parse message src into parsed_packet
 void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
     uint8_t pos = 0;

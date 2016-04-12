@@ -9,10 +9,7 @@
 #include <assembler.h>
 
 
-/*
-Assemble packet to go to the server.
-Right now the server is looking for ":"
-*/
+// assemble_serv_packet - assemble packet to the server
 void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
 {
     switch(tx->type)
@@ -80,10 +77,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
     }
 }
 
-/*
-Assemble packet to go to the network.
-Use network format.
-*/
+// assemble_packet - assemble backet to for the network
 uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
 {
     // common to all packets 
@@ -115,7 +109,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_DATA:
         {
             length = 12;
-            /*
             // power value (2 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[DATA_PWR_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[DATA_PWR_INDEX + 1];
@@ -127,13 +120,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 5] = tx->payload[DATA_LIGHT_INDEX + 1];
             // current state (ON/OFF) (1 byte)
             tx_buf[HEADER_SIZE + 6] = tx->payload[DATA_STATE_INDEX];
-            */  
-
-            // assembly via type-casting.
-            tx_buf[HEADER_SIZE + DATA_PWR_INDEX] = (uint16_t)tx->payload[DATA_PWR_INDEX];
-            tx_buf[HEADER_SIZE + DATA_TEMP_INDEX] = (uint16_t)tx->payload[DATA_TEMP_INDEX];
-            tx_buf[HEADER_SIZE + DATA_LIGHT_INDEX] = (uint16_t)tx->payload[DATA_LIGHT_INDEX];
-            tx_buf[HEADER_SIZE + DATA_STATE_INDEX] = (uint8_t)tx->payload[DATA_STATE_INDEX];
             break;
         }
         // command message - sent out to a particular node with a particular command ID
@@ -171,7 +157,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 3] = tx->payload[HAND_CONFIG_ID_INDEX + 3];
             break;
         }
-
         // handshake acknowledgement - response to handshake request
         case MSG_HANDACK:
         {
