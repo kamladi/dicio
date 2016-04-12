@@ -110,6 +110,7 @@
 
 #define GET_REG_ADDR(x) (((uint8_t)((uint16_t)x / 3)) & 0x3F) << 2
 
+void pwr_init();
 void pwr_read(uint16_t reg, uint8_t *read_buf);
 void pwr_write(uint16_t reg, uint8_t *write_buf);
 int16_t transform_pwr(int16_t counts);

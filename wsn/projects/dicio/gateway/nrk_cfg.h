@@ -52,7 +52,7 @@
 #define NRK_TASK_IDLE_STK_SIZE         1024   // Idle task stack size min=32 
 #define NRK_APP_STACKSIZE              512 
 #define NRK_KERNEL_STACKSIZE           1024 
-#define NRK_MAX_RESOURCE_CNT           2
+#define NRK_MAX_RESOURCE_CNT           4
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
