@@ -36,6 +36,18 @@
 
 // FUNCTION DECLARATIONS
 int main(void);
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux);
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux);
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
+uint16_t inline atomic_increment_seq_num();
+uint8_t inline atomic_outlet_state();
+void inline atomic_update_outlet_state(uint8_t new_state);
+uint8_t inline atomic_network_joined();
+void inline atomic_update_network_joined(uint8_t update);
+uint8_t inline atomic_button_pressed();
+void inline atomic_update_button_pressed(uint8_t update);
+uint8_t inline atomic_decrement_watchdog();
+uint8_t inline atomic_kick_watchdog();
 void clear_tx_buf(void);
 void rx_msg_task(void);
 void tx_cmd_task(void);
@@ -45,8 +57,6 @@ void button_task(void);
 void actuate_task(void);
 void heartbeat_task(void);
 void nrk_set_gpio(void);
-uint8_t get_global_outlet_state();
-void update_global_outlet_state(uint8_t new_state);
 void nrk_register_drivers(void);
 void nrk_create_taskset(void);
 
@@ -192,12 +202,45 @@ int main() {
   return 0;
 }
 
-/**
- * Wrapper function to control access to retrieving the global outlet state
- * variable.
- * @return uint8_t current global outlet state (either ON or OFF)
- */
-uint8_t get_global_outlet_state() {
+/***** HELPER FUNCTIONS *****/
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
+  uint8_t toReturn;
+  nrk_sem_pend(mux); {
+    toReturn = pq->size;
+  }
+  nrk_sem_post(mux);
+  return toReturn;
+}
+
+// atomic_push - push onto the queue atomically
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    push(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+// atomic_pop - pop onto the queue atomically
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    pop(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+// atomic_increment_seq_num - increment sequence number atomically and return
+uint16_t inline atomic_increment_seq_num() {
+  uint16_t returnVal;
+  nrk_sem_pend(g_seq_num_mux); {
+    g_seq_num++;
+    returnVal = g_seq_num;
+  }
+  nrk_sem_post(g_seq_num_mux);
+  return returnVal;
+}
+
+// atomic_outlet_state - atomically return outlet state
+uint8_t inline atomic_outlet_state() {
   uint8_t outlet_state = OFF;
   nrk_sem_pend(g_global_outlet_state_mux); {
     outlet_state = g_global_outlet_state;
@@ -206,16 +249,68 @@ uint8_t get_global_outlet_state() {
   return outlet_state;
 }
 
-/**
- * Wrapper function to control access to setting the global outlet state
- * variable.
- * @param new_state uint8_t (either ON or OFF)
- */
-void update_global_outlet_state(uint8_t new_state) {
+// atomic_update_outlet_state - atomically update outlet state
+void inline atomic_update_outlet_state(uint8_t update) {
   nrk_sem_pend(g_global_outlet_state_mux); {
-    g_global_outlet_state = new_state;
+    g_global_outlet_state = update;
   }
   nrk_sem_post(g_global_outlet_state_mux);
+}
+
+// atomic_network_joined - atomically return the network status
+uint8_t inline atomic_network_joined() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_network_joined_mux); { 
+    returnVal = g_network_joined;
+  }
+  nrk_sem_post(g_network_joined_mux); 
+  return returnVal; 
+}
+
+// atomic_update_network_joined
+void inline atomic_update_network_joined(uint8_t update) {
+  nrk_sem_pend(g_network_joined_mux); { 
+    g_network_joined = update;
+  }
+  nrk_sem_post(g_network_joined_mux);  
+}
+
+// atomic_button_pressed - atomically return the button_pressed flag
+uint8_t inline atomic_button_pressed() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_button_pressed_mux); {
+    returnVal = g_button_pressed;
+  }
+  nrk_sem_post(g_button_pressed_mux);
+  return returnVal;  
+}
+
+// atomic_update_button_pressed - atomically update button_pressed flag
+void inline atomic_update_button_pressed(uint8_t update) {
+  nrk_sem_pend(g_button_pressed_mux); {
+    g_button_pressed = update;
+  }
+  nrk_sem_post(g_button_pressed_mux);  
+}
+
+// atomic_decrement_watchdog - atomically decrement watchdog timer
+uint8_t inline atomic_decrement_watchdog() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_net_watchdog_mux); {
+    g_net_watchdog--;
+    returnVal = g_net_watchdog;
+  }
+  nrk_sem_post(g_net_watchdog_mux);  
+  return returnVal;
+}
+
+// atomic_kick_watchdog - atomically kick the watchdog timer
+uint8_t inline atomic_kick_watchdog() {
+  nrk_sem_pend(g_net_watchdog_mux); {
+    g_net_watchdog = HEART_FACTOR;
+  }
+  nrk_sem_post(g_net_watchdog_mux);  
+  return HEART_FACTOR;  
 }
 
 void clear_tx_buf(){
@@ -267,10 +362,7 @@ void rx_msg_task() {
       // only receive the message if it's not from this node
       if(rx_packet.source_id != MAC_ADDR) {
         // determine if the network has been joined
-        nrk_sem_pend(g_network_joined_mux); { 
-          local_network_joined = g_network_joined;
-        }
-        nrk_sem_post(g_network_joined_mux);
+        local_network_joined = atomic_network_joined();
 
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
@@ -349,11 +441,7 @@ void rx_msg_task() {
               case MSG_HEARTBEAT: {
                 rx_packet.num_hops++;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
-
-                nrk_sem_pend(g_net_watchdog_mux); {
-                  g_net_watchdog = HEART_FACTOR;
-                }
-                nrk_sem_post(g_net_watchdog_mux);
+                atomic_kick_watchdog();
                 break;
               }
               default: {
@@ -372,12 +460,8 @@ void rx_msg_task() {
 
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
-            nrk_sem_pend(g_network_joined_mux); {
-              nrk_kprintf (PSTR ("Received HAND ACK.\r\n"));
-              g_network_joined = TRUE;
-              local_network_joined = g_network_joined;
-            }
-            nrk_sem_post(g_network_joined_mux);
+            atomic_update_network_joined(TRUE);
+            local_network_joined = atomic_network_joined();
           }
         }
       }
@@ -553,11 +637,8 @@ void sample_task() {
   // loop forever
   while (1) {
     // check if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      //g_network_joined = TRUE;
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
+
 
     // if the network has been joined then start sampling sensors
     if(local_network_joined == TRUE) {
@@ -619,17 +700,13 @@ void sample_task() {
       // if a sensor has been sampled, send a packet out
       if(sensor_sampled == TRUE) {
         // update sequence number
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          tx_packet.seq_num = g_seq_num;
-        }
-        nrk_sem_post(g_seq_num_mux);
+        tx_packet.seq_num = atomic_increment_seq_num();
 
         // add data values to sensor packet
         tx_packet.payload[DATA_PWR_INDEX] = g_sensor_pkt.pwr_val;
         tx_packet.payload[DATA_TEMP_INDEX] = g_sensor_pkt.temp_val;
         tx_packet.payload[DATA_LIGHT_INDEX] = g_sensor_pkt.light_val;
-        tx_packet.payload[DATA_STATE_INDEX] = get_global_outlet_state();
+        tx_packet.payload[DATA_STATE_INDEX] = atomic_outlet_state();
 
         // print the sensor info
         if(g_verbose == TRUE) {
@@ -643,12 +720,10 @@ void sample_task() {
     }
     // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
+      atomic_update_network_joined(TRUE);
+
       // update seq num
-      nrk_sem_pend(g_seq_num_mux); {
-        g_seq_num++;
-        hello_packet.seq_num = g_seq_num;
-      }
-      nrk_sem_post(g_seq_num_mux);
+      hello_packet.seq_num = atomic_increment_seq_num();
 
       // push to queue
       atomic_push(&g_cmd_tx_queue, &hello_packet, g_cmd_tx_queue_mux);
@@ -672,18 +747,12 @@ void button_task() {
       //    - otherwise, keep sniffing
       case STATE_SNIFF: {
         // get current button_pressed state
-        nrk_sem_pend(g_button_pressed_mux); {
-          local_button_pressed = g_button_pressed;
-        }
-        nrk_sem_post(g_button_pressed_mux);
+        local_button_pressed = atomic_button_pressed();
 
         // check button input
         if((nrk_gpio_get(BTN_IN) == BUTTON_PRESSED) && (local_button_pressed == FALSE)) {
           // set flag
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = TRUE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+          atomic_update_button_pressed(TRUE);
 
           // switch states
           curr_state = STATE_WAIT;
@@ -745,20 +814,14 @@ void actuate_task() {
   // loop forever
   while(1) {
     // determine if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
 
     // get action queue size / reset action flag
     act_queue_size = atomic_size(&g_act_queue, g_act_queue_mux);
     action = ACT_NONE;
 
     // get button pressed
-    nrk_sem_pend(g_button_pressed_mux); {
-      local_button_pressed = g_button_pressed;
-    }
-    nrk_sem_post(g_act_queue_mux);
+    local_button_pressed = atomic_button_pressed();
 
     switch(curr_state) {
       // STATE_OFF -
@@ -846,11 +909,7 @@ void actuate_task() {
         // send ack if the network has been joined
         if(local_network_joined == TRUE) {
           // update sequence number
-          nrk_sem_pend(g_seq_num_mux); {
-            g_seq_num++;
-            tx_packet.seq_num = g_seq_num;
-          }
-          nrk_sem_post(g_seq_num_mux);
+          tx_packet.seq_num = atomic_increment_seq_num();
 
           // set payload
           tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
@@ -861,15 +920,12 @@ void actuate_task() {
         }
 
         // update global outlet state
-        update_global_outlet_state(OFF);
+        atomic_update_outlet_state(OFF);
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
         if(local_button_pressed = TRUE) {
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = FALSE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+          atomic_update_button_pressed(FALSE);
         }
 
         // next state -> STATE_OFF
@@ -887,11 +943,7 @@ void actuate_task() {
         // send ack if network has been joined
         if(local_network_joined == TRUE) {
           // update sequence number
-          nrk_sem_pend(g_seq_num_mux); {
-            g_seq_num++;
-            tx_packet.seq_num = g_seq_num;
-          }
-          nrk_sem_post(g_seq_num_mux);
+          tx_packet.seq_num = atomic_increment_seq_num();
 
           // set payload
           tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
@@ -902,15 +954,12 @@ void actuate_task() {
         }
 
         // update global outlet state
-        update_global_outlet_state(ON);
+        atomic_update_outlet_state(ON);
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
         if(local_button_pressed = TRUE) {
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = FALSE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+          atomic_update_button_pressed(FALSE);
         }
 
         // next state -> STATE_ON
@@ -935,26 +984,17 @@ void heartbeat_task() {
   // loop forever
   while(1) {
     // determine if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
 
     // if the network has been joined, decrement the counter.
     //  otherwise, wait.
     if(local_network_joined == TRUE) {
       // update watchdog timer
-      nrk_sem_pend(g_net_watchdog_mux); {
-        g_net_watchdog--;
-        local_watchdog = g_net_watchdog;
-      }
-      nrk_sem_post(g_net_watchdog_mux);    
+      local_watchdog = atomic_decrement_watchdog();
+
       // if the watchdog has been exceeded, set network joined flag to false
       if(local_watchdog <= 0) {
-        nrk_sem_pend(g_network_joined_mux); {
-          g_network_joined = FALSE;
-        }
-        nrk_sem_post(g_network_joined_mux);      
+        atomic_update_network_joined(FALSE);     
       }
 
       // clear red LED / set green LED
@@ -962,11 +1002,7 @@ void heartbeat_task() {
       nrk_led_set(GREEN_LED);
     } else {
       // reset the watchdog timer
-      nrk_sem_pend(g_net_watchdog_mux); {
-        g_net_watchdog = HEART_FACTOR;
-        local_watchdog = g_net_watchdog;
-      }
-      nrk_sem_post(g_net_watchdog_mux);  
+      local_watchdog = atomic_kick_watchdog();
 
       // set red LED / clear green LED
       nrk_led_set(RED_LED);

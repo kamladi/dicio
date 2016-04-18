@@ -30,19 +30,9 @@ void push(packet_queue *pq, packet *p) {
 		pq->buffer[pq->back].num_hops = p->num_hops;
 
 		// copy the payload
-		/*
-		for(uint8_t i = 0; i < MAX_PAYLOAD_SIZE; i++) {
+		for(uint8_t i = 0; i < MAX_PACKET_BUFFER; i++) {
 			pq->buffer[pq->back].payload[i]	= p->payload[i];
-		}*/
-		pq->buffer[pq->back].payload[0]	= p->payload[0];
-		pq->buffer[pq->back].payload[1]	= p->payload[1];
-		pq->buffer[pq->back].payload[2]	= p->payload[2];
-		pq->buffer[pq->back].payload[3]	= p->payload[3];
-		pq->buffer[pq->back].payload[4]	= p->payload[4];
-		pq->buffer[pq->back].payload[5]	= p->payload[5];
-		pq->buffer[pq->back].payload[6]	= p->payload[6];
-		pq->buffer[pq->back].payload[7]	= p->payload[7];
-
+		}
 
 		// increment the back appropriately
 		pq->back++;
@@ -65,47 +55,12 @@ void pop(packet_queue *pq, packet *p) {
 		p->num_hops = pq->buffer[pq->front].num_hops;
 
 		// copy the payload
-		/*for(uint8_t i = 0; i < MAX_PAYLOAD_SIZE; i++) {
+		for(uint8_t i = 0; i < MAX_PACKET_BUFFER; i++) {
 			p->payload[i] = pq->buffer[pq->front].payload[i];
-		}*/
-		p->payload[0] = pq->buffer[pq->front].payload[0];
-		p->payload[1] = pq->buffer[pq->front].payload[1];
-		p->payload[2] = pq->buffer[pq->front].payload[2];
-		p->payload[3] = pq->buffer[pq->front].payload[3];
-		p->payload[4] = pq->buffer[pq->front].payload[4];
-		p->payload[5] = pq->buffer[pq->front].payload[5];
-		p->payload[6] = pq->buffer[pq->front].payload[6];
-		p->payload[7] = pq->buffer[pq->front].payload[7];
-
+		}
 
 		// inrement the front properly
 		pq->front++;
 		pq->front %= MAX_PACKET_BUFFER;	
 	}
-}
-
-// atomic_size - get the size of the queue atomically
-uint8_t atomic_size(packet_queue *pq, nrk_sem_t *mux) {
-	uint8_t toReturn;
-	nrk_sem_pend(mux); {
-		toReturn = pq->size;
-	}
-	nrk_sem_post(mux);
-	return toReturn;
-}
-
-// atomic_push - push onto the queue atomically
-void atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-  nrk_sem_pend(mux); {
-  	push(pq, p);
-  }
-  nrk_sem_post(mux);
-}
-
-// atomic_pop - pop onto the queue atomically
-void atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-	nrk_sem_pend(mux); {
-		pop(pq, p);
-	}
-	nrk_sem_post(mux);
 }
