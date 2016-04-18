@@ -849,7 +849,7 @@ void actuate_task() {
     nrk_sem_pend(g_button_pressed_mux); {
       local_button_pressed = g_button_pressed;
     }
-    nrk_sem_post(g_act_queue_mux);
+    nrk_sem_post(g_button_pressed_mux);
 
     switch(curr_state) {
       // STATE_OFF -

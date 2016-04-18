@@ -115,7 +115,7 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_DATA:
         {
             length = 12;
-            /*
+            
             // power value (2 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[DATA_PWR_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[DATA_PWR_INDEX + 1];
@@ -127,19 +127,20 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 5] = tx->payload[DATA_LIGHT_INDEX + 1];
             // current state (ON/OFF) (1 byte)
             tx_buf[HEADER_SIZE + 6] = tx->payload[DATA_STATE_INDEX];
-            */  
-
+            /*
             // assembly via type-casting.
             tx_buf[HEADER_SIZE + DATA_PWR_INDEX] = (uint16_t)tx->payload[DATA_PWR_INDEX];
             tx_buf[HEADER_SIZE + DATA_TEMP_INDEX] = (uint16_t)tx->payload[DATA_TEMP_INDEX];
             tx_buf[HEADER_SIZE + DATA_LIGHT_INDEX] = (uint16_t)tx->payload[DATA_LIGHT_INDEX];
             tx_buf[HEADER_SIZE + DATA_STATE_INDEX] = (uint8_t)tx->payload[DATA_STATE_INDEX];
+            */
             break;
         }
         // command message - sent out to a particular node with a particular command ID
         case MSG_CMD:
         {
             length = 9;
+            
             // command ID (2 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[CMD_CMDID_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[CMD_CMDID_INDEX + 1];
@@ -147,28 +148,51 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 2] = tx->payload[CMD_NODE_ID_INDEX];
             // action (1 byte)
             tx_buf[HEADER_SIZE + 3] = tx->payload[CMD_ACT_INDEX];
+            /*
+            // command ID (2 bytes)
+            tx_buf[HEADER_SIZE + CMD_CMDID_INDEX] = (uint16_t)tx->payload[CMD_CMDID_INDEX];
+            // node ID (1 byte)
+            tx_buf[HEADER_SIZE + CMD_NODE_ID_INDEX] = tx->payload[CMD_NODE_ID_INDEX];
+            // action (1 byte)
+            tx_buf[HEADER_SIZE + CMD_ACT_INDEX] = tx->payload[CMD_ACT_INDEX];
+            */
             break;
         }
         // command acknowledgment - send from a node back to the server to confirm actuation 
         case MSG_CMDACK:
         {
             length = 8;
+            
             // command ID (2 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[CMDACK_CMDID_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[CMDACK_CMDID_INDEX + 1];
             // node state (1 byte)
             tx_buf[HEADER_SIZE + 2] = tx->payload[CMDACK_STATE_INDEX];
+            /*
+            // command ID (2 bytes)
+            tx_buf[HEADER_SIZE + CMDACK_CMDID_INDEX] = (uint16_t)tx->payload[CMDACK_CMDID_INDEX];
+            // node state (1 byte)
+            tx_buf[HEADER_SIZE + CMDACK_STATE_INDEX] = tx->payload[CMDACK_STATE_INDEX];
+            */
             break;
         }
         // handshake request - send to the gateway to gain access to the network
         case MSG_HAND:
         {
             length = 9;
+            
             // hardware configuration (4 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[HAND_CONFIG_ID_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[HAND_CONFIG_ID_INDEX + 1];
             tx_buf[HEADER_SIZE + 2] = tx->payload[HAND_CONFIG_ID_INDEX + 2];
             tx_buf[HEADER_SIZE + 3] = tx->payload[HAND_CONFIG_ID_INDEX + 3];
+            /*
+            // hardware configuration (4 bytes)
+            tx_buf[HEADER_SIZE + HAND_CONFIG_ID_INDEX] = (uint16_t)tx->payload[HAND_CONFIG_ID_INDEX];
+            tx_buf[HEADER_SIZE + 1] = tx->payload[HAND_CONFIG_ID_INDEX + 1];
+            tx_buf[HEADER_SIZE + 2] = tx->payload[HAND_CONFIG_ID_INDEX + 2];
+            tx_buf[HEADER_SIZE + 3] = tx->payload[HAND_CONFIG_ID_INDEX + 3];
+            */
             break;
         }
 

@@ -93,7 +93,6 @@ pool_t g_alive_pool;
 nrk_sem_t* g_alive_pool_mux;
 
 // COMMAND FLAGS
-packet g_last_cmd;
 uint8_t g_cmd_ack_received = TRUE;
 nrk_sem_t * g_cmd_mux;
 
@@ -220,6 +219,7 @@ void rx_node_task() {
   uint16_t local_alive_num;
   uint8_t new_node = NONE;
 
+
   printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
   // initialize network receive buffer
@@ -289,6 +289,12 @@ void rx_node_task() {
             }
             // command ack -> forward to server
             case MSG_CMDACK: {
+              // set CMD_ACK_RECEIVED flag to true
+              nrk_sem_pend(g_cmd_mux); {
+                g_cmd_ack_received = TRUE;
+              }
+              nrk_sem_post(g_cmd_mux);
+
               rx_packet.num_hops++;
               nrk_sem_pend(g_serv_tx_queue_mux); {
                 push(&g_serv_tx_queue, &rx_packet);
@@ -423,7 +429,10 @@ void tx_cmd_task() {
   nrk_sig_t tx_done_signal;
   nrk_sig_mask_t ret;
   packet tx_packet;
+  packet last_cmd;
   uint8_t local_tx_cmd_queue_size;
+  uint8_t local_cmd_ack_received = FALSE;
+  uint8_t local_retry_cmd_counter = 0;
 
   printf("tx_cmd_task PID: %d.\r\n", nrk_get_pid());
 
@@ -439,37 +448,113 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-    // atomically get the queue size
-    nrk_sem_pend(g_cmd_tx_queue_mux); {
-      local_tx_cmd_queue_size = g_cmd_tx_queue.size;
+    nrk_sem_pend(g_cmd_mux); {
+      local_cmd_ack_received = g_cmd_ack_received;
     }
-    nrk_sem_post(g_cmd_tx_queue_mux);
+    nrk_sem_post(g_cmd_mux);
 
-    // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
-      nrk_led_set(RED_LED);
-
-      // get a packet out of the queue.
+    // If we have received an ack
+    if(local_cmd_ack_received == TRUE){
+      // atomically get the queue size
       nrk_sem_pend(g_cmd_tx_queue_mux); {
-        pop(&g_cmd_tx_queue, &tx_packet);
+        local_tx_cmd_queue_size = g_cmd_tx_queue.size;
       }
       nrk_sem_post(g_cmd_tx_queue_mux);
 
-      // transmit the command
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+      // If there is a command to send.
+      if(local_tx_cmd_queue_size > 0){
+        nrk_led_set(RED_LED);
 
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf (PSTR ("TX done signal error\r\n"));
+        // get a packet out of the queue.
+        nrk_sem_pend(g_cmd_tx_queue_mux); {
+          pop(&g_cmd_tx_queue, &tx_packet);
         }
+        nrk_sem_post(g_cmd_tx_queue_mux);
+        // increment the sequence number
+        nrk_sem_pend(g_seq_num_mux); {
+          g_seq_num++;
+          tx_packet.seq_num = g_seq_num;        
+        }
+        nrk_sem_post(g_seq_num_mux);
+        last_cmd = tx_packet;
+        printf("updated last_cmd:\r\n");
+        print_packet(&last_cmd);
+        // transmit the command
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+
+          // send the packet
+          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+          ret = nrk_event_wait (SIG(tx_done_signal));
+
+          // Just check to be sure signal is okay
+          if(ret & (SIG(tx_done_signal) == 0)) {
+            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          }
+        }
+        nrk_sem_post(g_net_tx_buf_mux);
+        nrk_led_clr(RED_LED);
+        //reset flag if we sent a command
+        nrk_sem_pend(g_cmd_mux); {
+        g_cmd_ack_received = FALSE;
+        }
+        nrk_sem_post(g_cmd_mux);
       }
-      nrk_sem_post(g_net_tx_buf_mux);
-      nrk_led_clr(RED_LED);
+      /*
+      for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
+        nrk_led_set(RED_LED);
+
+        // get a packet out of the queue.
+        nrk_sem_pend(g_cmd_tx_queue_mux); {
+          pop(&g_cmd_tx_queue, &tx_packet);
+        }
+        nrk_sem_post(g_cmd_tx_queue_mux);
+
+        last_cmd = tx_packet;
+        // transmit the command
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+
+          // send the packet
+          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+          ret = nrk_event_wait (SIG(tx_done_signal));
+
+          // Just check to be sure signal is okay
+          if(ret & (SIG(tx_done_signal) == 0)) {
+            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          }
+        }
+        nrk_sem_post(g_net_tx_buf_mux);
+        nrk_led_clr(RED_LED);
+      }*/
+    }
+    // have not received an ack...
+    else{
+      local_retry_cmd_counter ++;
+      if(local_retry_cmd_counter >= RETRY_CMD_PERIOD){
+            // increment the sequence number
+        nrk_sem_pend(g_seq_num_mux); {
+          g_seq_num++;
+          last_cmd.seq_num = g_seq_num;        
+        }
+        nrk_sem_post(g_seq_num_mux);
+        printf("retry period expired.. sending last cmd\r\n");
+        print_packet(&last_cmd);
+        local_retry_cmd_counter = 0;
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet(&g_net_tx_buf, &last_cmd);
+
+          // send the packet
+          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+          ret = nrk_event_wait (SIG(tx_done_signal));
+
+          // Just check to be sure signal is okay
+          if(ret & (SIG(tx_done_signal) == 0)) {
+            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          }
+        }
+        nrk_sem_post(g_net_tx_buf_mux);
+      }
     }
     nrk_wait_until_next_period();
   }
