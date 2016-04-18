@@ -492,13 +492,16 @@ void tx_cmd_task() {
             nrk_kprintf (PSTR ("TX done signal error\r\n"));
           }
         }
-        nrk_sem_post(g_net_tx_buf_mux);
-        nrk_led_clr(RED_LED);
-        //reset flag if we sent a command
-        nrk_sem_pend(g_cmd_mux); {
-        g_cmd_ack_received = FALSE;
+
+        if(tx_packet.type == MSG_CMD){
+          nrk_sem_post(g_net_tx_buf_mux);
+          //reset flag if we sent a command
+          nrk_sem_pend(g_cmd_mux); {
+          g_cmd_ack_received = FALSE;
+          }
+          nrk_sem_post(g_cmd_mux);
         }
-        nrk_sem_post(g_cmd_mux);
+        nrk_led_clr(RED_LED);
       }
       /*
       for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
@@ -538,7 +541,8 @@ void tx_cmd_task() {
           last_cmd.seq_num = g_seq_num;        
         }
         nrk_sem_post(g_seq_num_mux);
-        printf("retry period expired.. sending last cmd\r\n");
+        nrk_kprintf (PSTR ("RETRY CMD EXPIRED\r\n"));
+        nrk_kprintf (PSTR ("RETRY PACKET:"));
         print_packet(&last_cmd);
         local_retry_cmd_counter = 0;
         nrk_sem_pend(g_net_tx_buf_mux); {

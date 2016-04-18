@@ -37,9 +37,12 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // data message 
         case MSG_DATA:
         {
+            uint16_t data_pwr = ((tx->payload[DATA_PWR_INDEX] << 8) | (tx->payload[DATA_PWR_INDEX + 1]));
+            uint16_t data_temp = ((tx->payload[DATA_TEMP_INDEX] << 8) | (tx->payload[DATA_TEMP_INDEX + 1]));
+            uint16_t data_light = ((tx->payload[DATA_LIGHT_INDEX] << 8) | (tx->payload[DATA_LIGHT_INDEX + 1]));
+
             sprintf(tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops, 
-                (uint16_t)tx->payload[DATA_PWR_INDEX], (uint16_t)tx->payload[DATA_TEMP_INDEX],
-                 (uint16_t)tx->payload[DATA_LIGHT_INDEX], tx->payload[DATA_STATE_INDEX]);
+                data_pwr, data_temp, data_light, tx->payload[DATA_STATE_INDEX]);
             break;
         }
         // command message ... this will never happen. (Commands come from the server!)
