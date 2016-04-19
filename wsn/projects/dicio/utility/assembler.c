@@ -112,7 +112,7 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_DATA:
         {
             length = 12;
-
+            // power value (2 bytes)
             tx_buf[HEADER_SIZE] = tx->payload[DATA_PWR_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[DATA_PWR_INDEX + 1];
             // temperature value (2 bytes)
@@ -123,13 +123,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 5] = tx->payload[DATA_LIGHT_INDEX + 1];
             // current state (ON/OFF) (1 byte)
             tx_buf[HEADER_SIZE + 6] = tx->payload[DATA_STATE_INDEX];
-            /*
-            // assembly via type-casting.
-            tx_buf[HEADER_SIZE + DATA_PWR_INDEX] = (uint16_t)tx->payload[DATA_PWR_INDEX];
-            tx_buf[HEADER_SIZE + DATA_TEMP_INDEX] = (uint16_t)tx->payload[DATA_TEMP_INDEX];
-            tx_buf[HEADER_SIZE + DATA_LIGHT_INDEX] = (uint16_t)tx->payload[DATA_LIGHT_INDEX];
-            tx_buf[HEADER_SIZE + DATA_STATE_INDEX] = (uint8_t)tx->payload[DATA_STATE_INDEX];
-            */
             break;
         }
         // command message - sent out to a particular node with a particular command ID

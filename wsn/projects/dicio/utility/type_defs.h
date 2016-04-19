@@ -101,9 +101,6 @@
 
 /*** ENUMERATIONS ***/
 typedef enum {
-  // NOTE: These are the messages that will be used by Dicio. The
-  //  ennumeration values should be updated when when parser.c and
-  //  assembeler.c are updated.
   MSG_NO_MESSAGE = 0,
   MSG_LOST = 1,
   MSG_GATEWAY = 3,
@@ -131,7 +128,7 @@ typedef struct {
 } pool_t;
 
 /**
- * paket struct - defines a network packet
+ * packet struct - defines a network packet
  *
  * @param source_id - sending node
  * @param seq_num - message sequence number of the origin node
@@ -148,6 +145,14 @@ typedef struct{
   uint8_t payload[MAX_PAYLOAD_SIZE];
 } packet;
 
+/**
+ * packet_queue struct - defines a packet_queue
+ *
+ * @param buffer - buffer of packets
+ * @param front - front of the queue
+ * @param back - back of the queue
+ * @param size - size of the queue
+ */
 typedef struct{
   packet buffer[MAX_PACKET_BUFFER];
   uint8_t front;
@@ -155,6 +160,13 @@ typedef struct{
   uint8_t size;
 } packet_queue;
 
+/**
+ * senosr packet struct - defines a sensor_packet
+ *
+ * @param pwr_val - power sensor value
+ * @param temp_val - temperature sensor value
+ * @param light_val - light sensor value
+ */
 typedef struct {
   uint16_t pwr_val;
   uint16_t temp_val;

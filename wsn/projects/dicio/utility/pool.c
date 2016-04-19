@@ -29,7 +29,6 @@ int8_t inline in_pool(pool_t *pool, uint8_t node_address) {
 
 // decrement_all - decrement every index in the pool
 void inline decrement_all(pool_t *pool) {
-    uint8_t temp;
     for(uint8_t i = 0; i < pool->size; i++) {
         if(pool->data_vals[i] > ALIVE_LIMIT) {
             pool->data_vals[i]--;

@@ -37,6 +37,7 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
 uint16_t inline atomic_increment_seq_num();
 uint8_t inline atomic_received_ack();
 void inline atomic_update_received_ack(uint8_t update);
+
 uint8_t get_server_input(void);
 void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();
@@ -548,6 +549,17 @@ void tx_cmd_task() {
       /*
       for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
         nrk_led_set(RED_LED);
+
+    // atomically get the queue size
+    local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+
+    // loop on queue size received above, and no more.
+    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
+      nrk_led_set(RED_LED);
+
+      // get a packet out of the queue.
+      atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+
 
         // get a packet out of the queue.
         nrk_sem_pend(g_cmd_tx_queue_mux); {

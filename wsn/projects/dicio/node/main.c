@@ -1046,7 +1046,7 @@ void inline nrk_create_taskset () {
   BUTTON_TASK.prio = 7;
   BUTTON_TASK.FirstActivation = TRUE;
   BUTTON_TASK.Type = BASIC_TASK;
-  BUTTON_TASK.SchType = PREEMPTIVE;
+  BUTTON_TASK.SchType = NONPREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
   BUTTON_TASK.period.nano_secs = 50*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
@@ -1059,7 +1059,7 @@ void inline nrk_create_taskset () {
   RX_MSG_TASK.prio = 6; 
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
-  RX_MSG_TASK.SchType = PREEMPTIVE;
+  RX_MSG_TASK.SchType = NONPREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
   RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
@@ -1072,7 +1072,7 @@ void inline nrk_create_taskset () {
   ACTUATE_TASK.prio = 5;
   ACTUATE_TASK.FirstActivation = TRUE;
   ACTUATE_TASK.Type = BASIC_TASK;
-  ACTUATE_TASK.SchType = PREEMPTIVE;
+  ACTUATE_TASK.SchType = NONPREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 200*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
@@ -1085,7 +1085,7 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
-  TX_NET_TASK.SchType = PREEMPTIVE;
+  TX_NET_TASK.SchType = NONPREEMPTIVE;
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 200*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
@@ -1098,7 +1098,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
-  SAMPLE_TASK.SchType = PREEMPTIVE;
+  SAMPLE_TASK.SchType = NONPREEMPTIVE;
   SAMPLE_TASK.period.secs = 2;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
@@ -1111,7 +1111,7 @@ void inline nrk_create_taskset () {
   HEARTBEAT_TASK.prio = 2;
   HEARTBEAT_TASK.FirstActivation = TRUE;
   HEARTBEAT_TASK.Type = BASIC_TASK;
-  HEARTBEAT_TASK.SchType = PREEMPTIVE;
+  HEARTBEAT_TASK.SchType = NONPREEMPTIVE;
   HEARTBEAT_TASK.period.secs = 5;
   HEARTBEAT_TASK.period.nano_secs = 0;
   HEARTBEAT_TASK.cpu_reserve.secs = 0;
