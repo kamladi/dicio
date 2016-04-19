@@ -31,7 +31,14 @@
 #define MAC_ADDR 1
 
 // FUNCTION DECLARATIONS
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux);
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux);
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
+uint16_t inline atomic_increment_seq_num();
+uint8_t inline atomic_received_ack();
+void inline atomic_update_received_ack(uint8_t update);
 uint8_t get_server_input(void);
+void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();
 void rx_node_task(void);
 void rx_serv_task(void);
@@ -116,17 +123,17 @@ int main () {
   nrk_led_clr(3);
 
   // print flag
-  g_verbose = TRUE;
+  g_verbose = FALSE;
 
   // mutexs
-  g_net_tx_buf_mux    = nrk_sem_create(1, 8);
-  g_cmd_tx_queue_mux  = nrk_sem_create(1, 8);
-  g_node_tx_queue_mux = nrk_sem_create(1, 8);
-  g_serv_tx_queue_mux = nrk_sem_create(1, 8);
-  g_hand_rx_queue_mux = nrk_sem_create(1, 8);
-  g_seq_num_mux       = nrk_sem_create(1, 8);
-  g_alive_pool_mux    = nrk_sem_create(1, 8);
-  g_cmd_mux           = nrk_sem_create(1, 8);
+  g_net_tx_buf_mux    = nrk_sem_create(1, 9);
+  g_cmd_tx_queue_mux  = nrk_sem_create(1, 9);
+  g_node_tx_queue_mux = nrk_sem_create(1, 9);
+  g_serv_tx_queue_mux = nrk_sem_create(1, 9);
+  g_hand_rx_queue_mux = nrk_sem_create(1, 9);
+  g_seq_num_mux       = nrk_sem_create(1, 9);
+  g_alive_pool_mux    = nrk_sem_create(1, 9);
+  g_cmd_mux           = nrk_sem_create(1, 9);
 
   // packet queues
   packet_queue_init(&g_cmd_tx_queue);
@@ -145,6 +152,69 @@ int main () {
 /***** END MAIN *****/
 
 /***** HELPER FUNCTIONS *****/
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
+  uint8_t toReturn;
+  nrk_sem_pend(mux); {
+    toReturn = pq->size;
+  }
+  nrk_sem_post(mux);
+  return toReturn;
+}
+
+// atomic_push - push onto the queue atomically
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    push(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+// atomic_pop - pop onto the queue atomically
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    pop(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+uint8_t inline atomic_received_ack(){
+  uint8_t returnVal;
+  nrk_sem_pend(g_cmd_mux); {
+    returnVal = g_cmd_ack_received;
+  }
+  nrk_sem_post(g_cmd_mux);
+
+  return returnVal;
+}
+
+void inline atomic_update_received_ack(uint8_t update){
+  nrk_sem_pend(g_cmd_mux); {
+    g_cmd_ack_received = update;
+  }
+  nrk_sem_post(g_cmd_mux);
+}
+
+// atomic_increment_seq_num - increment sequence number atomically and return
+uint16_t inline atomic_increment_seq_num() {
+  uint16_t returnVal;
+  nrk_sem_pend(g_seq_num_mux); {
+    g_seq_num++;
+    returnVal = g_seq_num;
+  }
+  nrk_sem_post(g_seq_num_mux);
+  return returnVal;
+}
+
+void copy_packet(packet *dest, packet *src){
+  dest->type = src->type;
+  dest->source_id = src->source_id;
+  dest->seq_num = src->seq_num;
+  dest->num_hops = src->num_hops;
+
+  for(uint8_t i = 0; i < MAX_PACKET_BUFFER; i++){
+    dest->payload[i] = src->payload[i];
+  }
+}
 
 // get_server_input() - get UART data from server - end of message noted by a '\r'
 uint8_t get_server_input() {
@@ -272,7 +342,7 @@ void rx_node_task() {
             } else {
               update_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
             }
-          } 
+          }
           nrk_sem_post(g_alive_pool_mux);
 
           // update the sequence pool and reset the new_node flag
@@ -290,32 +360,20 @@ void rx_node_task() {
             // command ack -> forward to server
             case MSG_CMDACK: {
               // set CMD_ACK_RECEIVED flag to true
-              nrk_sem_pend(g_cmd_mux); {
-                g_cmd_ack_received = TRUE;
-              }
-              nrk_sem_post(g_cmd_mux);
+              atomic_update_received_ack(TRUE);
 
               rx_packet.num_hops++;
-              nrk_sem_pend(g_serv_tx_queue_mux); {
-                push(&g_serv_tx_queue, &rx_packet);
-              }
-              nrk_sem_post(g_serv_tx_queue_mux);
+              atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
               break;
             }
             // data received  -> forward to server
             case MSG_DATA: {
-              nrk_sem_pend(g_serv_tx_queue_mux); {
-                push(&g_serv_tx_queue, &rx_packet);
-              }
-              nrk_sem_post(g_serv_tx_queue_mux);
+              atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
               break;
             }
             // handshake message recieved -> deal with in handshake function
             case MSG_HAND: {
-              nrk_sem_pend(g_hand_rx_queue_mux); {
-                push(&g_hand_rx_queue, &rx_packet);
-              }
-              nrk_sem_post(g_hand_rx_queue_mux);
+              atomic_push(&g_hand_rx_queue, &rx_packet, g_hand_rx_queue_mux);
               break;
             }
             case MSG_HANDACK: {
@@ -389,10 +447,7 @@ void rx_serv_task() {
         // command received
         case MSG_CMD: {
           rx_packet.num_hops++;
-          nrk_sem_pend(g_cmd_tx_queue_mux); {
-            push(&g_cmd_tx_queue, &rx_packet);
-          }
-          nrk_sem_post(g_cmd_tx_queue_mux);
+          atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
           break;
         }
         case MSG_CMDACK:
@@ -448,37 +503,27 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-    nrk_sem_pend(g_cmd_mux); {
+   /* nrk_sem_pend(g_cmd_mux); {
       local_cmd_ack_received = g_cmd_ack_received;
     }
-    nrk_sem_post(g_cmd_mux);
+    nrk_sem_post(g_cmd_mux);*/
+    local_cmd_ack_received = atomic_received_ack();
 
     // If we have received an ack
     if(local_cmd_ack_received == TRUE){
       // atomically get the queue size
-      nrk_sem_pend(g_cmd_tx_queue_mux); {
-        local_tx_cmd_queue_size = g_cmd_tx_queue.size;
-      }
-      nrk_sem_post(g_cmd_tx_queue_mux);
+      local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
 
       // If there is a command to send.
       if(local_tx_cmd_queue_size > 0){
         nrk_led_set(RED_LED);
 
         // get a packet out of the queue.
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          pop(&g_cmd_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(g_cmd_tx_queue_mux);
+        atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
         // increment the sequence number
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          tx_packet.seq_num = g_seq_num;        
-        }
-        nrk_sem_post(g_seq_num_mux);
-        last_cmd = tx_packet;
-        printf("updated last_cmd:\r\n");
-        print_packet(&last_cmd);
+        tx_packet.seq_num = atomic_increment_seq_num();
+
+        copy_packet(&last_cmd, &tx_packet);
         // transmit the command
         nrk_sem_pend(g_net_tx_buf_mux); {
           g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
@@ -492,14 +537,11 @@ void tx_cmd_task() {
             nrk_kprintf (PSTR ("TX done signal error\r\n"));
           }
         }
+        nrk_sem_post(g_net_tx_buf_mux);
 
         if(tx_packet.type == MSG_CMD){
-          nrk_sem_post(g_net_tx_buf_mux);
           //reset flag if we sent a command
-          nrk_sem_pend(g_cmd_mux); {
-          g_cmd_ack_received = FALSE;
-          }
-          nrk_sem_post(g_cmd_mux);
+          atomic_update_received_ack(FALSE);
         }
         nrk_led_clr(RED_LED);
       }
@@ -541,7 +583,6 @@ void tx_cmd_task() {
           last_cmd.seq_num = g_seq_num;        
         }
         nrk_sem_post(g_seq_num_mux);
-        nrk_kprintf (PSTR ("RETRY CMD EXPIRED\r\n"));
         nrk_kprintf (PSTR ("RETRY PACKET:"));
         print_packet(&last_cmd);
         local_retry_cmd_counter = 0;
@@ -574,23 +615,13 @@ void tx_serv_task() {
   // loop forever
   while(1) {
     // atomically get the queue size
-    nrk_sem_pend(g_serv_tx_queue_mux); {
-      local_tx_serv_queue_size = g_serv_tx_queue.size;
-    }
-    nrk_sem_post(g_serv_tx_queue_mux);
+    local_tx_serv_queue_size = atomic_size(&g_serv_tx_queue, g_serv_tx_queue_mux);
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < local_tx_serv_queue_size; i++) {
-      // get a packet out of the queue.
-      nrk_sem_pend(g_serv_tx_queue_mux); {
-        pop(&g_serv_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(g_serv_tx_queue_mux);
-
-      // assemble the packet
+      // get a packet out of the queue, assemble and send
+      atomic_pop(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
       assemble_serv_packet(&g_serv_tx_buf, &tx_packet);
-
-      // send the packet
       printf("%s\r\n", g_serv_tx_buf);
     }
 
@@ -623,20 +654,14 @@ void tx_node_task() {
   // loop forever
   while(1) {
     // atomically get the queue size
-    nrk_sem_pend(g_node_tx_queue_mux); {
-      local_tx_node_queue_size = g_node_tx_queue.size;
-    }
-    nrk_sem_post(g_node_tx_queue_mux);
+    local_tx_node_queue_size = atomic_size(&g_node_tx_queue, g_node_tx_queue_mux);
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < local_tx_node_queue_size; i++) {
       nrk_led_set(RED_LED);
 
       // get a packet out of the queue.
-      nrk_sem_pend(g_node_tx_queue_mux); {
-        pop(&g_node_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(g_node_tx_queue_mux);
+      atomic_pop(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
 
       // transmit to nodes
       nrk_sem_pend(g_net_tx_buf_mux); {
@@ -696,23 +721,13 @@ void alive_task() {
     }
 
     // increment the sequence number
-    nrk_sem_pend(g_seq_num_mux); {
-      g_seq_num++;
-      heart_packet.seq_num = g_seq_num;        
-    }
-    nrk_sem_post(g_seq_num_mux);
+    heart_packet.seq_num = atomic_increment_seq_num();
 
     // add to the g_node_tx_queue -> send out on network
-    nrk_sem_pend(g_node_tx_queue_mux); {
-      push(&g_node_tx_queue, &heart_packet);
-    }
-    nrk_sem_post(g_node_tx_queue_mux);
+    atomic_push(&g_node_tx_queue, &heart_packet, g_node_tx_queue_mux);
 
     // add to the g_serv_tx_queue -> send to the server
-    nrk_sem_pend(g_serv_tx_queue_mux); {
-      push(&g_serv_tx_queue, &heart_packet);
-    }
-    nrk_sem_post(g_serv_tx_queue_mux);
+    atomic_push(&g_serv_tx_queue, &heart_packet, g_serv_tx_queue_mux);
 
     // decrement all items in alive pool
     nrk_sem_pend(g_alive_pool_mux);{
@@ -727,9 +742,9 @@ void alive_task() {
       // set temp_id to an invalid id
       temp_id = 0;
 
-      // if alive_pool[i] is NOT_ALIVE set temp_id flag
+      // if alive_pool[i] is NOT_ALIVE set temp_id flags
       nrk_sem_pend(g_alive_pool_mux);{
-        if(g_alive_pool.data_vals[i] == ALIVE_LIMIT){
+        if(g_alive_pool.data_vals[i] <= ALIVE_LIMIT){
           g_alive_pool.data_vals[i] = NOT_ALIVE;
           temp_id = g_alive_pool.node_id[i];
         }
@@ -739,10 +754,8 @@ void alive_task() {
       // if alive_pool[i] is NOT_ALIVE - send message to the server
       if(temp_id != 0){
         lost_packet.payload[LOST_NODE_INDEX] = temp_id;
-        nrk_sem_pend(g_serv_tx_queue_mux);{
-          push(&g_serv_tx_queue, &lost_packet);
-        }
-        nrk_sem_post(g_serv_tx_queue_mux);
+        atomic_push(&g_serv_tx_queue, &lost_packet, g_serv_tx_queue_mux);
+
       }
     }
 
@@ -771,18 +784,12 @@ void hand_task() {
     clear_pool(&node_pool);
 
     // atomically get queue size
-    nrk_sem_pend(g_hand_rx_queue_mux); {
-      local_hand_rx_queue_size = g_hand_rx_queue.size;
-    }
-    nrk_sem_post(g_hand_rx_queue_mux);
+    local_hand_rx_queue_size = atomic_size(&g_hand_rx_queue, g_hand_rx_queue_mux);
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < local_hand_rx_queue_size; i++) {
       // get a packet out of the queue.
-      nrk_sem_pend(g_hand_rx_queue_mux); {
-        pop(&g_hand_rx_queue, &rx_packet);
-      }
-      nrk_sem_post(g_hand_rx_queue_mux);
+      atomic_pop(&g_hand_rx_queue, &rx_packet, g_hand_rx_queue_mux);
 
       // determine if this node has been seen during this iteration
       in_node_pool = in_pool(&node_pool, rx_packet.source_id);
@@ -791,11 +798,7 @@ void hand_task() {
       if(in_node_pool == -1) {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          tx_packet.seq_num = g_seq_num;        
-        }
-        nrk_sem_post(g_seq_num_mux);
+        tx_packet.seq_num = atomic_increment_seq_num();
 
         // finish transmit packet
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;
@@ -804,17 +807,9 @@ void hand_task() {
         tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 2] = rx_packet.payload[HAND_CONFIG_ID_INDEX +2];
         tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
-        // send response back to the node
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          push(&g_cmd_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(g_cmd_tx_queue_mux);
-
-        // forward the ack to the server
-        nrk_sem_pend(g_serv_tx_queue_mux); {
-          push(&g_serv_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(g_serv_tx_queue_mux);
+        // send response back to the node and to the server
+        atomic_push(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+        atomic_push(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
       }
     }
     nrk_wait_until_next_period();
@@ -896,7 +891,7 @@ void nrk_create_taskset () {
   TX_NODE_TASK.offset.nano_secs = 0;
 
   ALIVE_TASK.task = alive_task;
-  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE*2);
   ALIVE_TASK.prio = 2;
   ALIVE_TASK.FirstActivation = TRUE;
   ALIVE_TASK.Type = BASIC_TASK;
@@ -904,7 +899,7 @@ void nrk_create_taskset () {
   ALIVE_TASK.period.secs = 5;
   ALIVE_TASK.period.nano_secs = 0;
   ALIVE_TASK.cpu_reserve.secs = 0;
-  ALIVE_TASK.cpu_reserve.nano_secs = 5*NANOS_PER_MS;
+  ALIVE_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   ALIVE_TASK.offset.secs = 0;
   ALIVE_TASK.offset.nano_secs = 0;
 

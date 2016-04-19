@@ -8,6 +8,7 @@
 
 #include <parser.h>
 
+// print_packet - print packet to the terminal
 void print_packet(packet *p)
 {
     printf("[source_id: %d]", p->source_id);
@@ -37,22 +38,25 @@ void print_packet(packet *p)
         }
         case MSG_DATA:
         {
+            uint16_t data_pwr = ((payload[DATA_PWR_INDEX] << 8) | (payload[DATA_PWR_INDEX + 1]));
+            uint16_t data_temp = ((payload[DATA_TEMP_INDEX] << 8) | (payload[DATA_TEMP_INDEX + 1]));
+            uint16_t data_light = ((payload[DATA_LIGHT_INDEX] << 8) | (payload[DATA_LIGHT_INDEX + 1]));
             printf("[%d, %d, %d, %d]\r\n",
-                        (uint16_t)payload[DATA_PWR_INDEX], 
-                        (uint16_t)payload[DATA_TEMP_INDEX], 
-                        (uint16_t)payload[DATA_LIGHT_INDEX], 
+                        data_pwr, data_temp, data_light, 
                         payload[DATA_STATE_INDEX]);
             break;
         }
         case MSG_CMD:
         {
-            printf("[%d, %d, %d\r\n]", (uint16_t)payload[0], payload[2], payload[3]);
+            uint16_t cmd_id = ((payload[0] << 8) | (payload[1]));
+            printf("[%d, %d, %d\r\n]", cmd_id, payload[2], payload[3]);
             break;
         }
         case MSG_CMDACK:
         {
+            uint16_t cmd_id = ((payload[CMDACK_CMDID_INDEX] << 8) | (payload[CMDACK_CMDID_INDEX + 1]));
             printf("[%d, %d]\r\n", 
-                        (uint16_t)payload[CMDACK_CMDID_INDEX], 
+                        cmd_id, 
                         payload[CMDACK_STATE_INDEX]);
             break;
         }
@@ -85,15 +89,7 @@ void print_packet(packet *p)
     }
 }
 
-/*
-Function : parse_msg(packet *parsed_buf, uint8_t *src, uint8_t len, msg_type type)
-
-Input parameters:
-parsed_packet - pointer to the output packet struct.
-src - the pointer to the received data buffer
-len - the length of the received data buffer
-msg_type - the type of message
-*/
+// parse message - parse message src into parsed_packet
 void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
     uint8_t pos = 0;

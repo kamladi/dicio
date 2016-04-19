@@ -9,10 +9,7 @@
 #include <assembler.h>
 
 
-/*
-Assemble packet to go to the server.
-Right now the server is looking for ":"
-*/
+// assemble_serv_packet - assemble packet to the server
 void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
 {
     switch(tx->type)
@@ -83,10 +80,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
     }
 }
 
-/*
-Assemble packet to go to the network.
-Use network format.
-*/
+// assemble_packet - assemble backet to for the network
 uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
 {
     // common to all packets 
@@ -118,8 +112,7 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_DATA:
         {
             length = 12;
-            
-            // power value (2 bytes)
+
             tx_buf[HEADER_SIZE] = tx->payload[DATA_PWR_INDEX];
             tx_buf[HEADER_SIZE + 1] = tx->payload[DATA_PWR_INDEX + 1];
             // temperature value (2 bytes)
@@ -198,7 +191,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             */
             break;
         }
-
         // handshake acknowledgement - response to handshake request
         case MSG_HANDACK:
         {

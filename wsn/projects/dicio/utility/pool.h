@@ -11,11 +11,12 @@
 
 #include <type_defs.h>
 
-/*** SEQUENCE POOL OPERATIONS ***/
-int8_t in_pool(pool_t *pool, uint8_t node_address);
-int8_t get_pool_index(pool_t *pool, uint8_t node_address);
-int8_t add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
-int8_t update_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
-uint16_t get_data_val(pool_t *pool, uint8_t node_address);
+void inline clear_pool(pool_t *pool);
+int8_t inline in_pool(pool_t *pool, uint8_t node_address);
+void inline decrement_all(pool_t *pool);
+int8_t inline get_pool_index(pool_t *pool, uint8_t node_address);
+uint16_t inline get_data_val(pool_t *pool, uint8_t node_address);
+int8_t inline add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
+int8_t inline update_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
 
 #endif

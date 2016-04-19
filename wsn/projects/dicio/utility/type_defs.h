@@ -43,6 +43,7 @@
 #define ACT_NONE -1
 #define BUTTON_PRESSED 0
 #define BUTTON_RELEASED 1
+#define TRANSMIT 0
 
 // MISC
 #define MAX_BUF_SIZE 24
@@ -51,9 +52,11 @@
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
-#define HEART_FACTOR 5
+#define HEART_FACTOR 10
 #define ALIVE_LIMIT 1
 #define NOT_ALIVE 0
+#define TX_CMD_FLAG 1
+#define TX_DATA_FLAG 20
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3

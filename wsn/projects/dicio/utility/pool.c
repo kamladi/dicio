@@ -9,15 +9,16 @@
 #include <pool.h>
 
 /*** SEQUENCE POOL OPERATIONS ***/
-/**
- * in_pool:
- *  - determine if node_address is in the sequence pool
- *
- * @param pool - sequence pool to search
- * @param node_address - node to search for
- * @returns '1' if id found, '-1' otherwise
- */
-int8_t in_pool(pool_t *pool, uint8_t node_address) {
+// clear_pool - clear the entire pool
+void inline clear_pool(pool_t *pool) { 
+    for(uint8_t i = 0; i < pool->size; i++) {
+        pool->data_vals[i] = 0;
+    }
+    pool->size = 0;
+}
+
+// in_pool - determine if node_address is in the sequence pool
+int8_t inline in_pool(pool_t *pool, uint8_t node_address) {
     for(uint8_t i = 0; i < pool->size; i++) {
         if(pool->node_id[i] == node_address) {
             return (int8_t)1;
@@ -26,13 +27,8 @@ int8_t in_pool(pool_t *pool, uint8_t node_address) {
     return (int8_t)-1;
 }
 
-void clear_pool(pool_t *pool) { 
-    for(uint8_t i = 0; i < pool->size; i++) {
-        pool->data_vals[i] = 0;
-    }
-}
-
-void decrement_all(pool_t *pool) {
+// decrement_all - decrement every index in the pool
+void inline decrement_all(pool_t *pool) {
     uint8_t temp;
     for(uint8_t i = 0; i < pool->size; i++) {
         if(pool->data_vals[i] > ALIVE_LIMIT) {
@@ -41,15 +37,8 @@ void decrement_all(pool_t *pool) {
     }
 }
 
-/**
- * get_pool_index:
- *  - return the index of teh node_address in the sequence pool
- *
- * @param pool - sequence pool to be searched
- * @param node_address - node to search for
- * @returns index of node_address if found, '-1' otherwise
- */
-int8_t get_pool_index(pool_t *pool, uint8_t node_address) {
+// get_pool_index - return the index of the node_address in the sequence pool
+int8_t inline get_pool_index(pool_t *pool, uint8_t node_address) {
     for(uint8_t i = 0; i < pool->size; i++) {
         if(pool->node_id[i] == node_address) {
             return i;
@@ -58,7 +47,8 @@ int8_t get_pool_index(pool_t *pool, uint8_t node_address) {
     return -1;
 }
 
-uint16_t get_data_val(pool_t *pool, uint8_t node_address) {
+// get_data_val - get the data value out of the pool
+uint16_t inline get_data_val(pool_t *pool, uint8_t node_address) {
     int8_t index = get_pool_index(pool, node_address);
     if(index != -1) {
         return pool->data_vals[index];
@@ -66,16 +56,8 @@ uint16_t get_data_val(pool_t *pool, uint8_t node_address) {
     return 0;
 }
 
-/**
- * add_to_pool:
- *  - add a new item to the sequence pool
- *
- * @param pool - sequence pool to which new entry will be added
- * @param node_address - address of the node to be added
- * @param data_val - sequence number of node to be added
- * @returns '1' if add was successful, '-1' otherwise
- */
-int8_t add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
+// add_to_pool - add a new item to the sequence pool
+int8_t inline add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
     if((pool->size < MAX_POOL) && (in_pool(pool, node_address) == -1)) {
         uint8_t index = pool->size;
         pool->size++;
@@ -86,16 +68,8 @@ int8_t add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
     return -1;
 }
 
-/**
- * update_pool:
- *  - update the sequence pool with new sequence number
- *
- * @param pool - sequence pool to be updated
- * @param node_address - node whose sequence number needs updating
- * @param data_val - new sequence number of node_address
- * @returns '1' if update was successful, '-1' otherwise
- */
-int8_t update_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
+// update_pool - update the sequence pool with new sequence number
+int8_t inline update_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
     int8_t index = get_pool_index(pool, node_address);
     if(index >= 0) {
         pool->data_vals[index] = data_val;

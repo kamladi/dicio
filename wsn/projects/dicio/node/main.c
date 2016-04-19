@@ -36,19 +36,36 @@
 
 // FUNCTION DECLARATIONS
 int main(void);
-void clear_tx_buf(void);
+// helper functions
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux);
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux);
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
+uint16_t inline atomic_increment_seq_num();
+uint8_t inline atomic_outlet_state();
+void inline atomic_update_outlet_state(uint8_t new_state);
+uint8_t inline atomic_network_joined();
+void inline atomic_update_network_joined(uint8_t update);
+uint8_t inline atomic_button_pressed();
+void inline atomic_update_button_pressed(uint8_t update);
+uint8_t inline atomic_decrement_watchdog();
+uint8_t inline atomic_kick_watchdog();
+void inline tx_cmds(void);
+void inline tx_data(void);
+void inline clear_tx_buf(void);
+
+// tasks
 void rx_msg_task(void);
-void tx_cmd_task(void);
-void tx_data_task(void);
+void tx_net_task(void);
 void sample_task(void);
 void button_task(void);
 void actuate_task(void);
 void heartbeat_task(void);
-void nrk_set_gpio(void);
-uint8_t get_global_outlet_state();
-void update_global_outlet_state(uint8_t new_state);
-void nrk_register_drivers(void);
-void nrk_create_taskset(void);
+
+// configuration functions
+void inline SPI_Init();
+void inline nrk_set_gpio(void);
+void inline nrk_register_drivers(void);
+void inline nrk_create_taskset(void);
 
 // STATE ENUM (used in actuate task)
 typedef enum {
@@ -67,8 +84,7 @@ typedef enum {
 
 // TASKS
 nrk_task_type RX_MSG_TASK;
-nrk_task_type TX_CMD_TASK;
-nrk_task_type TX_DATA_TASK;
+nrk_task_type TX_NET_TASK;
 nrk_task_type SAMPLE_TASK;
 nrk_task_type ACTUATE_TASK;
 nrk_task_type BUTTON_TASK;
@@ -76,8 +92,7 @@ nrk_task_type HEARTBEAT_TASK;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
-NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE];
-NRK_STK tx_data_task_stack[NRK_APP_STACKSIZE];
+NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*2];
 NRK_STK sample_task_stack[NRK_APP_STACKSIZE];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
 NRK_STK button_task_stack[NRK_APP_STACKSIZE];
@@ -144,7 +159,7 @@ int main() {
   nrk_led_clr(3);
 
   // flags
-  g_verbose      = TRUE;
+  g_verbose      = FALSE;
   g_network_joined      = FALSE;
   g_global_outlet_state = OFF;
   g_button_pressed  = FALSE;
@@ -161,9 +176,9 @@ int main() {
   g_net_watchdog_mux        = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
-  g_pwr_period = 1;
-  g_temp_period = 2;
-  g_light_period = 10;
+  g_pwr_period = 5;
+  g_temp_period = 10;
+  g_light_period = 15;
 
   // packet queues
   packet_queue_init(&g_act_queue);
@@ -178,14 +193,7 @@ int main() {
   act_packet.payload[CMD_CMDID_INDEX] = (uint16_t)0;
   act_packet.payload[CMD_NODE_ID_INDEX] = MAC_ADDR;
   act_packet.payload[CMD_ACT_INDEX] = OFF;
-  /*
-  nrk_sem_pend(g_act_queue_mux); {
-    push(&g_act_queue, &act_packet);
-    push(&g_act_queue, &act_packet);
-  }
-  nrk_sem_post(g_act_queue_mux);
-  */
-  atomicPush(&g_act_queue, &act_packet, g_act_queue_mux);
+  atomic_push(&g_act_queue, &act_packet, g_act_queue_mux);
 
   // initialize bmac
   bmac_task_config ();
@@ -199,12 +207,45 @@ int main() {
   return 0;
 }
 
-/**
- * Wrapper function to control access to retrieving the global outlet state
- * variable.
- * @return uint8_t current global outlet state (either ON or OFF)
- */
-uint8_t get_global_outlet_state() {
+/***** HELPER FUNCTIONS *****/
+uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
+  uint8_t toReturn;
+  nrk_sem_pend(mux); {
+    toReturn = pq->size;
+  }
+  nrk_sem_post(mux);
+  return toReturn;
+}
+
+// atomic_push - push onto the queue atomically
+void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    push(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+// atomic_pop - pop onto the queue atomically
+void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
+  nrk_sem_pend(mux); {
+    pop(pq, p);
+  }
+  nrk_sem_post(mux);
+}
+
+// atomic_increment_seq_num - increment sequence number atomically and return
+uint16_t inline atomic_increment_seq_num() {
+  uint16_t returnVal;
+  nrk_sem_pend(g_seq_num_mux); {
+    g_seq_num++;
+    returnVal = g_seq_num;
+  }
+  nrk_sem_post(g_seq_num_mux);
+  return returnVal;
+}
+
+// atomic_outlet_state - atomically return outlet state
+uint8_t inline atomic_outlet_state() {
   uint8_t outlet_state = OFF;
   nrk_sem_pend(g_global_outlet_state_mux); {
     outlet_state = g_global_outlet_state;
@@ -213,19 +254,163 @@ uint8_t get_global_outlet_state() {
   return outlet_state;
 }
 
-/**
- * Wrapper function to control access to setting the global outlet state
- * variable.
- * @param new_state uint8_t (either ON or OFF)
- */
-void update_global_outlet_state(uint8_t new_state) {
+// atomic_update_outlet_state - atomically update outlet state
+void inline atomic_update_outlet_state(uint8_t update) {
   nrk_sem_pend(g_global_outlet_state_mux); {
-    g_global_outlet_state = new_state;
+    g_global_outlet_state = update;
   }
   nrk_sem_post(g_global_outlet_state_mux);
 }
 
-void clear_tx_buf(){
+// atomic_network_joined - atomically return the network status
+uint8_t inline atomic_network_joined() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_network_joined_mux); { 
+    returnVal = g_network_joined;
+  }
+  nrk_sem_post(g_network_joined_mux); 
+  return returnVal; 
+}
+
+// atomic_update_network_joined
+void inline atomic_update_network_joined(uint8_t update) {
+  nrk_sem_pend(g_network_joined_mux); { 
+    g_network_joined = update;
+  }
+  nrk_sem_post(g_network_joined_mux);  
+}
+
+// atomic_button_pressed - atomically return the button_pressed flag
+uint8_t inline atomic_button_pressed() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_button_pressed_mux); {
+    returnVal = g_button_pressed;
+  }
+  nrk_sem_post(g_button_pressed_mux);
+  return returnVal;  
+}
+
+// atomic_update_button_pressed - atomically update button_pressed flag
+void inline atomic_update_button_pressed(uint8_t update) {
+  nrk_sem_pend(g_button_pressed_mux); {
+    g_button_pressed = update;
+  }
+  nrk_sem_post(g_button_pressed_mux);  
+}
+
+// atomic_decrement_watchdog - atomically decrement watchdog timer
+uint8_t inline atomic_decrement_watchdog() {
+  uint8_t returnVal;
+  nrk_sem_pend(g_net_watchdog_mux); {
+    g_net_watchdog--;
+    returnVal = g_net_watchdog;
+  }
+  nrk_sem_post(g_net_watchdog_mux);  
+  return returnVal;
+}
+
+// atomic_kick_watchdog - atomically kick the watchdog timer
+uint8_t inline atomic_kick_watchdog() {
+  nrk_sem_pend(g_net_watchdog_mux); {
+    g_net_watchdog = HEART_FACTOR;
+  }
+  nrk_sem_post(g_net_watchdog_mux);  
+  return HEART_FACTOR;  
+}
+
+// tx_cmds() - send all commands out to the network.
+void inline tx_cmds() {
+  // local variable instantiation
+  nrk_sig_t tx_done_signal;
+  packet tx_packet;
+  uint8_t local_tx_cmd_queue_size;
+  uint8_t ret;
+
+  // Wait until bmac has started. This should be called by all tasks
+  //  using bmac that do not call bmac_init().
+  while(!bmac_started()) {
+    nrk_wait_until_next_period();
+  }
+
+  // Get and register the tx_done_signal to perform non-blocking transmits
+  tx_done_signal = bmac_get_tx_done_signal();
+  nrk_signal_register(tx_done_signal);
+
+  // atomically get the queue size
+  local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+  
+
+  // loop on queue size received above, and no more.
+  for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
+    nrk_led_set(ORANGE_LED);
+    // get a packet out of the queue.
+    atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+
+    // NOTE: a mutex is required around the network transmit buffer because
+    //  tx_cmd_task() also uses it.
+    nrk_sem_pend(g_net_tx_buf_mux); {
+      g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+
+      // send the packet
+      bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+      ret = nrk_event_wait(SIG(tx_done_signal));
+
+      clear_tx_buf();
+    }
+    nrk_sem_post(g_net_tx_buf_mux);
+    nrk_led_clr(ORANGE_LED);
+  }
+}
+
+// tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
+void inline tx_data() {
+  // local variable initialization
+  nrk_sig_t tx_done_signal;
+  nrk_sig_mask_t ret;
+  packet tx_packet;
+  uint8_t local_tx_data_queue_size;
+
+  // Wait until bmac has started. This should be called by all tasks
+  //  using bmac that do not call bmac_init().
+  while(!bmac_started ()) {
+    nrk_wait_until_next_period ();
+  }
+
+  // Get and register the tx_done_signal to perform non-blocking transmits
+  tx_done_signal = bmac_get_tx_done_signal();
+  nrk_signal_register(tx_done_signal);
+
+  // atomically get the queue size
+  local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
+
+  // loop on queue size received above, and no more.
+  for(uint8_t i = 0; i < local_tx_data_queue_size; i++) {
+    nrk_led_set(ORANGE_LED);
+
+    // get a packet out of the queue.
+    atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
+
+    // assemble tx buf and send message
+    nrk_sem_pend(g_net_tx_buf_mux); {
+      g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+
+      // send the packet
+      bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
+      ret = nrk_event_wait(SIG(tx_done_signal));
+
+      // Just check to be sure signal is okay
+      if(ret & (SIG(tx_done_signal) == 0)) {
+        nrk_kprintf (PSTR ("TX done signal error\r\n"));
+      }
+      clear_tx_buf();
+    }
+    nrk_sem_post(g_net_tx_buf_mux);
+
+    nrk_led_clr(ORANGE_LED);
+  }
+}
+
+void inline clear_tx_buf(){
   for(uint8_t i = 0; i < g_net_tx_index; i++) {
     g_net_tx_buf[i] = 0;
   }
@@ -235,10 +420,8 @@ void clear_tx_buf(){
 // rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   packet rx_packet;
   uint8_t len, rssi;
-  uint8_t *local_buf;
   int8_t in_seq_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
@@ -260,9 +443,9 @@ void rx_msg_task() {
     if(bmac_rx_pkt_ready()) {
       nrk_led_set(BLUE_LED);
 
-      // get the packet, parse and release
+      // get the packet, parse and release !!!!!!!!!!!!!!!!!!
+      bmac_rx_pkt_get(&len, &rssi);
       parse_msg(&rx_packet, &g_net_rx_buf, len);
-      local_buf = bmac_rx_pkt_get(&len, &rssi);
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
@@ -274,10 +457,7 @@ void rx_msg_task() {
       // only receive the message if it's not from this node
       if(rx_packet.source_id != MAC_ADDR) {
         // determine if the network has been joined
-        nrk_sem_pend(g_network_joined_mux); { 
-          local_network_joined = g_network_joined;
-        }
-        nrk_sem_post(g_network_joined_mux);
+        local_network_joined = atomic_network_joined();
 
         // execute the normal sequence of events if the network has been joined
         if(local_network_joined == TRUE) {
@@ -301,8 +481,6 @@ void rx_msg_task() {
               // no message
               case MSG_NO_MESSAGE: {
                 // do nothing.
-                // NOTE: this is a valid case. If the message is not 'parsible' then it can be
-                //  given a 'NO_MESSAGE' type.
                 break;
               }
               // gateway message -> for future expansion
@@ -313,13 +491,7 @@ void rx_msg_task() {
               // data received -> forward to server
               case MSG_DATA: {
                 rx_packet.num_hops++;
-                /*
-                nrk_sem_pend(g_data_tx_queue_mux); {
-                  push(&g_data_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_data_tx_queue_mux);
-                */
-                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -330,79 +502,39 @@ void rx_msg_task() {
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
                   nrk_kprintf (PSTR ("Received command.\r\n"));
                   g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
-                  /*
-                  nrk_sem_pend(g_act_queue_mux); {
-                    push(&g_act_queue, &rx_packet);
-                  }
-                  nrk_sem_post(g_act_queue_mux);
-                  */
-                  atomicPush(&g_act_queue, &rx_packet, g_act_queue_mux);
+                  atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
                 }
                 else {
                   rx_packet.num_hops++;
-                  /*
-                  nrk_sem_pend(g_cmd_tx_queue_mux); {
-                    push(&g_cmd_tx_queue, &rx_packet);
-                  }
-                  nrk_sem_post(g_cmd_tx_queue_mux);
-                  */
-                  atomicPush(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                  atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
                 rx_packet.num_hops++;
-                /*
-                nrk_sem_pend(g_cmd_tx_queue_mux); {
-                  push(&g_cmd_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_cmd_tx_queue_mux);
-                */
-                atomicPush(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
                 rx_packet.num_hops++;
-                /*
-                nrk_sem_pend(g_data_tx_queue_mux); {
-                  push(&g_data_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_data_tx_queue_mux);
-                */
-                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
                 rx_packet.num_hops++;
-                /*
-                nrk_sem_pend(g_data_tx_queue_mux); {
-                  push(&g_data_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_data_tx_queue_mux);
-                */
-                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
                 rx_packet.num_hops++;
-                /*
-                nrk_sem_pend(g_data_tx_queue_mux); {
-                  push(&g_data_tx_queue, &rx_packet);
-                }
-                nrk_sem_post(g_data_tx_queue_mux);
-                */
-                atomicPush(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
-
-                nrk_sem_pend(g_net_watchdog_mux); {
-                  g_net_watchdog = HEART_FACTOR;
-                }
-                nrk_sem_post(g_net_watchdog_mux);
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                atomic_kick_watchdog();
                 break;
               }
               default: {
@@ -412,7 +544,6 @@ void rx_msg_task() {
               }
             }
           }
-
         }
         // if the local_network_joined flag hasn't been set yet, check status
         else {
@@ -421,12 +552,8 @@ void rx_msg_task() {
 
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
           if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
-            nrk_sem_pend(g_network_joined_mux); {
-              nrk_kprintf (PSTR ("Received HAND ACK.\r\n"));
-              g_network_joined = TRUE;
-              local_network_joined = g_network_joined;
-            }
-            nrk_sem_post(g_network_joined_mux);
+            atomic_update_network_joined(TRUE);
+            local_network_joined = atomic_network_joined();
           }
         }
       }
@@ -436,138 +563,28 @@ void rx_msg_task() {
   }
 }
 
-// tx_cmd_task() - send all commands out to the network.
-void tx_cmd_task() {
-  // local variable instantiation
-  uint8_t LED_FLAG = 0;
-  uint16_t val;
-  nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
-  packet tx_packet;
-  uint8_t tx_cmd_queue_size;
-  uint8_t local_network_joined = FALSE;
-
-  printf("tx_cmd_task pid %d\r\n", nrk_get_pid());
-
-  // Wait until bmac has started. This should be called by all tasks
-  //  using bmac that do not call bmac_init().
-  while(!bmac_started()) {
-    nrk_wait_until_next_period();
-  }
-
-  // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
+// net_tx_task - send network messages
+void tx_net_task() {
+  uint8_t counter = 0;
+  uint8_t tx_cmd_flag;
+  uint8_t tx_data_flag;
 
   // loop forever
-  while(1){
-    // atomically get the queue size
-    /*
-    nrk_sem_pend(g_cmd_tx_queue_mux); {
-      tx_cmd_queue_size = g_cmd_tx_queue.size;
-    }
-    nrk_sem_post(g_cmd_tx_queue_mux);
-    */
-    tx_cmd_queue_size = atomicSize(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
-    
-
-    // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < tx_cmd_queue_size; i++) {
-      nrk_led_set(ORANGE_LED);
-      // get a packet out of the queue.
-      /*
-      nrk_sem_pend(g_cmd_tx_queue_mux); {
-        pop(&g_cmd_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(g_cmd_tx_queue_mux);
-      */
-      atomicPop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-
-      // NOTE: a mutex is required around the network transmit buffer because
-      //  tx_cmd_task() also uses it.
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf(PSTR("TX done signal error\r\n"));
-        }
-        clear_tx_buf();
-      }
-      nrk_sem_post(g_net_tx_buf_mux);
-      nrk_led_clr(ORANGE_LED);
-    }
-    nrk_wait_until_next_period();
-  }
-}
-
-// tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
-void tx_data_task() {
-  // local variable initialization
-  uint8_t LED_FLAG = 0;
-  uint16_t val;
-  nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
-  packet tx_packet;
-  uint8_t tx_data_queue_size;
-  uint8_t local_network_joined = FALSE;
-
-  printf("tx_data_task PID: %d.\r\n", nrk_get_pid());
-
-  // Wait until bmac has started. This should be called by all tasks
-  //  using bmac that do not call bmac_init().
-  while(!bmac_started ()) {
-    nrk_wait_until_next_period ();
-  }
-
-  // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
-
   while(1) {
-    // atomically get the queue size
-    /*
-    nrk_sem_pend(g_data_tx_queue_mux); {
-      tx_data_queue_size = g_data_tx_queue.size;
+    // incrment counter and set flags
+    counter++;
+    tx_cmd_flag = counter % TX_CMD_FLAG;
+    tx_data_flag = counter % TX_DATA_FLAG;
+
+    // if commands should be transmitted, then call the tx_cmds() helper
+    if (tx_cmd_flag == TRANSMIT) {
+      tx_cmds();
     }
-    nrk_sem_post(g_data_tx_queue_mux);
-    */
-    tx_data_queue_size = atomicSize(&g_data_tx_queue, g_data_tx_queue_mux);
 
-    // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < tx_data_queue_size; i++) {
-      nrk_led_set(ORANGE_LED);
-
-      // get a packet out of the queue.
-      /*
-      nrk_sem_pend(g_data_tx_queue_mux); {
-        pop(&g_data_tx_queue, &tx_packet);
-      }
-      nrk_sem_post(g_data_tx_queue_mux);
-      */
-      atomicPop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
-
-      // assemble tx buf and send message
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf (PSTR ("TX done signal error\r\n"));
-        }
-        clear_tx_buf();
-      }
-      nrk_sem_post(g_net_tx_buf_mux);
-
-      nrk_led_clr(ORANGE_LED);
+    // if data shoudl be transmitted, then call the tx_data() helper
+    if (tx_data_flag == TRANSMIT) {
+      tx_data();
+      counter %= TX_DATA_FLAG;
     }
     nrk_wait_until_next_period();
   }
@@ -576,7 +593,6 @@ void tx_data_task() {
 // sample_task - sample sensors
 void sample_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   uint8_t pwr_period_count = 0;
   uint8_t temp_period_count = 0;
   uint8_t light_period_count = 0;
@@ -586,7 +602,7 @@ void sample_task() {
   uint16_t local_light_val = 0;
   packet tx_packet, hello_packet;
   uint8_t local_network_joined = FALSE;
-  int8_t val, chan;
+  int8_t val;
   uint16_t adc_buf[2];
   uint8_t pwr_rcvd[3];
   uint8_t hw_rev;
@@ -626,11 +642,8 @@ void sample_task() {
   // loop forever
   while (1) {
     // check if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      //g_network_joined = TRUE;
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
+
 
     // if the network has been joined then start sampling sensors
     if(local_network_joined == TRUE) {
@@ -692,51 +705,37 @@ void sample_task() {
       // if a sensor has been sampled, send a packet out
       if(sensor_sampled == TRUE) {
         // update sequence number
-        nrk_sem_pend(g_seq_num_mux); {
-          g_seq_num++;
-          tx_packet.seq_num = g_seq_num;
-        }
-        nrk_sem_post(g_seq_num_mux);
+        tx_packet.seq_num = atomic_increment_seq_num();
 
         // add data values to sensor packet
-        tx_packet.payload[DATA_PWR_INDEX] = g_sensor_pkt.pwr_val;
-        tx_packet.payload[DATA_TEMP_INDEX] = g_sensor_pkt.temp_val;
-        tx_packet.payload[DATA_LIGHT_INDEX] = g_sensor_pkt.light_val;
-        tx_packet.payload[DATA_STATE_INDEX] = get_global_outlet_state();
+        tx_packet.payload[DATA_PWR_INDEX] = (uint8_t)((g_sensor_pkt.pwr_val >> 8) & 0xFF);
+        tx_packet.payload[DATA_PWR_INDEX + 1] = (uint8_t)(g_sensor_pkt.pwr_val& 0xFF);
+        tx_packet.payload[DATA_TEMP_INDEX] = (uint8_t)((g_sensor_pkt.temp_val >> 8) & 0xFF);
+        tx_packet.payload[DATA_TEMP_INDEX + 1] = (uint8_t)(g_sensor_pkt.temp_val & 0xFF);
+        tx_packet.payload[DATA_LIGHT_INDEX] = (uint8_t)((g_sensor_pkt.light_val >> 8) & 0xFF);
+        tx_packet.payload[DATA_LIGHT_INDEX + 1] = (uint8_t)(g_sensor_pkt.light_val & 0xFF);
+        tx_packet.payload[DATA_STATE_INDEX] = atomic_outlet_state();
 
         // print the sensor info
         if(g_verbose == TRUE) {
-          printf("P: %d, T: %d, L: %d\r\n", 
-            g_sensor_pkt.pwr_val, g_sensor_pkt.temp_val, g_sensor_pkt.light_val);
+          printf("P: %d, T: %d, L: %d\r\n", g_sensor_pkt.pwr_val, g_sensor_pkt.temp_val, g_sensor_pkt.light_val);
+          print_packet(&tx_packet);
         }
 
         // add packet to data queue
-        /*
-        nrk_sem_pend(g_data_tx_queue_mux); {
-          push(&g_data_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(g_data_tx_queue_mux);
-        */
-        atomicPush(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
+        atomic_push(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
       }
     }
     // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
+      // NETWORK JOINED DEBUG COMMAND
+      //atomic_update_network_joined(TRUE);
+
       // update seq num
-      nrk_sem_pend(g_seq_num_mux); {
-        g_seq_num++;
-        hello_packet.seq_num = g_seq_num;
-      }
-      nrk_sem_post(g_seq_num_mux);
+      hello_packet.seq_num = atomic_increment_seq_num();
 
       // push to queue
-      /*
-      nrk_sem_pend(g_cmd_tx_queue_mux); {
-        push(&g_cmd_tx_queue, &hello_packet);
-      }
-      nrk_sem_post(g_cmd_tx_queue_mux);
-      */
-      atomicPush(&g_cmd_tx_queue, &hello_packet, g_cmd_tx_queue_mux);
+      atomic_push(&g_cmd_tx_queue, &hello_packet, g_cmd_tx_queue_mux);
     }
     nrk_wait_until_next_period();
   }
@@ -757,18 +756,12 @@ void button_task() {
       //    - otherwise, keep sniffing
       case STATE_SNIFF: {
         // get current button_pressed state
-        nrk_sem_pend(g_button_pressed_mux); {
-          local_button_pressed = g_button_pressed;
-        }
-        nrk_sem_post(g_button_pressed_mux);
+        local_button_pressed = atomic_button_pressed();
 
         // check button input
         if((nrk_gpio_get(BTN_IN) == BUTTON_PRESSED) && (local_button_pressed == FALSE)) {
           // set flag
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = TRUE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+          atomic_update_button_pressed(TRUE);
 
           // switch states
           curr_state = STATE_WAIT;
@@ -801,13 +794,9 @@ void button_task() {
 // actuate_task() - actuate any commands that have been received for this node.
 void actuate_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
-  uint8_t ACT_FLAG = 0;
   uint8_t act_queue_size;
   packet act_packet, tx_packet;
-  uint8_t ack_required, act_required;
   int8_t action;
-  uint8_t btn_val;
   uint8_t local_network_joined = FALSE;
   uint8_t local_button_pressed = FALSE;
 
@@ -830,26 +819,14 @@ void actuate_task() {
   // loop forever
   while(1) {
     // determine if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
 
     // get action queue size / reset action flag
-    /*
-    nrk_sem_pend(g_act_queue_mux); {
-      act_queue_size = g_act_queue.size;
-    }
-    nrk_sem_post(g_act_queue_mux);
-    */
-    act_queue_size = atomicSize(&g_act_queue, g_act_queue_mux);
+    act_queue_size = atomic_size(&g_act_queue, g_act_queue_mux);
     action = ACT_NONE;
 
     // get button pressed
-    nrk_sem_pend(g_button_pressed_mux); {
-      local_button_pressed = g_button_pressed;
-    }
-    nrk_sem_post(g_button_pressed_mux);
+    local_button_pressed = atomic_button_pressed();
 
     switch(curr_state) {
       // STATE_OFF -
@@ -864,13 +841,7 @@ void actuate_task() {
         // check act queue
         else if(act_queue_size > 0) {
           // get the action atomically
-          /*
-          nrk_sem_pend(g_act_queue_mux); {
-            pop(&g_act_queue, &act_packet);
-          }
-          nrk_sem_post(g_act_queue_mux);
-          */
-          atomicPop(&g_act_queue, &act_packet, g_act_queue_mux);
+          atomic_pop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
         }
         // if the action is ON -> actuate
@@ -898,13 +869,7 @@ void actuate_task() {
         }
         // check act queue
         else if(act_queue_size > 0) {
-          /*
-          nrk_sem_pend(g_act_queue_mux); {
-            pop(&g_act_queue, &act_packet);
-          }
-          nrk_sem_post(g_act_queue_mux);
-          */
-          atomicPop(&g_act_queue, &act_packet, g_act_queue_mux);
+          atomic_pop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
         }
 
@@ -949,36 +914,23 @@ void actuate_task() {
         // send ack if the network has been joined
         if(local_network_joined == TRUE) {
           // update sequence number
-          nrk_sem_pend(g_seq_num_mux); {
-            g_seq_num++;
-            tx_packet.seq_num = g_seq_num;
-          }
-          nrk_sem_post(g_seq_num_mux);
+          tx_packet.seq_num = atomic_increment_seq_num();
 
           // set payload
           tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
           tx_packet.payload[CMDACK_STATE_INDEX] = OFF;
 
           // place message in the queue
-          /*
-          nrk_sem_pend(g_cmd_tx_queue_mux); {
-            push(&g_cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(g_cmd_tx_queue_mux);
-          */
-          atomicPush(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+          atomic_push(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
         }
 
         // update global outlet state
-        update_global_outlet_state(OFF);
+        atomic_update_outlet_state(OFF);
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
-        if(local_button_pressed = TRUE) {
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = FALSE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+        if(local_button_pressed == TRUE) {
+          atomic_update_button_pressed(FALSE);
         }
 
         // next state -> STATE_OFF
@@ -996,36 +948,23 @@ void actuate_task() {
         // send ack if network has been joined
         if(local_network_joined == TRUE) {
           // update sequence number
-          nrk_sem_pend(g_seq_num_mux); {
-            g_seq_num++;
-            tx_packet.seq_num = g_seq_num;
-          }
-          nrk_sem_post(g_seq_num_mux);
+          tx_packet.seq_num = atomic_increment_seq_num();
 
           // set payload
           tx_packet.payload[CMDACK_CMDID_INDEX] = (uint16_t)act_packet.payload[CMD_CMDID_INDEX];
           tx_packet.payload[CMDACK_STATE_INDEX] = ON;
 
           // place message in the queue
-          /*
-          nrk_sem_pend(g_cmd_tx_queue_mux); {
-            push(&g_cmd_tx_queue, &tx_packet);
-          }
-          nrk_sem_post(g_cmd_tx_queue_mux);
-          */
-          atomicPush(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+          atomic_push(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
         }
 
         // update global outlet state
-        update_global_outlet_state(ON);
+        atomic_update_outlet_state(ON);
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
-        if(local_button_pressed = TRUE) {
-          nrk_sem_pend(g_button_pressed_mux); {
-            g_button_pressed = FALSE;
-          }
-          nrk_sem_post(g_button_pressed_mux);
+        if(local_button_pressed == TRUE) {
+          atomic_update_button_pressed(FALSE);
         }
 
         // next state -> STATE_ON
@@ -1050,26 +989,17 @@ void heartbeat_task() {
   // loop forever
   while(1) {
     // determine if the network has been joined
-    nrk_sem_pend(g_network_joined_mux); {
-      local_network_joined = g_network_joined;
-    }
-    nrk_sem_post(g_network_joined_mux);
+    local_network_joined = atomic_network_joined();
 
     // if the network has been joined, decrement the counter.
     //  otherwise, wait.
     if(local_network_joined == TRUE) {
       // update watchdog timer
-      nrk_sem_pend(g_net_watchdog_mux); {
-        g_net_watchdog--;
-        local_watchdog = g_net_watchdog;
-      }
-      nrk_sem_post(g_net_watchdog_mux);    
+      local_watchdog = atomic_decrement_watchdog();
+
       // if the watchdog has been exceeded, set network joined flag to false
       if(local_watchdog <= 0) {
-        nrk_sem_pend(g_network_joined_mux); {
-          g_network_joined = FALSE;
-        }
-        nrk_sem_post(g_network_joined_mux);      
+        atomic_update_network_joined(FALSE);     
       }
 
       // clear red LED / set green LED
@@ -1077,11 +1007,7 @@ void heartbeat_task() {
       nrk_led_set(GREEN_LED);
     } else {
       // reset the watchdog timer
-      nrk_sem_pend(g_net_watchdog_mux); {
-        g_net_watchdog = HEART_FACTOR;
-        local_watchdog = g_net_watchdog;
-      }
-      nrk_sem_post(g_net_watchdog_mux);  
+      local_watchdog = atomic_kick_watchdog();
 
       // set red LED / clear green LED
       nrk_led_set(RED_LED);
@@ -1091,12 +1017,13 @@ void heartbeat_task() {
   }
 }
 
-void SPI_Init() {
+/**** CONFIGURATION ****/
+void inline SPI_Init() {
   SPI_MasterInit();
   SPI_SlaveInit(PWR_CS);
 }
 
-void nrk_set_gpio() {
+void inline nrk_set_gpio() {
   nrk_gpio_direction(ON_COIL, NRK_PIN_OUTPUT);
   nrk_gpio_direction(OFF_COIL, NRK_PIN_OUTPUT);
   nrk_gpio_direction(BTN_IN, NRK_PIN_INPUT);
@@ -1105,14 +1032,14 @@ void nrk_set_gpio() {
   nrk_gpio_set(OFF_COIL);
 }
 
-void nrk_register_drivers() {
+void inline nrk_register_drivers() {
   int8_t val;
     val = nrk_register_driver(&dev_manager_adc,ADC_DEV_MANAGER);
     if(val==NRK_ERROR)
       nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
 }
 
-void nrk_create_taskset () {
+void inline nrk_create_taskset () {
 
   BUTTON_TASK.task = button_task;
   nrk_task_set_stk(&BUTTON_TASK, button_task_stack, NRK_APP_STACKSIZE);
@@ -1129,7 +1056,7 @@ void nrk_create_taskset () {
 
   RX_MSG_TASK.task = rx_msg_task;
   nrk_task_set_stk(&RX_MSG_TASK, rx_msg_task_stack, NRK_APP_STACKSIZE);
-  RX_MSG_TASK.prio = 6;
+  RX_MSG_TASK.prio = 6; 
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
   RX_MSG_TASK.SchType = PREEMPTIVE;
@@ -1153,18 +1080,18 @@ void nrk_create_taskset () {
   ACTUATE_TASK.offset.secs = 0;
   ACTUATE_TASK.offset.nano_secs = 0;
 
-  TX_CMD_TASK.task = tx_cmd_task;
-  nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE);
-  TX_CMD_TASK.prio = 4;
-  TX_CMD_TASK.FirstActivation = TRUE;
-  TX_CMD_TASK.Type = BASIC_TASK;
-  TX_CMD_TASK.SchType = PREEMPTIVE;
-  TX_CMD_TASK.period.secs = 0;
-  TX_CMD_TASK.period.nano_secs = 200*NANOS_PER_MS;
-  TX_CMD_TASK.cpu_reserve.secs = 0;
-  TX_CMD_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
-  TX_CMD_TASK.offset.secs = 0;
-  TX_CMD_TASK.offset.nano_secs = 0;
+  TX_NET_TASK.task = tx_net_task;
+  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*2);
+  TX_NET_TASK.prio = 4;
+  TX_NET_TASK.FirstActivation = TRUE;
+  TX_NET_TASK.Type = BASIC_TASK;
+  TX_NET_TASK.SchType = PREEMPTIVE;
+  TX_NET_TASK.period.secs = 0;
+  TX_NET_TASK.period.nano_secs = 200*NANOS_PER_MS;
+  TX_NET_TASK.cpu_reserve.secs = 0;
+  TX_NET_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
+  TX_NET_TASK.offset.secs = 0;
+  TX_NET_TASK.offset.nano_secs = 0;
 
   SAMPLE_TASK.task = sample_task;
   nrk_task_set_stk( &SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE);
@@ -1192,26 +1119,12 @@ void nrk_create_taskset () {
   HEARTBEAT_TASK.offset.secs = 0;
   HEARTBEAT_TASK.offset.nano_secs = 0;
 
-  TX_DATA_TASK.task = tx_data_task;
-  nrk_task_set_stk(&TX_DATA_TASK, tx_data_task_stack, NRK_APP_STACKSIZE);
-  TX_DATA_TASK.prio = 1;
-  TX_DATA_TASK.FirstActivation = TRUE;
-  TX_DATA_TASK.Type = BASIC_TASK;
-  TX_DATA_TASK.SchType = PREEMPTIVE;
-  TX_DATA_TASK.period.secs = 5;
-  TX_DATA_TASK.period.nano_secs = 0;
-  TX_DATA_TASK.cpu_reserve.secs = 0;
-  TX_DATA_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
-  TX_DATA_TASK.offset.secs = 0;
-  TX_DATA_TASK.offset.nano_secs = 0;
-
   nrk_activate_task(&BUTTON_TASK);
   nrk_activate_task(&RX_MSG_TASK);
   nrk_activate_task(&ACTUATE_TASK);
-  nrk_activate_task(&TX_CMD_TASK);
+  nrk_activate_task(&TX_NET_TASK);
   nrk_activate_task(&SAMPLE_TASK);
   nrk_activate_task(&HEARTBEAT_TASK);
-  nrk_activate_task(&TX_DATA_TASK);
 
   nrk_kprintf( PSTR("Create done\r\n") );
 }
