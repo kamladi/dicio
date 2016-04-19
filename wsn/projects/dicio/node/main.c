@@ -325,6 +325,7 @@ void inline tx_cmds() {
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
   uint8_t ret;
+  int8_t val = 0;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -345,15 +346,18 @@ void inline tx_cmds() {
     nrk_led_set(ORANGE_LED);
     // get a packet out of the queue.
     atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-
     // NOTE: a mutex is required around the network transmit buffer because
     //  tx_cmd_task() also uses it.
     nrk_sem_pend(g_net_tx_buf_mux); {
-      g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
+      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
       // send the packet
-      bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-      ret = nrk_event_wait(SIG(tx_done_signal));
+      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      if(val==NRK_OK){ 
+        nrk_kprintf (PSTR ("tx_ok\r\n"));
+      }
+      else {
+        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      }
 
       clear_tx_buf();
     }
@@ -369,6 +373,7 @@ void inline tx_data() {
   nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t local_tx_data_queue_size;
+  int8_t val = 0;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -387,24 +392,35 @@ void inline tx_data() {
   for(uint8_t i = 0; i < local_tx_data_queue_size; i++) {
     nrk_led_set(ORANGE_LED);
 
+  nrk_kprintf (PSTR ("before pop\r\n"));
     // get a packet out of the queue.
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
-
+nrk_kprintf (PSTR ("after pop\r\n"));
     // assemble tx buf and send message
     nrk_sem_pend(g_net_tx_buf_mux); {
-      g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
+      nrk_kprintf (PSTR ("in tx_buf\r\n"));
+      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      nrk_kprintf (PSTR ("assembled packet\r\n"));
       // send the packet
-      bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-      ret = nrk_event_wait(SIG(tx_done_signal));
-
-      // Just check to be sure signal is okay
-      if(ret & (SIG(tx_done_signal) == 0)) {
-        nrk_kprintf (PSTR ("TX done signal error\r\n"));
+      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      if(val==NRK_OK){ 
+        nrk_kprintf (PSTR ("tx_ok\r\n"));
       }
+      else {
+        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      }
+      
+      //ret = nrk_event_wait(SIG(tx_done_signal)); // <- culprit!!
+      // Just check to be sure signal is okay
+      /*if(ret & (SIG(tx_done_signal) == 0)) {
+        nrk_kprintf (PSTR ("TX done signal error\r\n"));
+      }*/
+      nrk_kprintf (PSTR ("before clear buf\r\n"));
       clear_tx_buf();
+      nrk_kprintf (PSTR ("clear buf\r\n"));
     }
     nrk_sem_post(g_net_tx_buf_mux);
+    nrk_kprintf (PSTR ("post_mux\r\n"));
 
     nrk_led_clr(ORANGE_LED);
   }
@@ -421,7 +437,8 @@ void inline clear_tx_buf(){
 void rx_msg_task() {
   // local variable instantiation
   packet rx_packet;
-  uint8_t len, rssi;
+  uint8_t len;
+  int8_t rssi;
   int8_t in_seq_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
@@ -445,7 +462,7 @@ void rx_msg_task() {
 
       // get the packet, parse and release !!!!!!!!!!!!!!!!!!
       bmac_rx_pkt_get(&len, &rssi);
-      parse_msg(&rx_packet, &g_net_rx_buf, len);
+      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
@@ -659,7 +676,7 @@ void sample_task() {
       // sample power sensor if appropriate
       if(pwr_period_count == SAMPLE_SENSOR) {
         // requrest temperature
-        pwr_read(WATT, &pwr_rcvd);
+        pwr_read(WATT, (uint8_t *)&pwr_rcvd);
 
         // pull out dinner location
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
@@ -675,7 +692,7 @@ void sample_task() {
           if(val == NRK_ERROR) {
             nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
           } else {
-            val = nrk_read(g_atmega_adc_fd, &adc_buf[0],2);
+            val = nrk_read(g_atmega_adc_fd, (uint8_t *)&adc_buf[0],2);
             if(val == NRK_ERROR)  {
               nrk_kprintf(PSTR("Failed to read ADC\r\n"));
             } else {

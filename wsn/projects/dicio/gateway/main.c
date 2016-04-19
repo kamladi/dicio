@@ -280,14 +280,13 @@ void clear_tx_buf(){
 // rx_node_task - receive messages from the network
 void rx_node_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   packet rx_packet;
-  uint8_t len, rssi;
+  uint8_t len;
+  int8_t rssi;
   uint8_t *local_buf;
   int8_t in_seq_pool;
   int8_t in_alive_pool;
   uint16_t local_seq_num;
-  uint16_t local_alive_num;
   uint8_t new_node = NONE;
 
 
@@ -308,7 +307,7 @@ void rx_node_task() {
       nrk_led_set(GREEN_LED);
 
       // get the packet, parse and release
-      parse_msg(&rx_packet, &g_net_rx_buf, len);
+      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
       bmac_rx_pkt_release ();
 
@@ -415,7 +414,6 @@ void rx_node_task() {
 // rx_serv_task - receive messages from the server
 void rx_serv_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   packet rx_packet;
   uint16_t server_seq_num = 0;
 
@@ -432,7 +430,7 @@ void rx_serv_task() {
       nrk_led_set(BLUE_LED);
 
       // parse message
-      parse_msg(&rx_packet, &g_serv_rx_buf, g_serv_rx_index);
+      parse_msg(&rx_packet, (uint8_t *)&g_serv_rx_buf, g_serv_rx_index);
       clear_serv_buf();
       if(g_verbose == TRUE) {
         nrk_kprintf (PSTR ("RX Server: "));
@@ -480,10 +478,8 @@ void rx_serv_task() {
 // tx_cmd_task - send all commands out to the network
 void tx_cmd_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   uint16_t val;
   nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
   packet tx_packet;
   packet last_cmd;
   uint8_t local_tx_cmd_queue_size;
@@ -527,15 +523,12 @@ void tx_cmd_task() {
         copy_packet(&last_cmd, &tx_packet);
         // transmit the command
         nrk_sem_pend(g_net_tx_buf_mux); {
-          g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
-          // send the packet
-          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-          ret = nrk_event_wait (SIG(tx_done_signal));
-
-          // Just check to be sure signal is okay
-          if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+          if(val==NRK_OK){}
+          else {
+            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
           }
         }
         nrk_sem_post(g_net_tx_buf_mux);
@@ -599,15 +592,12 @@ void tx_cmd_task() {
         print_packet(&last_cmd);
         local_retry_cmd_counter = 0;
         nrk_sem_pend(g_net_tx_buf_mux); {
-          g_net_tx_index = assemble_packet(&g_net_tx_buf, &last_cmd);
+          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &last_cmd);
 
-          // send the packet
-          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-          ret = nrk_event_wait (SIG(tx_done_signal));
-
-          // Just check to be sure signal is okay
-          if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+          if(val==NRK_OK){}
+          else {
+            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
           }
         }
         nrk_sem_post(g_net_tx_buf_mux);
@@ -683,13 +673,11 @@ void tx_node_task() {
           nrk_kprintf (PSTR ("TX Node: "));
           print_packet(&tx_packet);
         }
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          // send the packet
+        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+        if(val==NRK_OK){}
+        else {
+          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
         }
       }
       nrk_sem_post(g_net_tx_buf_mux);

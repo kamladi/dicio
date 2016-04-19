@@ -92,10 +92,6 @@ void print_packet(packet *p)
 // parse message - parse message src into parsed_packet
 void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
-    uint8_t pos = 0;
-    uint8_t item = 0;
-    uint8_t temp_buf[MAX_BUF_SIZE];
-
     parsed_packet->source_id = src[HEADER_SRC_ID_INDEX];
     parsed_packet->seq_num = (src[HEADER_SEQ_NUM_INDEX] << 8) | (src[HEADER_SEQ_NUM_INDEX + 1]);
     parsed_packet->type = src[HEADER_TYPE_INDEX];
