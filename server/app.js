@@ -3,6 +3,7 @@ var eventsCtrl       = require('./controllers/Events');
 var express          = require('express');
 var expressValidator = require('express-validator');
 var Gateway					 = require('./Gateway');
+var groupsCtrl       = require('./controllers/Groups');
 var logger           = require('morgan');
 var ObjectId         = require('mongoose').Types.ObjectId;
 var outletsCtrl      = require('./controllers/Outlets');
@@ -42,6 +43,11 @@ app.post('/events/', eventsCtrl.createEvent);
 app.get('/events/clear', eventsCtrl.clearEvents);
 app.get('/events/:id', eventsCtrl.getEventDetails);
 app.post('/events/:id', eventsCtrl.updateEvent);
+app.get('/groups/', groupsCtrl.getGroups);
+app.post('/groups/', groupsCtrl.createGroup);
+app.get('/groups/clear', groupsCtrl.clearGroups);
+app.get('/groups/:id', groupsCtrl.getGroupDetails);
+app.post('/groups/:id', groupsCtrl.updateGroup);
 app.get('/handlepacket/:packet', (req, res, next) => {
 	return Gateway.handleData(req.params.packet)
 		.then(result => res.json(result))
