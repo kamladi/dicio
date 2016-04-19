@@ -38,7 +38,6 @@ exports.getGroupDetails = (req, res, next) => {
  */
 exports.updateGroup = (req, res, next) => {
 	req.checkParams('id', 'Invalid Group ID').notEmpty();
-	req.checkBody('name', 'Invalid Name').notEmpty();
 	var errors = req.validationErrors();
 	if (errors) {
 		return res.send(errors, 400);
@@ -53,7 +52,11 @@ exports.updateGroup = (req, res, next) => {
 
 	// Convert each outlet id string to an ObjectId
 	if (req.body.outlets) {
-		updatedParams['outlets'] = JSON.parse(req.body.outlets).map( id => new ObjectId(id));
+		console.log(req.body.outlets);
+		console.log(JSON.parse(req.body.outlets));
+		updatedParams['$set'] = {
+			'outlets': JSON.parse(req.body.outlets).map( id => new ObjectId(id))
+		}
 	}
 
 	return Group.findByIdAndUpdate(id, updatedParams, {new: true})
