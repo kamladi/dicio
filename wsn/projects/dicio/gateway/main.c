@@ -35,7 +35,10 @@ uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux);
 void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux);
 void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
 uint16_t inline atomic_increment_seq_num();
+uint8_t inline atomic_received_ack();
+void inline atomic_update_received_ack(uint8_t update);
 uint8_t get_server_input(void);
+void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();
 void rx_node_task(void);
 void rx_serv_task(void);
@@ -97,7 +100,6 @@ pool_t g_alive_pool;
 nrk_sem_t* g_alive_pool_mux;
 
 // COMMAND FLAGS
-packet g_last_cmd;
 uint8_t g_cmd_ack_received = TRUE;
 nrk_sem_t * g_cmd_mux;
 
@@ -121,7 +123,7 @@ int main () {
   nrk_led_clr(3);
 
   // print flag
-  g_verbose = TRUE;
+  g_verbose = FALSE;
 
   // mutexs
   g_net_tx_buf_mux    = nrk_sem_create(1, 9);
@@ -175,6 +177,23 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
   nrk_sem_post(mux);
 }
 
+uint8_t inline atomic_received_ack(){
+  uint8_t returnVal;
+  nrk_sem_pend(g_cmd_mux); {
+    returnVal = g_cmd_ack_received;
+  }
+  nrk_sem_post(g_cmd_mux);
+
+  return returnVal;
+}
+
+void inline atomic_update_received_ack(uint8_t update){
+  nrk_sem_pend(g_cmd_mux); {
+    g_cmd_ack_received = update;
+  }
+  nrk_sem_post(g_cmd_mux);
+}
+
 // atomic_increment_seq_num - increment sequence number atomically and return
 uint16_t inline atomic_increment_seq_num() {
   uint16_t returnVal;
@@ -184,6 +203,17 @@ uint16_t inline atomic_increment_seq_num() {
   }
   nrk_sem_post(g_seq_num_mux);
   return returnVal;
+}
+
+void copy_packet(packet *dest, packet *src){
+  dest->type = src->type;
+  dest->source_id = src->source_id;
+  dest->seq_num = src->seq_num;
+  dest->num_hops = src->num_hops;
+
+  for(uint8_t i = 0; i < MAX_PACKET_BUFFER; i++){
+    dest->payload[i] = src->payload[i];
+  }
 }
 
 // get_server_input() - get UART data from server - end of message noted by a '\r'
@@ -249,15 +279,15 @@ void clear_tx_buf(){
 // rx_node_task - receive messages from the network
 void rx_node_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   packet rx_packet;
-  uint8_t len, rssi;
+  uint8_t len;
+  int8_t rssi;
   uint8_t *local_buf;
   int8_t in_seq_pool;
   int8_t in_alive_pool;
   uint16_t local_seq_num;
-  uint16_t local_alive_num;
   uint8_t new_node = NONE;
+
 
   printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
@@ -276,7 +306,7 @@ void rx_node_task() {
       nrk_led_set(GREEN_LED);
 
       // get the packet, parse and release
-      parse_msg(&rx_packet, &g_net_rx_buf, len);
+      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
       local_buf = bmac_rx_pkt_get(&len, &rssi);
       bmac_rx_pkt_release ();
 
@@ -311,7 +341,7 @@ void rx_node_task() {
             } else {
               update_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
             }
-          } 
+          }
           nrk_sem_post(g_alive_pool_mux);
 
           // update the sequence pool and reset the new_node flag
@@ -328,6 +358,9 @@ void rx_node_task() {
             }
             // command ack -> forward to server
             case MSG_CMDACK: {
+              // set CMD_ACK_RECEIVED flag to true
+              atomic_update_received_ack(TRUE);
+
               rx_packet.num_hops++;
               atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
               break;
@@ -380,7 +413,6 @@ void rx_node_task() {
 // rx_serv_task - receive messages from the server
 void rx_serv_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   packet rx_packet;
   uint16_t server_seq_num = 0;
 
@@ -397,7 +429,7 @@ void rx_serv_task() {
       nrk_led_set(BLUE_LED);
 
       // parse message
-      parse_msg(&rx_packet, &g_serv_rx_buf, g_serv_rx_index);
+      parse_msg(&rx_packet, (uint8_t *)&g_serv_rx_buf, g_serv_rx_index);
       clear_serv_buf();
       if(g_verbose == TRUE) {
         nrk_kprintf (PSTR ("RX Server: "));
@@ -445,12 +477,13 @@ void rx_serv_task() {
 // tx_cmd_task - send all commands out to the network
 void tx_cmd_task() {
   // local variable instantiation
-  uint8_t LED_FLAG = 0;
   uint16_t val;
   nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
   packet tx_packet;
+  packet last_cmd;
   uint8_t local_tx_cmd_queue_size;
+  uint8_t local_cmd_ack_received = FALSE;
+  uint8_t local_retry_cmd_counter = 0;
 
   printf("tx_cmd_task PID: %d.\r\n", nrk_get_pid());
 
@@ -466,31 +499,70 @@ void tx_cmd_task() {
 
   // loop forever
   while(1){
-    // atomically get the queue size
-    local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+   /* nrk_sem_pend(g_cmd_mux); {
+      local_cmd_ack_received = g_cmd_ack_received;
+    }
+    nrk_sem_post(g_cmd_mux);*/
+    local_cmd_ack_received = atomic_received_ack();
 
-    // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
-      nrk_led_set(RED_LED);
+    // If we have received an ack
+    if(local_cmd_ack_received == TRUE){
+      // atomically get the queue size
+      local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
 
-      // get a packet out of the queue.
-      atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+      // If there is a command to send.
+      if(local_tx_cmd_queue_size > 0){
+        nrk_led_set(RED_LED);
 
-      // transmit the command
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+        // get a packet out of the queue.
+        atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+        // increment the sequence number
+        tx_packet.seq_num = atomic_increment_seq_num();
 
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
+        copy_packet(&last_cmd, &tx_packet);
+        // transmit the command
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+          if(val==NRK_OK){}
+          else {
+            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+          }
         }
+        nrk_sem_post(g_net_tx_buf_mux);
+
+        if(tx_packet.type == MSG_CMD){
+          //reset flag if we sent a command
+          atomic_update_received_ack(FALSE);
+        }
+        nrk_led_clr(RED_LED);
       }
-      nrk_sem_post(g_net_tx_buf_mux);
-      nrk_led_clr(RED_LED);
+    }
+    // have not received an ack...
+    else{
+      local_retry_cmd_counter ++;
+      if(local_retry_cmd_counter >= RETRY_CMD_PERIOD){
+            // increment the sequence number
+        nrk_sem_pend(g_seq_num_mux); {
+          g_seq_num++;
+          last_cmd.seq_num = g_seq_num;        
+        }
+        nrk_sem_post(g_seq_num_mux);
+        nrk_kprintf (PSTR ("RETRY PACKET:"));
+        print_packet(&last_cmd);
+        local_retry_cmd_counter = 0;
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &last_cmd);
+
+          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+          if(val==NRK_OK){}
+          else {
+            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+          }
+        }
+        nrk_sem_post(g_net_tx_buf_mux);
+      }
     }
     nrk_wait_until_next_period();
   }
@@ -512,10 +584,9 @@ void tx_serv_task() {
     for(uint8_t i = 0; i < local_tx_serv_queue_size; i++) {
       // get a packet out of the queue, assemble and send
       atomic_pop(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
-      assemble_serv_packet(&g_serv_tx_buf, &tx_packet);
+      assemble_serv_packet((uint8_t *)&g_serv_tx_buf, &tx_packet);
       printf("%s\r\n", g_serv_tx_buf);
     }
-
     nrk_wait_until_next_period();
   }
 }
@@ -523,10 +594,8 @@ void tx_serv_task() {
 // tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
 void tx_node_task() {
   // local variable initialization
-  uint8_t LED_FLAG = 0;
   uint16_t val;
   nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t local_tx_node_queue_size;
 
@@ -556,19 +625,17 @@ void tx_node_task() {
 
       // transmit to nodes
       nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
         if(g_verbose == TRUE) {
           nrk_kprintf (PSTR ("TX Node: "));
           print_packet(&tx_packet);
         }
-        // send the packet
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-
-        // Just check to be sure signal is okay
-        if(ret & (SIG(tx_done_signal) == 0)) {
-          nrk_kprintf (PSTR ("TX done signal error\r\n"));
+          // send the packet
+        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+        if(val==NRK_OK){}
+        else {
+          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
         }
       }
       nrk_sem_post(g_net_tx_buf_mux);
@@ -612,7 +679,7 @@ void alive_task() {
     }
 
     // increment the sequence number
-    heart_packet.seq_num = atomic_increment_seq_num()
+    heart_packet.seq_num = atomic_increment_seq_num();
 
     // add to the g_node_tx_queue -> send out on network
     atomic_push(&g_node_tx_queue, &heart_packet, g_node_tx_queue_mux);
@@ -633,9 +700,9 @@ void alive_task() {
       // set temp_id to an invalid id
       temp_id = 0;
 
-      // if alive_pool[i] is NOT_ALIVE set temp_id flag
+      // if alive_pool[i] is NOT_ALIVE set temp_id flags
       nrk_sem_pend(g_alive_pool_mux);{
-        if(g_alive_pool.data_vals[i] == ALIVE_LIMIT){
+        if(g_alive_pool.data_vals[i] <= ALIVE_LIMIT){
           g_alive_pool.data_vals[i] = NOT_ALIVE;
           temp_id = g_alive_pool.node_id[i];
         }
@@ -689,7 +756,8 @@ void hand_task() {
       if(in_node_pool == -1) {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
-        tx_packet.seq_num = atomic_increment_seq_num()
+
+        tx_packet.seq_num = atomic_increment_seq_num();
 
         // finish transmit packet
         tx_packet.payload[HANDACK_NODE_ID_INDEX] = rx_packet.source_id;

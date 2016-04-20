@@ -38,22 +38,25 @@ void print_packet(packet *p)
         }
         case MSG_DATA:
         {
+            uint16_t data_pwr = ((payload[DATA_PWR_INDEX] << 8) | (payload[DATA_PWR_INDEX + 1]));
+            uint16_t data_temp = ((payload[DATA_TEMP_INDEX] << 8) | (payload[DATA_TEMP_INDEX + 1]));
+            uint16_t data_light = ((payload[DATA_LIGHT_INDEX] << 8) | (payload[DATA_LIGHT_INDEX + 1]));
             printf("[%d, %d, %d, %d]\r\n",
-                        (uint16_t)payload[DATA_PWR_INDEX], 
-                        (uint16_t)payload[DATA_TEMP_INDEX], 
-                        (uint16_t)payload[DATA_LIGHT_INDEX], 
+                        data_pwr, data_temp, data_light, 
                         payload[DATA_STATE_INDEX]);
             break;
         }
         case MSG_CMD:
         {
-            printf("[%d, %d, %d\r\n]", (uint16_t)payload[0], payload[2], payload[3]);
+            uint16_t cmd_id = ((payload[0] << 8) | (payload[1]));
+            printf("[%d, %d, %d\r\n]", cmd_id, payload[2], payload[3]);
             break;
         }
         case MSG_CMDACK:
         {
+            uint16_t cmd_id = ((payload[CMDACK_CMDID_INDEX] << 8) | (payload[CMDACK_CMDID_INDEX + 1]));
             printf("[%d, %d]\r\n", 
-                        (uint16_t)payload[CMDACK_CMDID_INDEX], 
+                        cmd_id, 
                         payload[CMDACK_STATE_INDEX]);
             break;
         }
@@ -89,10 +92,6 @@ void print_packet(packet *p)
 // parse message - parse message src into parsed_packet
 void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
 {
-    uint8_t pos = 0;
-    uint8_t item = 0;
-    uint8_t temp_buf[MAX_BUF_SIZE];
-
     parsed_packet->source_id = src[HEADER_SRC_ID_INDEX];
     parsed_packet->seq_num = (src[HEADER_SEQ_NUM_INDEX] << 8) | (src[HEADER_SEQ_NUM_INDEX + 1]);
     parsed_packet->type = src[HEADER_TYPE_INDEX];
