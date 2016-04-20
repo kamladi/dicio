@@ -19,5 +19,4 @@ uint16_t inline get_data_val(pool_t *pool, uint8_t node_address);
 int8_t inline add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
 int8_t inline update_pool(pool_t *pool, uint8_t node_address, uint16_t data_val);
 
-
 #endif

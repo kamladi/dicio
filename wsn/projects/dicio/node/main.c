@@ -324,7 +324,6 @@ void inline tx_cmds() {
   nrk_sig_t tx_done_signal;
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
-  uint8_t ret;
   int8_t val = 0;
 
   // Wait until bmac has started. This should be called by all tasks
@@ -370,7 +369,6 @@ void inline tx_cmds() {
 void inline tx_data() {
   // local variable initialization
   nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t local_tx_data_queue_size;
   int8_t val = 0;

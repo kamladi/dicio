@@ -585,7 +585,7 @@ void tx_serv_task() {
     for(uint8_t i = 0; i < local_tx_serv_queue_size; i++) {
       // get a packet out of the queue, assemble and send
       atomic_pop(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
-      assemble_serv_packet(&g_serv_tx_buf, &tx_packet);
+      assemble_serv_packet((uint8_t *)&g_serv_tx_buf, &tx_packet);
       printf("%s\r\n", g_serv_tx_buf);
     }
     nrk_wait_until_next_period();
@@ -595,10 +595,8 @@ void tx_serv_task() {
 // tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
 void tx_node_task() {
   // local variable initialization
-  uint8_t LED_FLAG = 0;
   uint16_t val;
   nrk_sig_t tx_done_signal;
-  nrk_sig_mask_t ret;
   packet tx_packet;
   uint8_t local_tx_node_queue_size;
 
@@ -628,7 +626,7 @@ void tx_node_task() {
 
       // transmit to nodes
       nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
+        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
         if(g_verbose == TRUE) {
           nrk_kprintf (PSTR ("TX Node: "));
