@@ -80,17 +80,27 @@ exports.updateOutlet = (req, res, next) => {
 	// if (!req.body.name) {
 	// 	throw new Error('Invalid outlet name');
 	// }
+	const allowedParams = [
+		'name', 'mac_address', 'hardware_version', 'status', 'cur_temperature',
+		'cur_light', 'cur_power', 'active'
+	];
+
+	// Iterate over the list of allowed params, and if that param is in the
+	// request body, add it to an object of updated params to be saved.
+	var updatedParams = {};
+	allowedParams.forEach( (param) => {
+		if (req.body[param]) {
+			updatedParams[param] = req.body[param];
+		}
+	});
+
 	var id = new ObjectId(req.params.id);
-	var name = req.body.name;
-	return Outlet.findById(id).exec()
+	return Outlet.findByIdAndUpdate(id, updatedParams, {new: true}).exec()
 		.then( outlet => {
 			if (!outlet) {
 				throw new BadRequestError(`Cannot find outlet with id ${id}`)
 			}
-			outlet.name = name;
-			outlet.save()
-				.then( outlet => res.json(outlet) )
-				.catch(next);
+			return res.json(outlet);
 		})
 		.catch(next);
 }

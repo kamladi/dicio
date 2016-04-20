@@ -542,7 +542,6 @@ void tx_cmd_task() {
       /*
       for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
         nrk_led_set(RED_LED);
-
     // atomically get the queue size
     local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
 

@@ -392,10 +392,10 @@ void inline tx_data() {
   for(uint8_t i = 0; i < local_tx_data_queue_size; i++) {
     nrk_led_set(ORANGE_LED);
 
-  nrk_kprintf (PSTR ("before pop\r\n"));
+    nrk_kprintf (PSTR ("before pop\r\n"));
     // get a packet out of the queue.
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
-nrk_kprintf (PSTR ("after pop\r\n"));
+    nrk_kprintf (PSTR ("after pop\r\n"));
     // assemble tx buf and send message
     nrk_sem_pend(g_net_tx_buf_mux); {
       nrk_kprintf (PSTR ("in tx_buf\r\n"));

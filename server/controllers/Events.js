@@ -46,7 +46,7 @@ exports.updateEvent = (req, res, next) => {
 	var id = new ObjectId(req.params.id);
 	const allowedParams = [
 		'name', 'input_outlet_id', 'input', 'input_value', 'input_threshold',
-		'output_outlet_id', 'output_action'
+		'output_type', 'output_group_id', 'output_outlet_id', 'output_action'
 	];
 
 	// Iterate over the list of allowed params, and if that param is in the
@@ -54,7 +54,12 @@ exports.updateEvent = (req, res, next) => {
 	var updatedParams = {};
 	allowedParams.forEach( (param) => {
 		if (req.body[param]) {
-			updatedParams[param] = req.body[param];
+			// if the param is an id, cast to an ObjectId before saving.
+			if (param.indexOf('_id') > -1) {
+				updatedParams[param] = new ObjectId(req.body[param]);
+			} else {
+				updatedParams[param] = req.body[param];
+			}
 		}
 	});
 
