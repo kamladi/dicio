@@ -1,4 +1,5 @@
 var Event      = require('../models/Event');
+var Group 		 = require('../models/Group');
 var ObjectId   = require('mongoose').Types.ObjectId;
 var Outlet     = require('../models/Outlet');
 
@@ -31,55 +32,96 @@ function shouldTriggerAction(event, outlet) {
 	}
 	// Create 'action' object if the test value is past the threshold
 	// in the desired direction.
-	if ( (thresholdDirection === 'above' && threshold <= testValue)
-			|| (thresholdDirection === 'below' && testValue < threshold)) {
-		return {
-			eventId: event._id,
-			outletId: event.output_outlet_id,
-			action: event.output_action
-		};
-	} else {
-		return null;
-	}
+	return (thresholdDirection === 'above' && threshold <= testValue)
+			|| (thresholdDirection === 'below' && testValue < threshold);
+}
+
+/**
+ * Given an event and input outlet, return a list of 'actions' to be sent to
+ * the gateway. An 'action' is simply a raw JS object specifying which outlet to
+ * actuate, and what command to send. If an event should trigger a group rather
+ * than an individual outlet, it will create an action object for each outlet
+ * in the specified group.
+ * @param  {[Event]} events list of events that use the given outlet as an input
+ * @param  {Outlet}  outlet input outlet object
+ * @return {[action]}       list of actions
+ */
+function eventsToActions(events, outlet) {
+	actions = [];
+	// Map each event to a Promise, each promises will asyncronously add actions
+	// to the actions list.
+	var promises = events.map( event => {
+		if (shouldTriggerAction(event, outlet)) {
+			if (event.output_type === 'outlet') {
+				// event should trigger an individual outlet.
+				return Outlet.findById(event.output_outlet_id).exec()
+					.then(outputOutlet => {
+						if (!outputOutlet) throw new Error('Invalid output outlet id in event');
+
+						if (outputOutlet.status != event.output_action) {
+							console.log(`Outlet ${outputOutlet.mac_address} ${outputOutlet.status}=>${event.output_action}`);
+
+							// Add the output outlet's mac address to the action object
+							actions.push({
+								eventId: event._id,
+								outletId: outputOutlet._id,
+								destMacAddress: outputOutlet.mac_address,
+								action: event.output_action
+							});
+						}
+
+						return actions;
+					}).catch(e => {
+						return Promise.reject(e);
+					});
+
+			} else {
+				// Event should trigger a group
+				return Group.findById(event.output_group_id).populate('outlets').exec()
+					.then( group => {
+						if (!group) throw new Error('Invalid output group id in event');
+
+						// add an action for each outlet in the group to the list.
+						group.outlets.forEach( groupOutlet => {
+							if (groupOutlet && groupOutlet.status != event.output_action) {
+								console.log(`Outlet ${groupOutlet.mac_address} ${groupOutlet.status}=>${event.output_action}`);
+
+								// Add the output outlet's mac address to the action object
+								actions.push({
+									eventId: event._id,
+									outletId: groupOutlet._id,
+									destMacAddress: groupOutlet.mac_address,
+									action: event.output_action
+								});
+							}
+						});
+
+						return actions;
+					}).catch(e => {
+						return Promise.reject(e);
+					});
+			}
+		}
+		return Promise.resolve([]);
+	});
+
+	// Return the actions list whe all promises are complete.
+	return Promise.all(promises)
+		.then( () => {
+			return actions;
+		}).catch( e => {
+			throw e;
+		});
 }
 
 function triggerCommandsFromEvents(outlet) {
 	// Get all events that use this outlet as an input.
 	return Event.find({input_outlet_id: new ObjectId(outlet._id)}).exec()
 		.then( events => {
-			// Map each event to a possible action (if one should be triggered)
+			// build a list of 'action' objects specifiying destination outlets and
+			// actions, if any outlets need to be actuated.
 			// TODO: how to handle duplicate/conflicting actions?
-			return events.map( event => shouldTriggerAction(event, outlet))
-				.filter( action => (action != null));
-		}).then( actions => {
-			// Map each action to a Promise<result>, where result is a
-			// (macAddress,action) object if a command should be sent, null otherwise
-			var actionPromises = actions.map( action => {
-				// Get the output outlet defined by the event.
-				// Convert it into an action if the outlet's state doesn't match the
-				// 	Event's action.
-				return Outlet.findById(new ObjectId(action.outletId)).exec()
-					.then( outlet => {
-						if (!outlet) throw new Error('Invalid output outlet id in event');
-
-						if (outlet && outlet.status != action.action) {
-							console.log(`Outlet ${outlet.mac_address} ${outlet.status}=>${action.action}`);
-
-							// Add the output outlet's mac address to the action object
-							return Object.assign(action, {
-								destMacAddress: outlet.mac_address,
-							});
-						} else {
-							// Outlet state already matches desired action, don't send command.
-							return null;
-						}
-					});
-			});
-			// Wait for all outlet queries to complete, then filter out any null objects.
-			return Promise.all(actionPromises)
-				.then(actions => {
-					return actions.filter( action => (action != null));
-				});
+			return eventsToActions(events, outlet);
 		});
 }
 
