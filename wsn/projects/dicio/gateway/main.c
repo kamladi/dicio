@@ -539,43 +539,6 @@ void tx_cmd_task() {
         }
         nrk_led_clr(RED_LED);
       }
-      /*
-      for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
-        nrk_led_set(RED_LED);
-    // atomically get the queue size
-    local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
-
-    // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
-      nrk_led_set(RED_LED);
-
-      // get a packet out of the queue.
-      atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-
-
-        // get a packet out of the queue.
-        nrk_sem_pend(g_cmd_tx_queue_mux); {
-          pop(&g_cmd_tx_queue, &tx_packet);
-        }
-        nrk_sem_post(g_cmd_tx_queue_mux);
-
-        last_cmd = tx_packet;
-        // transmit the command
-        nrk_sem_pend(g_net_tx_buf_mux); {
-          g_net_tx_index = assemble_packet(&g_net_tx_buf, &tx_packet);
-
-          // send the packet
-          val = bmac_tx_pkt_nonblocking(g_net_tx_buf, g_net_tx_index);
-          ret = nrk_event_wait (SIG(tx_done_signal));
-
-          // Just check to be sure signal is okay
-          if(ret & (SIG(tx_done_signal) == 0)) {
-            nrk_kprintf (PSTR ("TX done signal error\r\n"));
-          }
-        }
-        nrk_sem_post(g_net_tx_buf_mux);
-        nrk_led_clr(RED_LED);
-      }*/
     }
     // have not received an ack...
     else{
@@ -625,7 +588,6 @@ void tx_serv_task() {
       assemble_serv_packet(&g_serv_tx_buf, &tx_packet);
       printf("%s\r\n", g_serv_tx_buf);
     }
-
     nrk_wait_until_next_period();
   }
 }
