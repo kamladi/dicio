@@ -18,6 +18,7 @@ import * as Icon from 'react-native-vector-icons/Ionicons';
 import {OutletListView} from './src/components/OutletListView';
 import {OutletDetailView} from './src/components/OutletDetailView';
 import {EventListView} from './src/components/EventListView';
+import {GroupListView} from './src/components/GroupListView';
 import {EventDetailView} from './src/components/EventDetailView';
 import OutletActions from './src/actions/OutletActions';
 import EventActions from './src/actions/EventActions';
@@ -97,6 +98,23 @@ class dicio_ios extends Component {
 		        }}
 		      />
 				</Icon.TabBarItemIOS>
+				<Icon.TabBarItemIOS
+					iconName='person-stalker'
+					onPress={() => {this.setState({ tab: 'groups' }); }}
+				  selected={this.state.tab === 'groups'}
+				  title='Groups'>
+				  <NavigatorIOS
+		        ref="groupNav"
+		        style={styles.nav}
+		        initialRoute={{
+		          component: GroupListView,
+		          title: 'Groups',
+		          name: 'groups',
+		          rightButtonTitle: 'Refresh',
+		          onRightButtonPress: () => { GroupActions.fetchGroups(); }
+		        }}
+		      />
+		     </Icon.TabBarItemIOS>
 				<Icon.TabBarItemIOS
 					iconName='levels'
 					onPress={() => {this.setState({ tab: 'events' }); }}

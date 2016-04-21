@@ -52,8 +52,6 @@ exports.updateGroup = (req, res, next) => {
 
 	// Convert each outlet id string to an ObjectId
 	if (req.body.outlets) {
-		console.log(req.body.outlets);
-		console.log(JSON.parse(req.body.outlets));
 		updatedParams['$set'] = {
 			'outlets': JSON.parse(req.body.outlets).map( id => new ObjectId(id))
 		}
