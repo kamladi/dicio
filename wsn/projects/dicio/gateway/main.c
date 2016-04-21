@@ -757,6 +757,7 @@ void hand_task() {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
 
+
         tx_packet.seq_num = atomic_increment_seq_num();
 
         // finish transmit packet
