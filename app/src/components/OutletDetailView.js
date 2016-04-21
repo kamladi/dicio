@@ -10,9 +10,12 @@ import React, {
   TextInput,
   TouchableHighlight,
   AlertIOS,
-  ScrollView
+  ScrollView,
+  SegmentedControlIOS
 } from 'react-native';
-import RNChart from 'react-native-chart';
+
+import { LineChart } from 'react-native-ios-charts';
+import moment from 'moment';
 
 import {EditableTextField} from './EditableTextField';
 import {API_OUTLETS_URL} from '../lib/Constants';
@@ -23,43 +26,114 @@ class OutletChart extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      xLabels: [],
-      data: []
+      selectedGranularityIndex: 2,
+      labels: [],
+      values: []
     };
+    this.fetchData.bind(this);
   }
 
   componentDidMount() {
     var self = this;
-    fetch('http://localhost:3000/graphs/' + this.props.outlet_id)
+    this.fetchData();
+  }
+
+  fetchData(granularity) {
+    var granularity = granularity || 'second';
+    var url = 'http://localhost:3000/graphs/' + this.props.outlet_id + '?granularity=' + granularity;
+    fetch(url)
       .then((response) => response.json())
       .then( graphData => {
         console.log(graphData);
-        self.setState({
-          xLabels: graphData.slice(0,10).map(record => new Date(record.timestamp).getSeconds()),
-          data: graphData.slice(0,10).map(record => record.power)
+        console.log(graphData.slice(0,10).map(record => this.formatTimestamp(record.timestamp)));
+        this.setState({
+          labels: graphData.slice(0,10).map(record => this.formatTimestamp(record.timestamp)),
+          values: graphData.slice(0,10).map(record => record.power)
         });
-        console.log(self.state);
+        console.log(this.state);
       }).catch(console.errror);
   }
 
-  render() {
-    var chartData = [{
-      name: 'LineChart',
-      color: 'gray',
-      lineWidth: 2,
-      highlightIndices: [1, 2],   // The data points at indexes 1 and 2 will be orange
-      highlightColor: 'orange',
-      data: this.state.data,
-      showDataPoint: true
-    }];
+  formatTimestamp(timestamp) {
+    return moment(timestamp).format("M/D/YY h:m:s");
+  }
 
+  render() {
+    const defaultConfig = {
+      dataSets: [{
+        values: [-1, 1, -1, 1, -1, 1],
+        drawValues: false,
+        colors: ['rgb(199, 255, 140)'],
+        label: 'Sine function',
+        drawCubic: true,
+        drawCircles: false,
+        lineWidth: 2
+      }, {
+        values: [1, -1, 1, -1, 1, -1],
+        drawValues: false,
+        colors: ['rgb(255, 247, 141)'],
+        label: 'Cosine function',
+        drawCubic: true,
+        drawCircles: false,
+        lineWidth: 2
+      }],
+      backgroundColor: 'transparent',
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+      minOffset: 20,
+      scaleYEnabled: false,
+      legend: {
+        textSize: 12
+      },
+      xAxis: {
+        axisLineWidth: 0,
+        drawLabels: false,
+        position: 'bottom',
+        drawGridLines: false
+      },
+      leftAxis: {
+        customAxisMax: 1,
+        customAxisMin: -1,
+        labelCount: 11,
+        startAtZero: false,
+      },
+      rightAxis: {
+        enabled: false,
+        drawGridLines: false
+      },
+      valueFormatter: {
+        minimumSignificantDigits: 1,
+        type: 'regular',
+        maximumDecimalPlaces: 1
+      }
+    };
+
+    var config = {};
+    Object.assign(config, defaultConfig, {
+      dataSets: [{
+        values: this.state.values,
+        colors: ['rgb(199, 255, 140)'],
+        label: 'Power Usage',
+        drawCubic: true,
+        drawCircles: false,
+        lineWidth: 2,
+        valueTextFontSize: 12
+      }],
+      labels: this.state.labels,
+    });
     return (
-      /*<RNChart style={styles.chart}
-          chartData={chartData}
-          verticalGridStep={5}
-          xLabels={this.state.xLabels}
-        />*/
-      <Text>Chart Placeholder</Text>
+      <View style={styles.chartContainer}>
+        <SegmentedControlIOS
+          values={['Hour', 'Minute', 'Second']}
+          selectedIndex={this.state.selectedGranularityIndex}
+          onChange={(event) => {
+            this.setState({selectedIndex: event.nativeEvent.selectedSegmentIndex});
+          }}
+          onValueChange={(value) => {
+            this.fetchData(value.toLowerCase());
+          }}
+        />
+        <LineChart config={config} style={styles.chart}/>
+      </View>
     );
   }
 }
@@ -160,6 +234,17 @@ export class OutletDetailView extends Component {
     return fetch()
   }
 
+  showChart(outlet_id) {
+    this.props.navigator.push({
+      title: 'chart',
+      name: 'outlet',
+      component: OutletChart,
+      passProps: {
+        outlet_id: outlet_id,
+      }
+    });
+  }
+
 
   renderLoadingView() {
     return (
@@ -205,9 +290,10 @@ export class OutletDetailView extends Component {
           <Text style={styles.sensorValue}>{outlet.status}</Text>
           <OutletActionButton status={outlet.status} outlet_id={outlet._id} />
         </View>
-        <View style={styles.row}>
-          <OutletChart outlet_id={outlet._id} />
-        </View>
+        <TouchableHighlight style={[styles.button, styles.showChartButton]}
+          onPress={() => this.showChart(outlet._id)}>
+          <Text style={styles.buttonText}>Show Power Usage</Text>
+        </TouchableHighlight>
 			</ScrollView>
 		);
 	}
@@ -254,8 +340,20 @@ const styles = StyleSheet.create({
   refreshButton: {
     backgroundColor: '#51C6ED'
   },
+  showChartButton: {
+    backgroundColor: 'deepskyblue'
+  },
+  chartContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    backgroundColor: 'white',
+    paddingTop: 80,
+    paddingBottom: 60,
+    paddingLeft: 10,
+    paddingRight: 20
+  },
   chart: {
-    marginLeft: 10,
-    marginRight: 10,
+    flex: 1
   }
 });
