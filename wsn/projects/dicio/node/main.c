@@ -20,6 +20,7 @@
 #include <nrk_driver.h>
 #include <adc_driver.h>
 #include <bmac.h>
+#include <nrk_sw_wdt.h>
 // this package
 #include <adc.h>
 #include <assembler.h>
@@ -400,7 +401,6 @@ void inline tx_data() {
       // send the packet
       val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
       if(val==NRK_OK){ 
-        nrk_kprintf (PSTR ("tx_ok\r\n"));
       }
       else {
         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
@@ -440,7 +440,7 @@ void rx_msg_task() {
   uint8_t new_node = NONE;
   uint8_t local_network_joined = FALSE;
 
-  printf("rx_msg_task PID: %d.\r\n", nrk_get_pid());
+  printf("rx_msg PID: %d.\r\n", nrk_get_pid());
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(g_net_rx_buf, RF_MAX_PAYLOAD_SIZE);
@@ -583,9 +583,18 @@ void tx_net_task() {
   uint8_t counter = 0;
   uint8_t tx_cmd_flag;
   uint8_t tx_data_flag;
+  // setup soft watchdog variables
+  nrk_time_t soft_watchdog_period;
+  int8_t v;
+  soft_watchdog_period.secs = 1;
+  soft_watchdog_period.nano_secs = 0;
+  v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
+  nrk_sw_wdt_start(0);
+
 
   // loop forever
   while(1) {
+    nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;
@@ -1065,7 +1074,7 @@ void inline nrk_create_taskset () {
   BUTTON_TASK.period.secs = 0;
   BUTTON_TASK.period.nano_secs = 100*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
-  BUTTON_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
+  BUTTON_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   BUTTON_TASK.offset.secs = 0;
   BUTTON_TASK.offset.nano_secs = 0;
 
@@ -1104,7 +1113,8 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
-  TX_NET_TASK.cpu_reserve.nano_secs = 40*NANOS_PER_MS;
+  //TX_NET_TASK.cpu_reserve.nano_secs = 40*NANOS_PER_MS;
+  TX_NET_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   TX_NET_TASK.offset.secs = 0;
   TX_NET_TASK.offset.nano_secs = 0;
 
