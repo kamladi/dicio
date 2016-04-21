@@ -96,8 +96,8 @@
 #define OFF_COIL NRK_PORTB_7
 #define BTN_IN NRK_PORTE_3
 
- //retry period
- #define RETRY_CMD_PERIOD 100
+//retry period
+#define RETRY_CMD_PERIOD 100
 
 /*** ENUMERATIONS ***/
 typedef enum {
