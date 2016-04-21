@@ -37,7 +37,6 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
 uint16_t inline atomic_increment_seq_num();
 uint8_t inline atomic_received_ack();
 void inline atomic_update_received_ack(uint8_t update);
-
 uint8_t get_server_input(void);
 void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();

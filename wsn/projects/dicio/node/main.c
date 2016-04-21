@@ -389,7 +389,6 @@ void inline tx_data() {
   // loop on queue size received above, and no more.
   for(uint8_t i = 0; i < local_tx_data_queue_size; i++) {
     nrk_led_set(ORANGE_LED);
-
     nrk_kprintf (PSTR ("before pop\r\n"));
     // get a packet out of the queue.
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
