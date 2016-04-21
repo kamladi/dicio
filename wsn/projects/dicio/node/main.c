@@ -352,7 +352,6 @@ void inline tx_cmds() {
       // send the packet
       val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
       if(val==NRK_OK){ 
-        nrk_kprintf (PSTR ("tx_ok\r\n"));
       }
       else {
         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
@@ -1115,7 +1114,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = NONPREEMPTIVE;
-  SAMPLE_TASK.period.secs = 2;
+  SAMPLE_TASK.period.secs = 1;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
   SAMPLE_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;

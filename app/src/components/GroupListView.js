@@ -9,38 +9,37 @@ import React, {
   Text,
   View
 } from 'react-native';
-import * as Icon from 'react-native-vector-icons/Ionicons';
-import OutletStore from '../stores/OutletStore';
-import OutletActions from '../actions/OutletActions';
-import {OutletDetailView} from './OutletDetailView';
 
-export class OutletListView extends Component {
+import GroupStore from '../stores/GroupStore';
+import GroupActions from '../actions/GroupActions';
+import {GroupDetailView} from './GroupDetailView';
+
+export class GroupListView extends Component {
   constructor(props) {
     super(props);
-
-    this.onOutletPress = this.onOutletPress.bind(this);
+    this.onGroupPress = this.onGroupPress.bind(this);
     this.renderRow = this.renderRow.bind(this);
     this.onChange = this.onChange.bind(this);
-    this.state = OutletStore.getState();
+    this.state = GroupStore.getState();
     this.state.dataSource = new ListView.DataSource({
-      rowHasChanged: (r1, r2) => r1 !== r2
-    });
+        rowHasChanged: (row1, row2) => row1 !== row2
+      });
     this.state.loaded = false;
   }
 
   componentDidMount() {
-    OutletStore.listen(this.onChange);
-    OutletActions.fetchOutlets();
+    GroupStore.listen(this.onChange);
+    GroupActions.fetchGroups();
   }
 
   componentWillUnmount() {
-    OutletStore.unlisten(this.onChange);
+    GroupStore.unlisten(this.onChange);
   }
 
   onChange(state) {
     this.setState({
-      dataSource: this.state.dataSource.cloneWithRows(state.outlets),
-      outlets: state.outlets,
+      dataSource: this.state.dataSource.cloneWithRows(state.groups),
+      groups: state.groups,
       loaded: true
     });
   }
@@ -49,7 +48,7 @@ export class OutletListView extends Component {
     return (
       <View style={styles.container}>
         <Text>
-          Loading outlets...
+          Loading groups...
         </Text>
       </View>
     );
@@ -70,30 +69,28 @@ export class OutletListView extends Component {
     );
   }
 
-  onOutletPress(outlet) {
-    var refreshOutlet = () => { OutletActions.fetchOutlet(outlet._id); }
+  onGroupPress(group) {
+    var refreshGroup = () => { GroupActions.fetchGroup(group._id); }
     this.props.navigator.push({
-      title: outlet.name,
-      name: 'outlet',
-      component: OutletDetailView,
+      title: group.name,
+      name: 'group',
+      component: GroupDetailView,
       passProps: {
-        outlet_id: outlet._id,
+        group_id: group._id,
       },
       rightButtonTitle: 'Refresh',
-      onRightButtonPress: () => {  refreshOutlet(); }
+      onRightButtonPress: () => {  refreshGroup(); }
     });
   }
 
-  renderRow(outlet) {
-    var titleStyle = (outlet.active) ? styles.title
-        : [styles.title,styles.inactive];
+  renderRow(group) {
     return (
-      <View key={outlet._id}>
+      <View key={group._id}>
         <TouchableHighlight
           style={styles.listItem}
-          onPress={ () => this.onOutletPress(outlet)}
+          onPress={ () => this.onGroupPress(group)}
           underlayColor='#EEEEEE'>
-          <Text style={titleStyle}>{outlet.name}</Text>
+          <Text style={styles.title}>{group.name}</Text>
         </TouchableHighlight>
       </View>
     );
@@ -104,7 +101,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 30,
-    marginTop: 65,
     backgroundColor: '#EEEEEE',
   },
   listItem: {
@@ -122,9 +118,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginBottom: 8,
     textAlign: 'center',
-  },
-  inactive: {
-    color: '#999999'
   },
   listView: {
     flex: 1,
