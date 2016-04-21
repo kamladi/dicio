@@ -13,7 +13,6 @@
 
 
 #define PWR_CS NRK_PORTB_5
-//#define PWR_CS NRK_PORTF_2
 #define PWR_MSG_LEN 5
 
 // OUTPUT REGISTERS 
