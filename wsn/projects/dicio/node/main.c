@@ -33,7 +33,7 @@
 
 // DEFINES
 #define MAC_ADDR 3
-#define HARDWARE_REV 0xD1C10001
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -322,7 +322,6 @@ uint8_t inline atomic_kick_watchdog() {
 // tx_cmds() - send all commands out to the network.
 void inline tx_cmds() {
   // local variable instantiation
-  nrk_sig_t tx_done_signal;
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
   int8_t val = 0;
@@ -332,10 +331,6 @@ void inline tx_cmds() {
   while(!bmac_started()) {
     nrk_wait_until_next_period();
   }
-
-  // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -368,7 +363,6 @@ void inline tx_cmds() {
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void inline tx_data() {
   // local variable initialization
-  nrk_sig_t tx_done_signal;
   packet tx_packet;
   uint8_t local_tx_data_queue_size;
   int8_t val = 0;
@@ -379,25 +373,17 @@ void inline tx_data() {
     nrk_wait_until_next_period ();
   }
 
-  // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
-
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
 
   // loop on queue size received above, and no more.
   for(uint8_t i = 0; i < local_tx_data_queue_size; i++) {
     nrk_led_set(ORANGE_LED);
-    nrk_kprintf (PSTR ("before pop\r\n"));
     // get a packet out of the queue.
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
-    nrk_kprintf (PSTR ("after pop\r\n"));
     // assemble tx buf and send message
     nrk_sem_pend(g_net_tx_buf_mux); {
-      nrk_kprintf (PSTR ("in tx_buf\r\n"));
       g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-      nrk_kprintf (PSTR ("assembled packet\r\n"));
       // send the packet
       val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
       if(val==NRK_OK){ 
@@ -405,18 +391,10 @@ void inline tx_data() {
       else {
         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
       }
-      
-      //ret = nrk_event_wait(SIG(tx_done_signal)); // <- culprit!!
-      // Just check to be sure signal is okay
-      /*if(ret & (SIG(tx_done_signal) == 0)) {
-        nrk_kprintf (PSTR ("TX done signal error\r\n"));
-      }*/
-      nrk_kprintf (PSTR ("before clear buf\r\n"));
+
       clear_tx_buf();
-      nrk_kprintf (PSTR ("clear buf\r\n"));
     }
     nrk_sem_post(g_net_tx_buf_mux);
-    nrk_kprintf (PSTR ("post_mux\r\n"));
 
     nrk_led_clr(ORANGE_LED);
   }
@@ -515,7 +493,6 @@ void rx_msg_task() {
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
                 if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
-                  nrk_kprintf (PSTR ("Received command.\r\n"));
                   g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
                   atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
                 }
@@ -755,7 +732,7 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
       // NETWORK JOINED DEBUG COMMAND
-      atomic_update_network_joined(TRUE);
+      //atomic_update_network_joined(TRUE);
 
       // update seq num
       hello_packet.seq_num = atomic_increment_seq_num();
