@@ -52,7 +52,7 @@
 #define POWER1      0x15C // unscaled active power
 #define VAR1        0x15F // unscaled reactive power
 #define VA1         0x162 // unscaled apparent power
-#define PF1         0x165 // unscaled power factor
+#define PWR_PF1     0x165 // unscaled power factor
 #define FREQ1       0x168 // unscaled frequency
 
 // INPUT REGISTERS

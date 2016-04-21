@@ -59,7 +59,7 @@
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
 
 // watchdog enable
-#define NRK_WATCHDOG
+//#define NRK_WATCHDOG
 
 
 
