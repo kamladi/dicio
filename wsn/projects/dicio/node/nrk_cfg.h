@@ -66,6 +66,9 @@
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
 
+// Watchdog enable
+#define NRK_WATCHDOG
+
 
 
 #endif

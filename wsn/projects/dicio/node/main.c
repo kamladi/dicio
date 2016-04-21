@@ -459,7 +459,9 @@ void rx_msg_task() {
 
       // get the packet, parse and release !!!!!!!!!!!!!!!!!!
       bmac_rx_pkt_get(&len, &rssi);
+
       parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
