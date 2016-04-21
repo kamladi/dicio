@@ -9,7 +9,10 @@
   "dependencies": {
     "alt": "^0.18.2",
     "fbjs": "0.6.1",
+    "moment": "^2.13.0",
     "react-native": "^0.21.0",
+    "react-native-chart": "^0.1.14",
+    "react-native-ios-charts": "^0.2.3",
     "react-native-vector-icons": "^1.3.2"
   }
 }
