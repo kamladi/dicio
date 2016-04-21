@@ -684,8 +684,9 @@ void sample_task() {
       if(temp_period_count == SAMPLE_SENSOR) {
         // sample analog temperature sensor via Atmega ADC
         if(hw_rev == HW_REV0) {
-          val = nrk_set_status(g_atmega_adc_fd,ADC_CHAN,CHAN_6);
+          val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_6);
         } else if(hw_rev == HW_REV1) {
+          val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_4);
         }
         if(val == NRK_ERROR) {
           nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
@@ -703,6 +704,17 @@ void sample_task() {
 
       // sample light sensor if appropriate
       if((light_period_count == SAMPLE_SENSOR) && (hw_rev == HW_REV1)) {
+        val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_2);
+        if(val == NRK_ERROR) {
+          nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
+        } else {
+          val = nrk_read(g_atmega_adc_fd, (uint8_t *)&adc_buf[0],2);
+          if(val == NRK_ERROR)  {
+            nrk_kprintf(PSTR("Failed to read ADC\r\n"));
+          } else {
+            local_light_val = (uint16_t)adc_buf[0];
+            g_sensor_pkt.light_val = local_light_val;
+            sensor_sampled = TRUE;
           }
         }
       }
@@ -1024,7 +1036,17 @@ void heartbeat_task() {
 
 /**** CONFIGURATION ****/
 void inline SPI_Init() {
+  uint8_t hw_rev;
+
   SPI_MasterInit();
+
+  // get the hardware rev of this node
+  hw_rev = GET_REV(HARDWARE_REV);
+
+  // Open the ATMEGA ADC device as read
+  if(hw_rev == HW_REV0) {
+    SPI_SlaveInit(PWR_CS);
+  }
 }
 
 void inline nrk_set_gpio() {
@@ -1106,6 +1128,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.period.secs = 1;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
+  SAMPLE_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   SAMPLE_TASK.offset.secs = 0;
   SAMPLE_TASK.offset.nano_secs = 0;
 
