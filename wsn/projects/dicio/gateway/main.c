@@ -282,7 +282,6 @@ void rx_node_task() {
   packet rx_packet;
   uint8_t len;
   int8_t rssi;
-  uint8_t *local_buf;
   int8_t in_seq_pool;
   int8_t in_alive_pool;
   uint16_t local_seq_num;
@@ -305,9 +304,10 @@ void rx_node_task() {
     if(bmac_rx_pkt_ready()) {
       nrk_led_set(GREEN_LED);
 
+      bmac_rx_pkt_get(&len, &rssi);
       // get the packet, parse and release
       parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
-      local_buf = bmac_rx_pkt_get(&len, &rssi);
+
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
@@ -757,6 +757,7 @@ void hand_task() {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
 
+
         tx_packet.seq_num = atomic_increment_seq_num();
 
         // finish transmit packet
@@ -798,7 +799,7 @@ void nrk_create_taskset () {
   RX_NODE_TASK.offset.nano_secs = 0;
 
   RX_SERV_TASK.task = rx_serv_task;
-  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE);
   RX_SERV_TASK.prio = 6;
   RX_SERV_TASK.FirstActivation = TRUE;
   RX_SERV_TASK.Type = BASIC_TASK;
