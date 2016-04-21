@@ -82,6 +82,21 @@ exports.createGroup = (req, res, next) => {
 		.catch(next);
 }
 
+/**
+ * Deletes a Group with the given id
+ */
+exports.deleteGroup = (req, res, next) => {
+	req.checkParams('id', 'Invalid Group ID').isObjectId();
+	var errors = req.validationErrors();
+	if (errors) {
+		return res.send(errors, 400);
+	}
+	var id = new ObjectId(req.params.id);
+	return Group.remove({_id: id})
+		.then( () => res.json('success'))
+		.catch(next);
+}
+
 /*
  * Removes all groups from the database
  * (useful for development purposes)

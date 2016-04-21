@@ -45,11 +45,13 @@ app.post('/events/', eventsCtrl.createEvent);
 app.get('/events/clear', eventsCtrl.clearEvents);
 app.get('/events/:id', eventsCtrl.getEventDetails);
 app.post('/events/:id', eventsCtrl.updateEvent);
+app.delete('/events/:id', eventsCtrl.deleteEvent);
 app.get('/groups/', groupsCtrl.getGroups);
 app.post('/groups/', groupsCtrl.createGroup);
 app.get('/groups/clear', groupsCtrl.clearGroups);
 app.get('/groups/:id', groupsCtrl.getGroupDetails);
 app.post('/groups/:id', groupsCtrl.updateGroup);
+app.delete('/groups/:id', groupsCtrl.deleteGroup);
 app.get('/handlepacket/:packet', (req, res, next) => {
 	return Gateway.handleData(req.params.packet)
 		.then(result => res.json(result))
