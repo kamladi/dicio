@@ -159,7 +159,7 @@ int main() {
   nrk_led_clr(3);
 
   // flags
-  g_verbose      = FALSE;
+  g_verbose      = TRUE;
   g_network_joined      = FALSE;
   g_global_outlet_state = OFF;
   g_button_pressed  = FALSE;
@@ -745,7 +745,7 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
       // NETWORK JOINED DEBUG COMMAND
-      //atomic_update_network_joined(TRUE);
+      atomic_update_network_joined(TRUE);
 
       // update seq num
       hello_packet.seq_num = atomic_increment_seq_num();
