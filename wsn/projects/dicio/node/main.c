@@ -421,9 +421,8 @@ void inline tx_data() {
         clear_tx_buf();
       }
       nrk_sem_post(g_net_tx_buf_mux);
-
-      nrk_led_clr(ORANGE_LED);
     }
+    nrk_led_clr(ORANGE_LED);
   }
 
   return;
@@ -492,7 +491,7 @@ void rx_msg_task() {
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type = MSG_HAND)) {
+          if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -549,8 +548,10 @@ void rx_msg_task() {
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] != MAC_ADDR) {
+                  rx_packet.num_hops++;
+                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                }
                 break;
               }
               // heartbeat message -> forward to the server and
@@ -625,7 +626,7 @@ void tx_net_task() {
     // if data shoudl be transmitted, then call the tx_data() helper
     if (tx_data_flag == TRANSMIT) {
       tx_data();
-      counter %= TX_DATA_FLAG;
+      counter = 0;
     }
     nrk_wait_until_next_period();
   }
