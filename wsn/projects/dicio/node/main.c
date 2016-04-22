@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 3
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 9
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -421,9 +421,8 @@ void inline tx_data() {
         clear_tx_buf();
       }
       nrk_sem_post(g_net_tx_buf_mux);
-
-      nrk_led_clr(ORANGE_LED);
     }
+    nrk_led_clr(ORANGE_LED);
   }
 
   return;
@@ -549,8 +548,10 @@ void rx_msg_task() {
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] != MAC_ADDR) {
+                  rx_packet.num_hops++;
+                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                }
                 break;
               }
               // heartbeat message -> forward to the server and
@@ -585,6 +586,7 @@ void rx_msg_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("RX_MSG_TASK FALLOUT\r\n"));
 }
 
 // net_tx_task - send network messages
@@ -625,10 +627,11 @@ void tx_net_task() {
     // if data shoudl be transmitted, then call the tx_data() helper
     if (tx_data_flag == TRANSMIT) {
       tx_data();
-      counter %= TX_DATA_FLAG;
+      counter = 0;
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("TX_NET_TASK FALLOUT\r\n"));
 }
 
 // sample_task - sample sensors
@@ -781,6 +784,7 @@ void sample_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("SAMPLE_TASK FALLOUT\r\n"));
 }
 
 // button_task - check the state of the physical button
@@ -831,6 +835,7 @@ void button_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("BUTTON_TASK FALLOUT\r\n"));
 }
 
 // actuate_task() - actuate any commands that have been received for this node.
@@ -1019,6 +1024,7 @@ void actuate_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("ACTUATE_TASK FALLOUT\r\n"));
 }
 
 /**
@@ -1060,19 +1066,19 @@ void heartbeat_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("HEARTBEAT_TASK FALLOUT\r\n"));
 }
 
 /**** CONFIGURATION ****/
 void inline SPI_Init() {
   uint8_t hw_rev;
 
-  SPI_MasterInit();
-
   // get the hardware rev of this node
   hw_rev = GET_REV(HARDWARE_REV);
 
-  // Open the ATMEGA ADC device as read
+  // Initialize SPI and open the ATMEGA ADC device as read
   if(hw_rev == HW_REV0) {
+    SPI_MasterInit();
     SPI_SlaveInit(PWR_CS);
   }
 }
@@ -1143,7 +1149,6 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
-  //TX_NET_TASK.cpu_reserve.nano_secs = 40*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   TX_NET_TASK.offset.secs = 0;
   TX_NET_TASK.offset.nano_secs = 0;
