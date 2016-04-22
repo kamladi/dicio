@@ -615,7 +615,7 @@ void tx_net_task() {
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;
-    tx_data_flag = counter % TX_DATA_FLAG;
+    tx_data_flag = counter % NODE_TX_DATA_FLAG;
 
     // if commands should be transmitted, then call the tx_cmds() helper
     if (tx_cmd_flag == TRANSMIT) {

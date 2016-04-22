@@ -56,7 +56,8 @@
 #define ALIVE_LIMIT 1
 #define NOT_ALIVE 0
 #define TX_CMD_FLAG 1
-#define TX_DATA_FLAG 20
+#define NODE_TX_DATA_FLAG 20
+#define GATE_TX_DATA_FLAG 10
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
