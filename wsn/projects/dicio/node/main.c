@@ -330,7 +330,7 @@ void inline tx_cmds() {
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
 
   // print out task header
-  if((g_verbose == TRUE) && (local_tx_cmd_queue_size > 0)) {
+  if((TRUE == g_verbose) && (0 < local_tx_cmd_queue_size)) {
     nrk_kprintf(PSTR("tx_cmds...\r\n"));
   }
 
@@ -343,15 +343,13 @@ void inline tx_cmds() {
     //  tx_cmd_task() also uses it.
     nrk_sem_pend(g_net_tx_buf_mux); {
       g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-      if (g_verbose == TRUE) {
+      if (TRUE == g_verbose) {
         nrk_kprintf(PSTR("TX: "));
         print_packet(&tx_packet);
       }
       // send the packet
       val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-      if(val==NRK_OK){ 
-      }
-      else {
+      if(NRK_OK != val) {
         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
       }
 
@@ -376,7 +374,7 @@ void inline tx_data() {
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
 
   // print out task header
-  if((g_verbose == TRUE) && (local_tx_data_queue_size > 0)){
+  if((TRUE == g_verbose) && (0 < local_tx_data_queue_size)){
     nrk_kprintf(PSTR("tx_data...\r\n"));
   }
 
@@ -387,33 +385,31 @@ void inline tx_data() {
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
     // ONLY send one heartbeat per iteration.
-    if((tx_packet.type == MSG_HEARTBEAT) && (sent_heart == TRUE)) {
+    if((MSG_HEARTBEAT == tx_packet.type) && (TRUE == sent_heart)) {
       to_send = FALSE;
     } else {
       to_send = TRUE;
     }
 
-    if (to_send == TRUE) {
+    if (TRUE == to_send) {
       // assemble tx buf and send message
       nrk_sem_pend(g_net_tx_buf_mux); {
         g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
         // print out packet
-        if (g_verbose == TRUE) {
+        if (TRUE == g_verbose) {
           nrk_kprintf(PSTR("TX: "));
           print_packet(&tx_packet);
         }
 
         // send the packet
         val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(val==NRK_OK){ 
-        }
-        else {
+        if(NRK_OK != val) {
           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
         }
 
         // set sent_heart flag
-        if(tx_packet.type == MSG_HEARTBEAT) {
+        if(MSG_HEARTBEAT == tx_packet.type) {
           sent_heart = TRUE;
         }
 
@@ -470,28 +466,28 @@ void rx_msg_task() {
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
-      if(g_verbose == TRUE) {
+      if(TRUE == g_verbose) {
         nrk_kprintf(PSTR("RX: "));
         print_packet(&rx_packet);
       }
 
       // only receive the message if it's not from this node
-      if(rx_packet.source_id != MAC_ADDR) {
+      if(MAC_ADDR != rx_packet.source_id) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
         // execute the normal sequence of events if the network has been joined
-        if(local_network_joined == TRUE) {
+        if(TRUE == local_network_joined) {
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
-          if(in_seq_pool == -1) {
+          if(-1 == in_seq_pool) {
             add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
             new_node = NODE_FOUND;
           }
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
+          if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)) {
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -520,10 +516,10 @@ void rx_msg_task() {
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
-                if(rx_packet.payload[CMD_NODE_ID_INDEX] == MAC_ADDR) {
+                if(MAC_ADDR == rx_packet.payload[CMD_NODE_ID_INDEX]) {
                   g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
                   atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
-                  if (g_verbose == TRUE) {
+                  if (TRUE == g_verbose) {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
@@ -548,7 +544,7 @@ void rx_msg_task() {
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                if(rx_packet.payload[HANDACK_NODE_ID_INDEX] != MAC_ADDR) {
+                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
                   rx_packet.num_hops++;
                   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
                 }
@@ -576,7 +572,7 @@ void rx_msg_task() {
           clear_pool(&g_seq_pool);
 
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
-          if((rx_packet.type == MSG_HANDACK) && (rx_packet.payload[HANDACK_NODE_ID_INDEX] == MAC_ADDR)) {
+          if((MSG_HANDACK == rx_packet.type) && (MAC_ADDR == rx_packet.payload[HANDACK_NODE_ID_INDEX])) {
             atomic_update_network_joined(TRUE);
             local_network_joined = atomic_network_joined();
           }
@@ -620,12 +616,12 @@ void tx_net_task() {
     tx_data_flag = counter % NODE_TX_DATA_FLAG;
 
     // if commands should be transmitted, then call the tx_cmds() helper
-    if (tx_cmd_flag == TRANSMIT) {
+    if (TRANSMIT == tx_cmd_flag) {
       tx_cmds();
     }
 
     // if data shoudl be transmitted, then call the tx_data() helper
-    if (tx_data_flag == TRANSMIT) {
+    if (TRANSMIT == tx_data_flag) {
       tx_data();
       counter = 0;
     }
@@ -677,7 +673,7 @@ void sample_task() {
 
   // Open the ATMEGA ADC device as read
   g_atmega_adc_fd = nrk_open(ADC_DEV_MANAGER,READ);
-  if(g_atmega_adc_fd == NRK_ERROR) {
+  if(NRK_ERROR == g_atmega_adc_fd) {
     nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
   }   
 
@@ -688,7 +684,7 @@ void sample_task() {
 
 
     // if the network has been joined then start sampling sensors
-    if(local_network_joined == TRUE) {
+    if(TRUE == local_network_joined) {
       // update period counts
       pwr_period_count++;
       temp_period_count++;
@@ -699,7 +695,7 @@ void sample_task() {
       sensor_sampled = FALSE;
 
       // sample power sensor if appropriate
-      if((pwr_period_count == SAMPLE_SENSOR) && (hw_rev == HW_REV0)) {
+      if((SAMPLE_SENSOR == pwr_period_count) && (HW_REV0 == hw_rev)) {
         // requrest temperature
         pwr_read(WATT, (uint8_t *)&pwr_rcvd);
 
@@ -710,18 +706,18 @@ void sample_task() {
       }
 
       // sample temperature sensor if appropriate
-      if(temp_period_count == SAMPLE_SENSOR) {
+      if(SAMPLE_SENSOR == temp_period_count) {
         // sample analog temperature sensor via Atmega ADC
-        if(hw_rev == HW_REV0) {
+        if(HW_REV0 == hw_rev) {
           val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_6);
-        } else if(hw_rev == HW_REV1) {
+        } else if(HW_REV1 == hw_rev) {
           val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_4);
         }
-        if(val == NRK_ERROR) {
+        if(NRK_ERROR == val) {
           nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
         } else {
           val = nrk_read(g_atmega_adc_fd, (uint8_t *)&adc_buf[0],2);
-          if(val == NRK_ERROR)  {
+          if(NRK_ERROR == val)  {
             nrk_kprintf(PSTR("Failed to read ADC\r\n"));
           } else {
             local_temp_val = (uint16_t)adc_buf[0];
@@ -732,13 +728,13 @@ void sample_task() {
       }
 
       // sample light sensor if appropriate
-      if((light_period_count == SAMPLE_SENSOR) && (hw_rev == HW_REV1)) {
+      if((SAMPLE_SENSOR == light_period_count) && (HW_REV1 == hw_rev)) {
         val = nrk_set_status(g_atmega_adc_fd, ADC_CHAN, CHAN_2);
-        if(val == NRK_ERROR) {
+        if(NRK_ERROR == val) {
           nrk_kprintf(PSTR("Failed to set ADC status\r\n"));
         } else {
           val = nrk_read(g_atmega_adc_fd, (uint8_t *)&adc_buf[0],2);
-          if(val == NRK_ERROR)  {
+          if(NRK_ERROR == val)  {
             nrk_kprintf(PSTR("Failed to read ADC\r\n"));
           } else {
             local_light_val = (uint16_t)adc_buf[0];
@@ -749,7 +745,7 @@ void sample_task() {
       }
 
       // if a sensor has been sampled, send a packet out
-      if(sensor_sampled == TRUE) {
+      if(TRUE == sensor_sampled) {
         // update sequence number
         tx_packet.seq_num = atomic_increment_seq_num();
 
@@ -763,7 +759,7 @@ void sample_task() {
         tx_packet.payload[DATA_STATE_INDEX] = atomic_outlet_state();
 
         // print the sensor info
-        if(g_verbose == TRUE) {
+        if(TRUE == g_verbose) {
           printf("P: %d, T: %d, L: %d\r\n", g_sensor_pkt.pwr_val, g_sensor_pkt.temp_val, g_sensor_pkt.light_val);
         }
 
@@ -805,7 +801,7 @@ void button_task() {
         local_button_pressed = atomic_button_pressed();
 
         // check button input
-        if((nrk_gpio_get(BTN_IN) == BUTTON_PRESSED) && (local_button_pressed == FALSE)) {
+        if((BUTTON_PRESSED == nrk_gpio_get(BTN_IN)) && (FALSE == local_button_pressed)) {
           // set flag
           atomic_update_button_pressed(TRUE);
 
@@ -823,7 +819,7 @@ void button_task() {
       //  - wait for button to be released and switch states
       case STATE_WAIT: {
         // if the button is released - start sniffing
-        if(nrk_gpio_get(BTN_IN) == BUTTON_RELEASED) {
+        if(BUTTON_RELEASED == nrk_gpio_get(BTN_IN)) {
           curr_state = STATE_SNIFF;
         }
         // otherwise
@@ -882,24 +878,24 @@ void actuate_task() {
       //  - wait for an OFF command -> send ACK
       case STATE_OFF: {
         // check button state
-        if(local_button_pressed == TRUE) {
+        if(TRUE == local_button_pressed) {
           action = ON;
         }
         // check act queue
-        else if(act_queue_size > 0) {
+        else if(0 < act_queue_size) {
           // get the action atomically
           atomic_pop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
-          if(g_verbose == TRUE) {
+          if(TRUE == g_verbose) {
             printf("ACT: %d\r\n", action);
           }
         }
         // if the action is ON -> actuate
-        if(action == ON) {
+        if(ON == action) {
           curr_state = STATE_ACT_ON;
         }
         // if the action is OFF -> send ACK
-        else if (action == OFF) {
+        else if (OFF == action) {
           curr_state = STATE_ACK_OFF;
         }
         // if the action is something else...there is a problem
@@ -914,21 +910,21 @@ void actuate_task() {
       //  - wait for an OFF command -> actuate
       case STATE_ON: {
         // check button state
-        if(local_button_pressed == TRUE) {
+        if(TRUE == local_button_pressed) {
           action = OFF;
         }
         // check act queue
-        else if(act_queue_size > 0) {
+        else if(0 < act_queue_size) {
           atomic_pop(&g_act_queue, &act_packet, g_act_queue_mux);
           action = act_packet.payload[CMD_ACT_INDEX];
         }
 
         // if the action is ON -> send ACK
-        if(action == ON) {
+        if(ON == action) {
           curr_state = STATE_ACK_ON;
         }
         // if the action is OFF -> actuate
-        else if(action == OFF) {
+        else if(OFF == action) {
           curr_state = STATE_ACT_OFF;
         }
         // if the action is something else...there is a problem
@@ -962,7 +958,7 @@ void actuate_task() {
         nrk_gpio_set(OFF_COIL);
 
         // send ack if the network has been joined
-        if(local_network_joined == TRUE) {
+        if(TRUE == local_network_joined) {
           // update sequence number
           tx_packet.seq_num = atomic_increment_seq_num();
 
@@ -979,7 +975,7 @@ void actuate_task() {
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
-        if(local_button_pressed == TRUE) {
+        if(TRUE == local_button_pressed) {
           atomic_update_button_pressed(FALSE);
         }
 
@@ -996,7 +992,7 @@ void actuate_task() {
         nrk_gpio_set(ON_COIL);
 
         // send ack if network has been joined
-        if(local_network_joined == TRUE) {
+        if(TRUE == local_network_joined) {
           // update sequence number
           tx_packet.seq_num = atomic_increment_seq_num();
 
@@ -1013,7 +1009,7 @@ void actuate_task() {
 
         // this will flag if the command just executed was from a physical button press
         //  if so, reset the global flag
-        if(local_button_pressed == TRUE) {
+        if(TRUE == local_button_pressed) {
           atomic_update_button_pressed(FALSE);
         }
 
@@ -1044,12 +1040,12 @@ void heartbeat_task() {
 
     // if the network has been joined, decrement the counter.
     //  otherwise, wait.
-    if(local_network_joined == TRUE) {
+    if(TRUE == local_network_joined) {
       // update watchdog timer
       local_watchdog = atomic_decrement_watchdog();
 
       // if the watchdog has been exceeded, set network joined flag to false
-      if(local_watchdog <= 0) {
+      if(0 >= local_watchdog) {
         atomic_update_network_joined(FALSE);     
       }
 
@@ -1077,7 +1073,7 @@ void inline SPI_Init() {
   hw_rev = GET_REV(HARDWARE_REV);
 
   // Initialize SPI and open the ATMEGA ADC device as read
-  if(hw_rev == HW_REV0) {
+  if(HW_REV0 == hw_rev) {
     SPI_MasterInit();
     SPI_SlaveInit(PWR_CS);
   }
@@ -1094,9 +1090,9 @@ void inline nrk_set_gpio() {
 
 void inline nrk_register_drivers() {
   int8_t val;
-    val = nrk_register_driver(&dev_manager_adc,ADC_DEV_MANAGER);
-    if(val==NRK_ERROR)
-      nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
+  val = nrk_register_driver(&dev_manager_adc,ADC_DEV_MANAGER);
+  if(NRK_ERROR == val)
+    nrk_kprintf(PSTR("Failed to load my ADC driver\r\n"));
 }
 
 void inline nrk_create_taskset () {
