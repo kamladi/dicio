@@ -92,8 +92,8 @@ exports.deleteGroup = (req, res, next) => {
 		return res.send(errors, 400);
 	}
 	var id = new ObjectId(req.params.id);
-	return Group.remove({_id: id})
-		.then( () => res.json('success'))
+	return Group.findOneAndRemove({_id: id})
+		.then( removedGroup => res.json(removedGroup))
 		.catch(next);
 }
 
