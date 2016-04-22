@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 3
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 9
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -603,6 +603,7 @@ void rx_msg_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("RX_MSG_TASK FALLOUT\r\n"));
 }
 
 // net_tx_task - send network messages
@@ -647,6 +648,7 @@ void tx_net_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("TX_NET_TASK FALLOUT\r\n"));
 }
 
 // sample_task - sample sensors
@@ -799,6 +801,7 @@ void sample_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("SAMPLE_TASK FALLOUT\r\n"));
 }
 
 // button_task - check the state of the physical button
@@ -849,6 +852,7 @@ void button_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("BUTTON_TASK FALLOUT\r\n"));
 }
 
 // actuate_task() - actuate any commands that have been received for this node.
@@ -1037,6 +1041,7 @@ void actuate_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("ACTUATE_TASK FALLOUT\r\n"));
 }
 
 /**
@@ -1078,19 +1083,19 @@ void heartbeat_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf(PSTR("HEARTBEAT_TASK FALLOUT\r\n"));
 }
 
 /**** CONFIGURATION ****/
 void inline SPI_Init() {
   uint8_t hw_rev;
 
-  SPI_MasterInit();
-
   // get the hardware rev of this node
   hw_rev = GET_REV(HARDWARE_REV);
 
-  // Open the ATMEGA ADC device as read
+  // Initialize SPI and open the ATMEGA ADC device as read
   if(hw_rev == HW_REV0) {
+    SPI_MasterInit();
     SPI_SlaveInit(PWR_CS);
   }
 }
