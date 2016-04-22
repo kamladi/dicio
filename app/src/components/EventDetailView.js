@@ -193,6 +193,11 @@ export class EventDetailView extends Component {
     }
   }
 
+  removeEvent(event_id) {
+    this.props.navigator.pop();
+    EventActions.removeEvent(event_id);
+  }
+
   renderLoadingView() {
     return (
       <View style={styles.container}>
@@ -271,6 +276,13 @@ export class EventDetailView extends Component {
             onValueChange={(newValue) => this.onFormValueChanged('output_action', newValue)}>
           </SegmentedControlIOS>
         </View>
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonRed]}
+            onPress={() => this.removeEvent(event._id)}>
+            <Text style={styles.buttonText}>Delete Event</Text>
+          </TouchableOpacity>
+        </View>
 			</ScrollView>
 		);
 	}
@@ -293,16 +305,19 @@ const styles = StyleSheet.create({
     marginRight: 15
   },
   buttonText: {
-  	fontSize: 20
+  	fontSize: 20,
   },
   button: {
   	padding: 10,
-  	borderRadius: 10
+  	borderRadius: 10,
+    borderColor: '#cccccc',
+    borderWidth: 1
   },
   buttonWhite: {
     backgroundColor: 'white',
-    borderColor: '#cccccc',
-    borderWidth: 1
+  },
+  buttonRed: {
+    backgroundColor: 'red',
   },
   buttonOn: {
   	backgroundColor: 'green',

@@ -1,5 +1,6 @@
 'use strict';
 import React, {
+  AlertIOS,
   Component,
   NavigatorIOS,
   TouchableHighlight,
@@ -11,6 +12,7 @@ import React, {
 } from 'react-native';
 
 import GroupStore from '../stores/GroupStore';
+import OutletStore from '../stores/OutletStore';
 import GroupActions from '../actions/GroupActions';
 import {GroupDetailView} from './GroupDetailView';
 
@@ -25,6 +27,7 @@ export class GroupListView extends Component {
         rowHasChanged: (row1, row2) => row1 !== row2
       });
     this.state.loaded = false;
+    this.createGroup = this.createGroup.bind(this);
   }
 
   componentDidMount() {
@@ -42,6 +45,25 @@ export class GroupListView extends Component {
       groups: state.groups,
       loaded: true
     });
+  }
+
+  createGroup() {
+    var onGroupNameChosen = (name) => {
+      GroupActions.createGroup({name: name})
+        .then(() => GroupActions.fetchGroups())
+        .catch(console.error);
+    }
+
+    AlertIOS.prompt(
+      'Create New Group', // Title text
+      'Choose a name:', // Label above text field
+      [
+        {text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
+        {text: 'OK', onPress: onGroupNameChosen, style: 'cancel'},
+      ],
+      'plain-text',
+      "NEW GROUP" // Default value for text field
+      );
   }
 
   renderLoadingView() {
@@ -65,6 +87,10 @@ export class GroupListView extends Component {
           renderRow={this.renderRow}
           style={styles.listview}
         />
+        <TouchableHighlight style={[styles.button, styles.newGroupButton]}
+          onPress={() => this.createGroup()}>
+          <Text style={styles.buttonText}>Create New Group</Text>
+        </TouchableHighlight>
       </View>
     );
   }
@@ -101,6 +127,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 30,
+    paddingBottom: 60,
     backgroundColor: '#EEEEEE',
   },
   listItem: {
@@ -124,4 +151,19 @@ const styles = StyleSheet.create({
     marginTop: 65,
     backgroundColor: '#F5FCFF',
   },
+  buttonText: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    textAlign: 'center'
+  },
+  button: {
+    marginTop: 15,
+    marginBottom: 15,
+    marginLeft: 10,
+    padding: 10,
+    borderRadius: 10
+  },
+  newGroupButton: {
+    backgroundColor: 'deepskyblue',
+  }
 });

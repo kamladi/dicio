@@ -485,8 +485,6 @@ void rx_msg_task() {
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
           if(in_seq_pool == -1) {
-            nrk_kprintf(PSTR("NOT IN SEQ POOL\r\n"));
-
             add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
             new_node = NODE_FOUND;
           }
@@ -494,7 +492,6 @@ void rx_msg_task() {
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
           if((rx_packet.seq_num > local_seq_num) || (new_node == NODE_FOUND) || (rx_packet.type == MSG_HAND)) {
-            nrk_kprintf(PSTR("MESSAGE RECEIVED\r\n"));
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -509,23 +506,17 @@ void rx_msg_task() {
               }
               // gateway message -> for future expansion
               case MSG_GATEWAY: {
-                nrk_kprintf(PSTR("MSG_GATEWAY\r\n"));
-
                 // do nothing...no messages have been defined with this type yet
                 break;
               }
               // data received -> forward to server
               case MSG_DATA: {
-                nrk_kprintf(PSTR("MSG_DATA\r\n"));
-
                 rx_packet.num_hops++;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
               case MSG_CMD: {
-                nrk_kprintf(PSTR("MSG_CMD\r\n"));
-
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
@@ -544,8 +535,6 @@ void rx_msg_task() {
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                nrk_kprintf(PSTR("MSG_CMDACK\r\n"));
-
                 rx_packet.num_hops++;
                 atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
@@ -553,16 +542,12 @@ void rx_msg_task() {
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                nrk_kprintf(PSTR("MSG_HAND\r\n"));
-
                 rx_packet.num_hops++;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                nrk_kprintf(PSTR("MSG_HANDACK\r\n"));
-
                 if(rx_packet.payload[HANDACK_NODE_ID_INDEX] != MAC_ADDR) {
                   rx_packet.num_hops++;
                   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
@@ -572,8 +557,6 @@ void rx_msg_task() {
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                nrk_kprintf(PSTR("MSG_HEARTBEAT\r\n"));
-
                 rx_packet.num_hops++;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
@@ -1166,7 +1149,6 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
-  //TX_NET_TASK.cpu_reserve.nano_secs = 40*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   TX_NET_TASK.offset.secs = 0;
   TX_NET_TASK.offset.nano_secs = 0;

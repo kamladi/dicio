@@ -10,6 +10,14 @@ class EventActions {
     return event;
   }
 
+  eventRemoved(event) {
+    return event;
+  }
+
+  eventCreated(event) {
+    return event;
+  }
+
   fetchEvents() {
   	fetch(API_EVENTS_URL)
       .then((response) => response.json())
@@ -49,6 +57,39 @@ class EventActions {
       .catch(console.error)
       .done();
     return {event_id, updatedParams};
+  }
+
+  removeEvent(event_id) {
+    console.log('deleting event: ' + event_id);
+    return fetch(`${API_EVENTS_URL}/${event_id}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    })
+      .then((response) => response.json())
+      .then((responseData) => {
+        this.eventRemoved(responseData);
+      })
+      .catch(console.error);
+  }
+
+  createEvent(params) {
+    console.log('creating event');
+    return fetch(`${API_EVENTS_URL}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params)
+    })
+      .then((response) => response.json())
+      .then((responseData) => {
+        this.eventCreated(responseData);
+      })
+      .catch(console.error);
   }
 
 }

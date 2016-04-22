@@ -26,7 +26,7 @@ class OutletChart extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      selectedGranularityIndex: 2,
+      selectedGranularityIndex: 2, // show 'seconds' by default
       labels: [],
       values: []
     };
@@ -271,11 +271,7 @@ export class OutletDetailView extends Component {
 				</View>
         <View style={styles.row}>
           <Text style={styles.label}>Temp:</Text>
-          <Text style={styles.sensorValue}>{outlet.cur_temperature}</Text>
-        </View>
-        <View style={styles.row}>
-				  <Text style={styles.label}>Humidity:</Text>
-          <Text style={styles.sensorValue}>{outlet.cur_humidity}</Text>
+          <Text style={styles.sensorValue}>{outlet.cur_temperature}&deg;C</Text>
         </View>
         <View style={styles.row}>
 				  <Text style={styles.label}>Light:</Text>

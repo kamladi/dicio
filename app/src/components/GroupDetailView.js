@@ -37,6 +37,7 @@ export class GroupDetailView extends Component {
     this.showOutletSelector = this.showOutletSelector.bind(this);
     this.onNameChange = this.onNameChange.bind(this);
     this.removeOutlet = this.removeOutlet.bind(this);
+    this.removeGroup = this.removeGroup.bind(this);
 	}
 
 	componentDidMount() {
@@ -120,6 +121,11 @@ export class GroupDetailView extends Component {
     }
   }
 
+  removeGroup(group_id) {
+    this.props.navigator.pop();
+    GroupActions.removeGroup(group_id);
+  }
+
   renderLoadingView() {
     return (
       <View style={styles.container}>
@@ -135,6 +141,16 @@ export class GroupDetailView extends Component {
 		}
 
 		var group = this.state.group;
+    if (!group) {
+      return (
+        <View style={styles.container}>
+          <Text>
+            Group not defined, or group no longer exists :(
+          </Text>
+        </View>
+      );
+    }
+
     return (
 			<ScrollView
         contentContainerStyle={styles.container}
@@ -158,9 +174,16 @@ export class GroupDetailView extends Component {
         })}
         <View style={styles.row}>
           <TouchableOpacity
-            style={[styles.button, styles.buttonWhite]}
+            style={[styles.button, styles.buttonLightBlue]}
             onPress={() => this.showOutletSelector('new_outlet')}>
             <Text style={styles.buttonText}>Add Outlet to Group</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={[styles.button, styles.buttonRed]}
+            onPress={() => this.removeGroup(group._id)}>
+            <Text style={styles.buttonText}>Delete Group</Text>
           </TouchableOpacity>
         </View>
 			</ScrollView>
@@ -185,21 +208,23 @@ const styles = StyleSheet.create({
     marginRight: 15
   },
   buttonText: {
-  	fontSize: 20
+  	fontSize: 20,
+    color: 'white'
   },
   button: {
   	padding: 10,
-  	borderRadius: 10
+  	borderRadius: 10,
+    borderColor: '#cccccc',
+    borderWidth: 1
   },
   buttonWhite: {
     backgroundColor: 'white',
-    borderColor: '#cccccc',
-    borderWidth: 1
+  },
+  buttonLightBlue: {
+    backgroundColor: 'deepskyblue',
   },
   buttonRed: {
     backgroundColor: 'red',
-    borderColor: '#cccccc',
-    borderWidth: 1
   },
   buttonOn: {
   	backgroundColor: 'green',
