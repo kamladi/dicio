@@ -67,8 +67,8 @@
 #define NRK_MAX_SW_WDT 1
 
 // watchdog enable
-#define NRK_WATCHDOG
-#define NRK_REBOOT_ON_ERROR
+//#define NRK_WATCHDOG
+//#define NRK_REBOOT_ON_ERROR
 
 
 #endif
