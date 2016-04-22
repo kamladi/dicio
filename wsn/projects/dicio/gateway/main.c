@@ -418,6 +418,7 @@ void rx_node_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out rx_node\r\n"));
 }
 
 // rx_serv_task - receive messages from the server
@@ -482,6 +483,7 @@ void rx_serv_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out rx_serv\r\n"));
 }
 
 // tx_cmd_task - send all commands out to the network
@@ -592,6 +594,7 @@ void tx_serv_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out tx_serv\r\n"));
 }
 
 // tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
@@ -601,6 +604,8 @@ void inline tx_node() {
   nrk_sig_t tx_done_signal;
   packet tx_packet;
   uint8_t local_tx_node_queue_size;
+  uint8_t sent_handAck = FALSE;
+  uint8_t to_send;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -622,22 +627,38 @@ void inline tx_node() {
     // get a packet out of the queue.
     atomic_pop(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
 
-    // transmit to nodes
-    nrk_sem_pend(g_net_tx_buf_mux); {
-      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-
-      if(g_verbose == TRUE) {
-        nrk_kprintf (PSTR ("TX Node: "));
-        print_packet(&tx_packet);
-      }
-        // send the packet
-      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-      if(val==NRK_OK){}
-      else {
-        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-      }
+    if((tx_packet.type == MSG_HANDACK) && (sent_handAck == TRUE)) {
+      to_send = FALSE;
+    } else {
+      to_send = TRUE;
     }
-    nrk_sem_post(g_net_tx_buf_mux);
+
+    if(to_send == TRUE){
+      // transmit to nodes
+      nrk_sem_pend(g_net_tx_buf_mux); {
+        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+
+        if(g_verbose == TRUE) {
+          nrk_kprintf (PSTR ("TX Node: "));
+          print_packet(&tx_packet);
+        }
+          // send the packet
+        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+        if(val==NRK_OK){
+
+        }
+        else {
+          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+        }
+
+        if(tx_packet.type == MSG_HANDACK){
+          sent_handAck = TRUE;
+        }
+
+        clear_tx_buf();
+      }
+      nrk_sem_post(g_net_tx_buf_mux);
+    }
     nrk_led_clr(RED_LED);
   }
 }
@@ -675,10 +696,11 @@ void tx_net_task() {
     // if data shoudl be transmitted, then call the tx_data() helper
     if (tx_data_flag == TRANSMIT) {
       tx_node();
-      counter %= TX_DATA_FLAG;
+      counter = 0;
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out tx_net \r\n"));
 }
 
 // alive_task 
@@ -738,7 +760,8 @@ void alive_task() {
 
       // if alive_pool[i] is NOT_ALIVE set temp_id flags
       nrk_sem_pend(g_alive_pool_mux);{
-        if(g_alive_pool.data_vals[i] <= ALIVE_LIMIT){
+        uint8_t temp_val = g_alive_pool.data_vals[i];
+        if(temp_val == ALIVE_LIMIT){
           g_alive_pool.data_vals[i] = NOT_ALIVE;
           temp_id = g_alive_pool.node_id[i];
         }
@@ -756,6 +779,7 @@ void alive_task() {
     // wait until next period to send again
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out alive_task\r\n"));
 }
 
 // hand_task - handle handshakes
@@ -810,6 +834,7 @@ void hand_task() {
     }
     nrk_wait_until_next_period();
   }
+  nrk_kprintf (PSTR ("out hand_task\r\n"));
 }
 
 /***** END TASKS ****/

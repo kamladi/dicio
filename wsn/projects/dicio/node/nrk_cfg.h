@@ -61,7 +61,7 @@
 #define NRK_KERNEL_STACKSIZE           128
 
  // number of semaphores in the system!
-#define NRK_MAX_RESOURCE_CNT           9
+#define NRK_MAX_RESOURCE_CNT           11
 
 #define NRK_MAX_DRIVER_CNT		1
 
