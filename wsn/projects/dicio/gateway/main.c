@@ -502,8 +502,8 @@ void inline tx_cmds() {
   }
 
   // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
+  //tx_done_signal = bmac_get_tx_done_signal();
+  //nrk_signal_register(tx_done_signal);
    /* nrk_sem_pend(g_cmd_mux); {
       local_cmd_ack_received = g_cmd_ack_received;
     }
@@ -609,8 +609,8 @@ void inline tx_node() {
   }
 
   // Get and register the tx_done_signal to perform non-blocking transmits
-  tx_done_signal = bmac_get_tx_done_signal();
-  nrk_signal_register(tx_done_signal);
+  //tx_done_signal = bmac_get_tx_done_signal();
+  //nrk_signal_register(tx_done_signal);
 
   // atomically get the queue size
   local_tx_node_queue_size = atomic_size(&g_node_tx_queue, g_node_tx_queue_mux);
@@ -655,13 +655,13 @@ void tx_net_task() {
   int8_t v;
   soft_watchdog_period.secs = 1;
   soft_watchdog_period.nano_secs = 0;
-  v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
-  nrk_sw_wdt_start(0);
+  //v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
+  //nrk_sw_wdt_start(0);
 
 
   // loop forever
   while(1) {
-    nrk_sw_wdt_update(0);
+    //nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;
@@ -804,7 +804,7 @@ void hand_task() {
         tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
         // send response back to the node and to the server
-        atomic_push(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+        atomic_push(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
         atomic_push(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
       }
     }
