@@ -327,7 +327,7 @@ void rx_node_task() {
 
         // check to see if this node is in the sequence pool, if not then add it
         in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
-        if(-1 == in_seq_pool) {
+        if(NOT_IN_POOL == in_seq_pool) {
           add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
           new_node = NODE_FOUND;
         }
@@ -340,7 +340,7 @@ void rx_node_task() {
           // If it is in the alive pool, update the counter to HEART FACTOR
           nrk_sem_pend(g_alive_pool_mux);{
             in_alive_pool = in_pool(&g_alive_pool, rx_packet.source_id);
-            if(-1 == in_alive_pool) {
+            if(NOT_IN_POOL == in_alive_pool) {
               add_to_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
             } else {
               update_pool(&g_alive_pool, rx_packet.source_id, HEART_FACTOR);
@@ -792,7 +792,7 @@ void hand_task() {
       in_node_pool = in_pool(&node_pool, rx_packet.source_id);
 
       // if the node has not been seen yet this iteration, then send a HANDACK
-      if(-1 == in_node_pool) {
+      if(NOT_IN_POOL == in_node_pool) {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
 
