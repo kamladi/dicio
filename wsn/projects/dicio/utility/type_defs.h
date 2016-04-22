@@ -44,6 +44,7 @@
 #define BUTTON_PRESSED 0
 #define BUTTON_RELEASED 1
 #define TRANSMIT 0
+#define NOT_IN_POOL -1
 
 // MISC
 #define MAX_BUF_SIZE 24
