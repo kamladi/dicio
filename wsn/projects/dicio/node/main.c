@@ -480,7 +480,7 @@ void rx_msg_task() {
         if(TRUE == local_network_joined) {
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
-          if(-1 == in_seq_pool) {
+          if(NOT_IN_POOL == in_seq_pool) {
             add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
             new_node = NODE_FOUND;
           }
