@@ -30,7 +30,7 @@ int8_t inline in_pool(pool_t *pool, uint8_t node_address) {
 // decrement_all - decrement every index in the pool
 void inline decrement_all(pool_t *pool) {
     for(uint8_t i = 0; i < pool->size; i++) {
-        if(pool->data_vals[i] > ALIVE_LIMIT) {
+        if(ALIVE_LIMIT < pool->data_vals[i]) {
             pool->data_vals[i]--;
         }
     }
@@ -57,7 +57,7 @@ uint16_t inline get_data_val(pool_t *pool, uint8_t node_address) {
 
 // add_to_pool - add a new item to the sequence pool
 int8_t inline add_to_pool(pool_t *pool, uint8_t node_address, uint16_t data_val) {
-    if((pool->size < MAX_POOL) && (in_pool(pool, node_address) == -1)) {
+    if((MAX_POOL > pool->size) && (NOT_IN_POOL == in_pool(pool, node_address))) {
         uint8_t index = pool->size;
         pool->size++;
         pool->node_id[index] = node_address;
