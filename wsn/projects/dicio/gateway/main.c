@@ -494,7 +494,8 @@ void inline tx_cmds() {
   while(!bmac_started()) {
     nrk_wait_until_next_period();
   }
-    local_cmd_ack_received = atomic_received_ack();
+  
+  local_cmd_ack_received = atomic_received_ack();
 
   // If we have received an ack
   if(TRUE == local_cmd_ack_received){
@@ -523,6 +524,7 @@ void inline tx_cmds() {
       }
       nrk_sem_post(g_net_tx_buf_mux);
 
+      // TODO: ADAM CHECK THIS OUT
       if(MSG_CMD == tx_packet.type){
         //reset flag if we sent a command
         atomic_update_received_ack(FALSE);
