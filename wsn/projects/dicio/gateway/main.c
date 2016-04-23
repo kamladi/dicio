@@ -765,8 +765,8 @@ void alive_task() {
 void hand_task() {
   uint8_t local_hand_rx_queue_size;
   packet rx_packet, tx_packet;
-  int8_t in_node_pool;
-  pool_t node_pool;
+  int8_t in_ack_pool;
+  pool_t ack_pool;
   
   printf("hand_task PID: %d.\r\n", nrk_get_pid());
 
@@ -778,7 +778,7 @@ void hand_task() {
   // loop forever
   while(1) {
     // every iteration of this task will yield a new pool
-    clear_pool(&node_pool);
+    clear_pool(&ack_pool);
 
     // atomically get queue size
     local_hand_rx_queue_size = atomic_size(&g_hand_rx_queue, g_hand_rx_queue_mux);
@@ -789,10 +789,10 @@ void hand_task() {
       atomic_pop(&g_hand_rx_queue, &rx_packet, g_hand_rx_queue_mux);
 
       // determine if this node has been seen during this iteration
-      in_node_pool = in_pool(&node_pool, rx_packet.source_id);
+      in_ack_pool = in_pool(&ack_pool, rx_packet.source_id);
 
       // if the node has not been seen yet this iteration, then send a HANDACK
-      if(NOT_IN_POOL == in_node_pool) {
+      if(NOT_IN_POOL == in_ack_pool) {
         add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
         // increment sequence number atomically
 
