@@ -57,8 +57,8 @@
 
  #define NRK_TASK_IDLE_STK_SIZE         64   // Idle task stack size min=32 
 //#define NRK_APP_STACKSIZE              512 
-#define NRK_APP_STACKSIZE				128
-#define NRK_KERNEL_STACKSIZE           128
+#define NRK_APP_STACKSIZE				512
+#define NRK_KERNEL_STACKSIZE           512
 
  // number of semaphores in the system!
 #define NRK_MAX_RESOURCE_CNT           11
@@ -73,8 +73,8 @@
 // Set the number of watchdog timers you wish to create
 #define NRK_MAX_SW_WDT 1
 
-#define NRK_WATCHDOG
-#define NRK_REBOOT_ON_ERROR
+//#define NRK_WATCHDOG
+//#define NRK_REBOOT_ON_ERROR
 
 
 
