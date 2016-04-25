@@ -44,11 +44,14 @@ function saveSensorData(macAddress, power, temperature, light, status) {
 	    var outlet = null;
 	    if (outlets.length == 0) {
 	      // Unrecognized MAC address, create a new one.
-	      console.log(`New MAC Address ${macAddress}, creating new outlet.`);
-	      var outlet = new Outlet();
+	      console.log(`Received data message from new MAC address ${macAddress}, creating new outlet.`);
+	      outlet = new Outlet({
+	      	name: "NEW OUTLET " + macAddress,
+	      	mac_address: macAddress
+	      });
 	    } else {
 	    	// Outlet found in database.
-				var outlet = outlets[0];
+				outlet = outlets[0];
 	    }
 
 	    // Update outlet object with new properties, and save.
@@ -56,6 +59,12 @@ function saveSensorData(macAddress, power, temperature, light, status) {
 	    outlet.cur_light = light;
 	    outlet.cur_power = power;
 	    outlet.status = status;
+
+	    // If we've received a message from this outlet, it's obviously active.
+	    if (!outlet.active) {
+	    	outlet.active = true;
+	    }
+
 	    console.log(`Outlet ${macAddress} updated.`);
 	    return outlet.save();
 	  }).catch(console.error);
@@ -76,19 +85,19 @@ function handleSensorDataMessage(macAddress, payload) {
 
   // Get data values from payload.
   var power = sensorValues[0];
-      temperature = sensorValues[1],
+      temperature = sensorValues[1] / 10, // 245 => 24.5 deg
       light = sensorValues[2],
       status = (sensorValues[3] === 0) ? 'OFF' : 'ON';
 
   return saveSensorData(macAddress, power, temperature, light, status)
-  	.then(EventScheduler.triggerCommandsFromEvents)
-  	.then( commands => {
-  		console.log('Triggering commands: ', commands);
-  		// Send and action to the gateway for each command object given
-  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
-  		// Wait until all actions are sent.
-  		return Promise.all(commandPromises);
-  	})
+  	//.then(EventScheduler.triggerCommandsFromEvents)
+  	// .then( commands => {
+  	// 	console.log('Triggering commands: ', commands);
+  	// 	// Send and action to the gateway for each command object given
+  	// 	var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
+  	// 	// Wait until all actions are sent.
+  	// 	return Promise.all(commandPromises);
+  	// })
   	.catch(console.error);
 }
 
@@ -165,6 +174,7 @@ function handleHandshakeAckMessage(macAddress, payload) {
 
       // Create new outlet object
 	    var outlet = new Outlet({
+	    	name: 'NEW OUTLET' + newMacAddress,
 	    	mac_address: newMacAddress,
 	    	hardware_version: hardwareVersion
 	    });
@@ -249,10 +259,10 @@ function handleData(data) {
 			return handleActionAckMessage(macAddress, payload);
 		case HANDSHAKE_ACK_MESSAGE:
     	    return handleHandshakeAckMessage(macAddress, payload);
-        case HEARTBEAT_MESSAGE:
-    	    return handleHeartbeatMessage(macAddress, payload);
-        case LOST_NODE_MESSAGE:
-    	    return handleLostNodeMessage(macAddress, payload);
+    case HEARTBEAT_MESSAGE:
+	    return handleHeartbeatMessage(macAddress, payload);
+    case LOST_NODE_MESSAGE:
+	    return handleLostNodeMessage(macAddress, payload);
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));

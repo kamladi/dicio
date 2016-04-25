@@ -8,6 +8,8 @@ class GroupStore {
 		this.bindListeners({
 			handleGroupsChanged: GroupActions.GROUPS_CHANGED,
 			handleGroupChanged: GroupActions.GROUP_CHANGED,
+			handleGroupCreated: GroupActions.GROUP_CREATED,
+			handleGroupRemoved: GroupActions.GROUP_REMOVED,
 			handleFetchGroups: GroupActions.FETCH_GROUPS,
 			handleUpdateGroup: GroupActions.UPDATE_GROUP
 		});
@@ -44,6 +46,18 @@ class GroupStore {
 				return group;
 			}
 		});
+	}
+
+	handleGroupRemoved(data) {
+		// Keep all the groups which don't match the removed group's id
+		this.groups = this.groups.filter( group => {
+			return group._id !== data._id;
+		});
+		console.log(this.groups);
+	}
+
+	handleGroupCreated(data) {
+		this.groups.push(data);
 	}
 
 	findById(group_id) {

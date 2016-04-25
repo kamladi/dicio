@@ -8,6 +8,8 @@ class EventStore {
 		this.bindListeners({
 			handleEventsChanged: EventActions.EVENTS_CHANGED,
 			handleEventChanged: EventActions.EVENT_CHANGED,
+			handleEventCreated: EventActions.EVENT_CREATED,
+			handleEventRemoved: EventActions.EVENT_REMOVED,
 			handleFetchEvents: EventActions.FETCH_EVENTS,
 			handleUpdateEvent: EventActions.UPDATE_EVENT
 		});
@@ -38,12 +40,24 @@ class EventStore {
 	handleUpdateEvent(data) {
 		this.events = this.events.map( (event) => {
 			// merge updated params into the given event object
-			if (event._id === data.event_id) {
+			if (event._id === data._id) {
 				return Object.assign({}, event, data.updatedParams);
 			} else {
 				return event;
 			}
 		});
+	}
+
+	handleEventRemoved(data) {
+		// Keep all the events which don't match the removed event's id
+		this.events = this.events.filter( event => {
+			return event._id !== data._id;
+		});
+		console.log(this.events);
+	}
+
+	handleEventCreated(data) {
+		this.events.push(data);
 	}
 
 	findById(event_id) {

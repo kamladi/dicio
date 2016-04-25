@@ -44,6 +44,7 @@ function sendMessage(message) {
 }
 
 function sendNewNodeMessage(outlet_id, name) {
+	console.log("sending NEWNODE socket msg to client for outlet ", outlet_id);
 	return sendMessage({
 		type: 'NEWNODE',
 		outlet_id: outlet_id,
@@ -52,6 +53,7 @@ function sendNewNodeMessage(outlet_id, name) {
 }
 
 function sendLostNodeMessage(outlet_id, name) {
+		console.log("sending LOSTNODE socket msg to client for outlet ", outlet_id);
 	return sendMessage({
 		type: 'LOSTNODE',
 		outlet_id: outlet_id,
@@ -61,6 +63,7 @@ function sendLostNodeMessage(outlet_id, name) {
 
 
 function sendActiveNodeMessage(outlet_id, name) {
+	console.log("sending ACTIVENODE socket msg to client for outlet ", outlet_id);
 	return sendMessage({
 		type: 'ACTIVENODE',
 		outlet_id: outlet_id,

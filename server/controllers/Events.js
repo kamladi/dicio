@@ -71,6 +71,22 @@ exports.updateEvent = (req, res, next) => {
 		.catch(next);
 };
 
+
+/**
+ * Deletes an Event with the given id
+ */
+exports.deleteEvent = (req, res, next) => {
+	req.checkParams('id', 'Invalid Event ID').isObjectId();
+	var errors = req.validationErrors();
+	if (errors) {
+		return res.send(errors, 400);
+	}
+	var id = new ObjectId(req.params.id);
+	return Event.remove({_id: id})
+		.then( () => res.json('success'))
+		.catch(next);
+}
+
 /*
  * Creates a new event with the given parameters in the request body.
  */

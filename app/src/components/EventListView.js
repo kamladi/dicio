@@ -1,5 +1,6 @@
 'use strict';
 import React, {
+  AlertIOS,
   Component,
   NavigatorIOS,
   TouchableHighlight,
@@ -11,6 +12,7 @@ import React, {
 } from 'react-native';
 
 import EventStore from '../stores/EventStore';
+import OutletStore from '../stores/OutletStore';
 import EventActions from '../actions/EventActions';
 import {EventDetailView} from './EventDetailView';
 
@@ -25,6 +27,7 @@ export class EventListView extends Component {
         rowHasChanged: (row1, row2) => row1 !== row2
       });
     this.state.loaded = false;
+    this.createEvent = this.createEvent.bind(this);
   }
 
   componentDidMount() {
@@ -42,6 +45,33 @@ export class EventListView extends Component {
       events: state.events,
       loaded: true
     });
+  }
+
+  createEvent() {
+    var outlets = OutletStore.getState().outlets;
+    if (outlets.length == 0) {
+      AlertIOS.alert("Cannot create event if there are no active outlets");
+    } else {
+      var onEventNameChosen = (name) => {
+        EventActions.createEvent({
+          name: name,
+          input_outlet_id: outlets[0]._id,
+          output_outlet_id: outlets[0]._id})
+          .then(() => EventActions.fetchEvents())
+          .catch(console.error);
+      }
+
+      AlertIOS.prompt(
+        'Create New Event', // Title text
+        'Choose a name:', // Label above text field
+        [
+          {text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel'},
+          {text: 'OK', onPress: onEventNameChosen, style: 'cancel'},
+        ],
+        'plain-text',
+        "NEW EVENT" // Default value for text field
+        );
+      }
   }
 
   renderLoadingView() {
@@ -65,6 +95,10 @@ export class EventListView extends Component {
           renderRow={this.renderRow}
           style={styles.listview}
         />
+        <TouchableHighlight style={[styles.button, styles.newEventButton]}
+          onPress={() => this.createEvent()}>
+          <Text style={styles.buttonText}>Create New Event</Text>
+        </TouchableHighlight>
       </View>
     );
   }
@@ -101,6 +135,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 30,
+    paddingBottom: 60,
     backgroundColor: '#EEEEEE',
   },
   listItem: {
@@ -124,4 +159,19 @@ const styles = StyleSheet.create({
     marginTop: 65,
     backgroundColor: '#F5FCFF',
   },
+  buttonText: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    textAlign: 'center'
+  },
+  button: {
+    marginTop: 15,
+    marginBottom: 15,
+    marginLeft: 10,
+    padding: 10,
+    borderRadius: 10
+  },
+  newEventButton: {
+    backgroundColor: 'deepskyblue',
+  }
 });
