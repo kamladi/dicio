@@ -33,7 +33,7 @@
 
 // DEFINES
 #define MAC_ADDR 9
-#define HARDWARE_REV 0xD1C10001
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -143,7 +143,6 @@ nrk_sem_t* g_button_pressed_mux;
 
 int main() {
   packet act_packet;
-
   // setup ports/uart
   nrk_setup_ports();
   nrk_setup_uart(UART_BAUDRATE_115K2);
@@ -160,7 +159,7 @@ int main() {
   nrk_led_clr(3);
 
   // flags
-  g_verbose = TRUE;
+  g_verbose = FALSE;
   g_network_joined = FALSE;
   g_global_outlet_state = OFF;
   g_button_pressed  = FALSE;

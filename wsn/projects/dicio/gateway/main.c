@@ -68,7 +68,7 @@ NRK_STK alive_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t g_net_rx_buf[RF_MAX_PAYLOAD_SIZE];
-uint8_t g_serv_rx_buf[RF_MAX_PAYLOAD_SIZE];
+uint8_t g_serv_rx_buf[MAX_RX_UART_BUF];
 uint8_t g_serv_rx_index = 0;
 uint8_t g_serv_tx_index = 0;
 uint8_t g_net_tx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -266,6 +266,12 @@ void clear_serv_buf() {
     g_serv_rx_buf[i] = 0;
   }
   g_serv_rx_index = 0;
+}
+
+void clear_serv_tx_buf(){
+  for(uint8_t i = 0; i < RF_MAX_PAYLOAD_SIZE; i++){
+    g_serv_tx_buf[i] = 0;
+  }
 }
 
 // clear_tx_buf - clear the network transmit buffer
@@ -579,6 +585,7 @@ void tx_serv_task() {
       assemble_serv_packet((uint8_t *)&g_serv_tx_buf, &tx_packet);
       printf("%s\r\n", g_serv_tx_buf);
     }
+    clear_serv_tx_buf();
     nrk_wait_until_next_period();
   }
   nrk_kprintf (PSTR ("out tx_serv\r\n"));
@@ -655,15 +662,15 @@ void tx_net_task() {
   // setup soft watchdog variables
   nrk_time_t soft_watchdog_period;
   int8_t v;
-  soft_watchdog_period.secs = 1;
+  soft_watchdog_period.secs = 2;
   soft_watchdog_period.nano_secs = 0;
-  //v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
-  //nrk_sw_wdt_start(0);
+  v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
+  nrk_sw_wdt_start(0);
 
 
   // loop forever
   while(1) {
-    //nrk_sw_wdt_update(0);
+    nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;

@@ -22,7 +22,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // lost node message - indicate the loss of a particular node in the system
         case MSG_LOST:
         {
-            sprintf(tx_buf, "%d:%d:%d:%d:%d,", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
                 tx->payload[LOST_NODE_INDEX]);
             break;
         }
@@ -38,7 +38,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
             uint16_t data_temp = ((tx->payload[DATA_TEMP_INDEX] << 8) | (tx->payload[DATA_TEMP_INDEX + 1]));
             uint16_t data_light = ((tx->payload[DATA_LIGHT_INDEX] << 8) | (tx->payload[DATA_LIGHT_INDEX + 1]));
 
-            sprintf(tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops, 
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops, 
                 data_pwr, data_temp, data_light, tx->payload[DATA_STATE_INDEX]);
             break;
         }
@@ -50,7 +50,7 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // command acknowledgement
         case MSG_CMDACK:
         {
-            sprintf(tx_buf, "%d:%d:%d:%d:%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
                 (uint16_t)tx->payload[CMDACK_CMDID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
             break;
         }
@@ -65,14 +65,14 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
             uint16_t hardware_config_1 = ((tx->payload[HANDACK_CONFIG_ID_INDEX] << 8) | (tx->payload[HANDACK_CONFIG_ID_INDEX+1]));
             uint16_t hardware_config_2 = ((tx->payload[HANDACK_CONFIG_ID_INDEX+2] << 8) | tx->payload[HANDACK_CONFIG_ID_INDEX + 3]);
             
-            sprintf(tx_buf, "%d:%d:%d:%d:%d,%u,%u", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops,
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%u,%u", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops,
                 tx->payload[HANDACK_NODE_ID_INDEX], hardware_config_1, hardware_config_2);
             break;
         }
         // heart beat message - so the server knows the gateway is still alive
         case MSG_HEARTBEAT:
         {
-            sprintf(tx_buf, "%d:%d:%d:%d:,", tx->source_id, tx->seq_num, tx->type, tx->num_hops);
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:,", tx->source_id, tx->seq_num, tx->type, tx->num_hops);
             break;
         }
         default:
