@@ -59,12 +59,12 @@ nrk_task_type HAND_TASK;
 nrk_task_type ALIVE_TASK;
 
 // TASK STACKS
-NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
-NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE];
-NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE * 2];
-NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
-NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
-NRK_STK alive_task_stack[NRK_APP_STACKSIZE];
+NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*2];
+NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK hand_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK alive_task_stack[NRK_APP_STACKSIZE/2];
 
 // BUFFERS
 uint8_t g_net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -117,7 +117,7 @@ uint8_t g_retry_cmd_counter = 0;
 int main () {
   // setup ports/uart
   nrk_setup_ports ();
-  nrk_setup_uart (UART_BAUDRATE_115K2);
+  nrk_setup_uart (UART_BAUDRATE_38K4);
   nrk_init ();
 
   // clear all LEDs
@@ -572,7 +572,6 @@ void tx_serv_task() {
   packet tx_packet;
 
   printf("tx_serv_task PID: %d.\r\n", nrk_get_pid());
-
   // loop forever
   while(1) {
     // atomically get the queue size
@@ -659,18 +658,8 @@ void tx_net_task() {
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
-  // setup soft watchdog variables
-  nrk_time_t soft_watchdog_period;
-  int8_t v;
-  soft_watchdog_period.secs = 2;
-  soft_watchdog_period.nano_secs = 0;
-  v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
-  nrk_sw_wdt_start(0);
-
-
   // loop forever
   while(1) {
-    nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;
@@ -699,6 +688,7 @@ void alive_task() {
   packet heart_packet, lost_packet;
   uint8_t temp_id;
   uint8_t local_alive_pool_size;
+  uint8_t gateway_reset_counter = 0;
 
   printf("alive_task PID: %d.\r\n", nrk_get_pid());
 
@@ -714,7 +704,7 @@ void alive_task() {
 
   // loop forever
   while(1) {
-    // LED functionality gives visible indication of functionality of the gateway
+    //LED functionality gives visible indication of functionality of the gateway
     LED_FLAG += 1;
     LED_FLAG %= 2;
     if(0 == LED_FLAG) {
@@ -727,6 +717,14 @@ void alive_task() {
     // increment the sequence number
     heart_packet.seq_num = atomic_increment_seq_num();
 
+    // if we haven't send reset more than MAX_RESET_SENDS
+    if(MAX_RESET_SENDS > gateway_reset_counter){
+      heart_packet.type = MSG_RESET;
+      gateway_reset_counter ++;
+    }
+    else{
+      heart_packet.type = MSG_HEARTBEAT;
+    }
     // add to the g_node_tx_queue -> send out on network
     atomic_push(&g_node_tx_queue, &heart_packet, g_node_tx_queue_mux);
 
@@ -835,11 +833,11 @@ void hand_task() {
  */
 void nrk_create_taskset () {
   RX_NODE_TASK.task = rx_node_task;
-  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE/2);
   RX_NODE_TASK.prio = 7;
   RX_NODE_TASK.FirstActivation = TRUE;
   RX_NODE_TASK.Type = BASIC_TASK;
-  RX_NODE_TASK.SchType = PREEMPTIVE;
+  RX_NODE_TASK.SchType = NONPREEMPTIVE;
   RX_NODE_TASK.period.secs = 0;
   RX_NODE_TASK.period.nano_secs = 50*NANOS_PER_MS;
   RX_NODE_TASK.cpu_reserve.secs = 0;
@@ -848,11 +846,11 @@ void nrk_create_taskset () {
   RX_NODE_TASK.offset.nano_secs = 0;
 
   RX_SERV_TASK.task = rx_serv_task;
-  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE/2);
   RX_SERV_TASK.prio = 6;
   RX_SERV_TASK.FirstActivation = TRUE;
   RX_SERV_TASK.Type = BASIC_TASK;
-  RX_SERV_TASK.SchType = PREEMPTIVE;
+  RX_SERV_TASK.SchType = NONPREEMPTIVE;
   RX_SERV_TASK.period.secs = 0;
   RX_SERV_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_SERV_TASK.cpu_reserve.secs = 0;
@@ -874,11 +872,11 @@ void nrk_create_taskset () {
   TX_NET_TASK.offset.nano_secs = 0;
 
   TX_SERV_TASK.task = tx_serv_task;
-  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE/2);
   TX_SERV_TASK.prio = 4;
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
-  TX_SERV_TASK.SchType = PREEMPTIVE;
+  TX_SERV_TASK.SchType = NONPREEMPTIVE;
   TX_SERV_TASK.period.secs = 1;
   TX_SERV_TASK.period.nano_secs = 0;
   TX_SERV_TASK.cpu_reserve.secs = 0;
@@ -887,11 +885,11 @@ void nrk_create_taskset () {
   TX_SERV_TASK.offset.nano_secs = 0;
 
   ALIVE_TASK.task = alive_task;
-  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE*2);
+  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE/2);
   ALIVE_TASK.prio = 2;
   ALIVE_TASK.FirstActivation = TRUE;
   ALIVE_TASK.Type = BASIC_TASK;
-  ALIVE_TASK.SchType = PREEMPTIVE;
+  ALIVE_TASK.SchType = NONPREEMPTIVE;
   ALIVE_TASK.period.secs = 5;
   ALIVE_TASK.period.nano_secs = 0;
   ALIVE_TASK.cpu_reserve.secs = 0;
@@ -900,11 +898,11 @@ void nrk_create_taskset () {
   ALIVE_TASK.offset.nano_secs = 0;
 
   HAND_TASK.task = hand_task;
-  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE/2);
   HAND_TASK.prio = 1;
   HAND_TASK.FirstActivation = TRUE;
   HAND_TASK.Type = BASIC_TASK;
-  HAND_TASK.SchType = PREEMPTIVE;
+  HAND_TASK.SchType = NONPREEMPTIVE;
   HAND_TASK.period.secs = 5;
   HAND_TASK.period.nano_secs = 0;
   HAND_TASK.cpu_reserve.secs = 0;
