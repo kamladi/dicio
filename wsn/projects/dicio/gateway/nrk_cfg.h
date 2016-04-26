@@ -51,10 +51,10 @@
 #define NRK_MAX_TASKS       		    9
 #define	NRK_N_RES			            1	
                            
-#define NRK_TASK_IDLE_STK_SIZE         1024   // Idle task stack size min=32 
+#define NRK_TASK_IDLE_STK_SIZE         256   // Idle task stack size min=32 
 //#define NRK_APP_STACKSIZE              512 
-#define NRK_APP_STACKSIZE				1024 //512
-#define NRK_KERNEL_STACKSIZE           1024 
+#define NRK_APP_STACKSIZE				256 //512
+#define NRK_KERNEL_STACKSIZE           256 
 
 // number of semaphores in the system!
 #define NRK_MAX_RESOURCE_CNT           8

@@ -59,12 +59,12 @@ nrk_task_type HAND_TASK;
 nrk_task_type ALIVE_TASK;
 
 // TASK STACKS
-NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE/2];
-NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE/2];
-NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*2];
-NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE/2];
-NRK_STK hand_task_stack[NRK_APP_STACKSIZE/2];
-NRK_STK alive_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
+NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE];
+NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
+NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
+NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
+NRK_STK alive_task_stack[NRK_APP_STACKSIZE];
 
 // BUFFERS
 uint8_t g_net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -833,7 +833,7 @@ void hand_task() {
  */
 void nrk_create_taskset () {
   RX_NODE_TASK.task = rx_node_task;
-  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE/2);
+  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE);
   RX_NODE_TASK.prio = 7;
   RX_NODE_TASK.FirstActivation = TRUE;
   RX_NODE_TASK.Type = BASIC_TASK;
@@ -846,7 +846,7 @@ void nrk_create_taskset () {
   RX_NODE_TASK.offset.nano_secs = 0;
 
   RX_SERV_TASK.task = rx_serv_task;
-  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE/2);
+  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE);
   RX_SERV_TASK.prio = 6;
   RX_SERV_TASK.FirstActivation = TRUE;
   RX_SERV_TASK.Type = BASIC_TASK;
@@ -859,7 +859,7 @@ void nrk_create_taskset () {
   RX_SERV_TASK.offset.nano_secs = 0;
 
   TX_NET_TASK.task = tx_net_task;
-  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*2);
+  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*8);
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
@@ -872,7 +872,7 @@ void nrk_create_taskset () {
   TX_NET_TASK.offset.nano_secs = 0;
 
   TX_SERV_TASK.task = tx_serv_task;
-  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE/2);
+  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
   TX_SERV_TASK.prio = 4;
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
@@ -885,7 +885,7 @@ void nrk_create_taskset () {
   TX_SERV_TASK.offset.nano_secs = 0;
 
   ALIVE_TASK.task = alive_task;
-  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE/2);
+  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE);
   ALIVE_TASK.prio = 2;
   ALIVE_TASK.FirstActivation = TRUE;
   ALIVE_TASK.Type = BASIC_TASK;
@@ -898,7 +898,7 @@ void nrk_create_taskset () {
   ALIVE_TASK.offset.nano_secs = 0;
 
   HAND_TASK.task = hand_task;
-  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE/2);
+  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE);
   HAND_TASK.prio = 1;
   HAND_TASK.FirstActivation = TRUE;
   HAND_TASK.Type = BASIC_TASK;

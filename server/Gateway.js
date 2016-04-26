@@ -341,9 +341,9 @@ function sendAction(outletMacAddress, action) {
   }).catch(console.error);
 };
 
-function reconnect() {
+function reconnect(port) {
 	gSerialPort.close( () => {
-		start();
+		start(port);
 	});
 }
 
@@ -372,7 +372,7 @@ function start(port) {
 	 		// Notify app if watchdog timer expires.
 	 		gWatchdogTimer.on('timeout', () => {
 	 			console.error('Gateway watchdog timer expired!');
-	 			reconnect();
+	 			reconnect(port);
 	 			WS.sendDeadGatewayMessage();
 	 		});
 
