@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 9
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 7
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -50,8 +50,8 @@ uint8_t inline atomic_button_pressed();
 void inline atomic_update_button_pressed(uint8_t update);
 uint8_t inline atomic_decrement_watchdog();
 uint8_t inline atomic_kick_watchdog();
-void inline tx_cmds(void);
-void inline tx_data(void);
+void tx_cmds(void);
+void tx_data(void);
 void inline clear_tx_buf(void);
 
 // tasks
@@ -93,8 +93,8 @@ nrk_task_type HEARTBEAT_TASK;
 
 // TASK STACKS
 NRK_STK rx_msg_task_stack[NRK_APP_STACKSIZE];
-NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*4];
-NRK_STK sample_task_stack[NRK_APP_STACKSIZE*2];
+NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
+NRK_STK sample_task_stack[NRK_APP_STACKSIZE*4];
 NRK_STK actuate_task_stack[NRK_APP_STACKSIZE];
 NRK_STK button_task_stack[NRK_APP_STACKSIZE];
 NRK_STK heartbeat_task_stack[NRK_APP_STACKSIZE];
@@ -108,7 +108,6 @@ nrk_sem_t* g_net_tx_buf_mux;
 // QUEUES
 packet_queue g_act_queue;
 nrk_sem_t* g_act_queue_mux;
-uint16_t g_last_command = 0;
 
 packet_queue g_cmd_tx_queue;
 nrk_sem_t* g_cmd_tx_queue_mux;
@@ -319,7 +318,7 @@ uint8_t inline atomic_kick_watchdog() {
 }
 
 // tx_cmds() - send all commands out to the network.
-void inline tx_cmds() {
+void tx_cmds() {
   // local variable instantiation
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
@@ -361,7 +360,7 @@ void inline tx_cmds() {
 }
 
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
-void inline tx_data() {
+void tx_data() {
   // local variable initialization
   packet tx_packet;
   uint8_t local_tx_data_queue_size;
@@ -462,7 +461,7 @@ void rx_msg_task() {
 
       parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
 
-      bmac_rx_pkt_release ();
+      bmac_rx_pkt_release();
 
       // print incoming packet if appropriate
       if(TRUE == g_verbose) {
@@ -507,8 +506,8 @@ void rx_msg_task() {
               }
               // data received -> forward to server
               case MSG_DATA: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                //rx_packet.num_hops++;
+                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -517,51 +516,50 @@ void rx_msg_task() {
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
                 if(MAC_ADDR == rx_packet.payload[CMD_NODE_ID_INDEX]) {
-                  g_last_command = (uint16_t)rx_packet.payload[CMD_CMDID_INDEX]; // need to cast again here right?
                   atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
                   if (TRUE == g_verbose) {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
-                else {
-                  rx_packet.num_hops++;
-                  atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
-                }
+                // else {
+                //   //rx_packet.num_hops++;
+                //   //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                // }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                rx_packet.num_hops++;
-                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                //rx_packet.num_hops++;
+                //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                //rx_packet.num_hops++;
+                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  rx_packet.num_hops++;
-                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
-                }
+                /*if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
+                  //rx_packet.num_hops++;
+                  //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                }*/
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                //rx_packet.num_hops++;
+                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                rx_packet.num_hops++;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                //rx_packet.num_hops++;
+                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
@@ -600,14 +598,6 @@ void tx_net_task() {
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
-  // setup soft watchdog variables
-  // nrk_time_t soft_watchdog_period;
-  // int8_t v;
-  // soft_watchdog_period.secs = 1;
-  // soft_watchdog_period.nano_secs = 0;
-  // v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
-  // nrk_sw_wdt_start(0);
-
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
   while(!bmac_started ()) {
@@ -619,19 +609,16 @@ void tx_net_task() {
     //nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
-    tx_cmd_flag = counter % TX_CMD_FLAG;
     tx_data_flag = counter % NODE_TX_DATA_FLAG;
-
-    // if commands should be transmitted, then call the tx_cmds() helper
-    if (TRANSMIT == tx_cmd_flag) {
-      tx_cmds();
-    }
 
     // if data shoudl be transmitted, then call the tx_data() helper
     if (TRANSMIT == tx_data_flag) {
       tx_data();
       counter = 0;
+    } else {
+      tx_cmds();
     }
+
     nrk_wait_until_next_period();
   }
   nrk_kprintf(PSTR("TX_NET_TASK FALLOUT\r\n"));
@@ -1144,7 +1131,7 @@ void inline nrk_create_taskset () {
   ACTUATE_TASK.offset.nano_secs = 0;
 
   TX_NET_TASK.task = tx_net_task;
-  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*4);
+  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*8);
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
@@ -1157,7 +1144,7 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.offset.nano_secs = 0;
 
   SAMPLE_TASK.task = sample_task;
-  nrk_task_set_stk( &SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE*2);
+  nrk_task_set_stk( &SAMPLE_TASK, sample_task_stack, NRK_APP_STACKSIZE*4);
   SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;

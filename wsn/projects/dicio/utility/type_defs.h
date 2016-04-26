@@ -100,7 +100,7 @@
 #define BTN_IN NRK_PORTE_3
 
 //retry period
-#define RETRY_CMD_PERIOD 100
+#define RETRY_CMD_PERIOD 10
 
 /*** ENUMERATIONS ***/
 typedef enum {
