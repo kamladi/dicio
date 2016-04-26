@@ -33,7 +33,7 @@
 
 // DEFINES
 #define MAC_ADDR 9
-#define HARDWARE_REV 0xD1C10001
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);

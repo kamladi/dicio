@@ -572,7 +572,6 @@ void tx_serv_task() {
   packet tx_packet;
 
   printf("tx_serv_task PID: %d.\r\n", nrk_get_pid());
-
   // loop forever
   while(1) {
     // atomically get the queue size
@@ -659,18 +658,8 @@ void tx_net_task() {
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
-  // setup soft watchdog variables
-  nrk_time_t soft_watchdog_period;
-  int8_t v;
-  soft_watchdog_period.secs = 1;
-  soft_watchdog_period.nano_secs = 0;
-  v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
-  nrk_sw_wdt_start(0);
-
-
   // loop forever
   while(1) {
-    nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
     tx_cmd_flag = counter % TX_CMD_FLAG;
@@ -715,7 +704,7 @@ void alive_task() {
 
   // loop forever
   while(1) {
-    // LED functionality gives visible indication of functionality of the gateway
+    //LED functionality gives visible indication of functionality of the gateway
     LED_FLAG += 1;
     LED_FLAG %= 2;
     if(0 == LED_FLAG) {

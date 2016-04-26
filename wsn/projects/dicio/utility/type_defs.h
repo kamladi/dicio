@@ -63,7 +63,7 @@
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
-#define MAX_POOL 8
+#define MAX_POOL 4
 #define MAX_GRAPH 8
 
 // payload indexes
