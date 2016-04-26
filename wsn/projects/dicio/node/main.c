@@ -33,7 +33,7 @@
 
 // DEFINES
 #define MAC_ADDR 9
-#define HARDWARE_REV 0xD1C10000
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -176,9 +176,9 @@ int main() {
   g_net_watchdog_mux        = nrk_sem_create(1, 7);
 
   // sensor periods (in seconds / 2)
-  g_pwr_period = 5;
-  g_temp_period = 10;
-  g_light_period = 15;
+  g_pwr_period = 3;
+  g_temp_period = 6;
+  g_light_period = 6;
 
   // packet queues
   packet_queue_init(&g_act_queue);
@@ -1078,10 +1078,10 @@ void inline SPI_Init() {
 
   // get the hardware rev of this node
   hw_rev = GET_REV(HARDWARE_REV);
+  SPI_MasterInit();
 
   // Initialize SPI and open the ATMEGA ADC device as read
   if(HW_REV0 == hw_rev) {
-    SPI_MasterInit();
     SPI_SlaveInit(PWR_CS);
   }
 }
@@ -1162,7 +1162,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
   SAMPLE_TASK.SchType = NONPREEMPTIVE;
-  SAMPLE_TASK.period.secs = 2;
+  SAMPLE_TASK.period.secs = 5;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
   SAMPLE_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
