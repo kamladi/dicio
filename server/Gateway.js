@@ -1,13 +1,14 @@
 var Event          = require('./models/Event');
 var EventScheduler = require('./lib/EventScheduler');
 var Outlet         = require('./models/Outlet');
+var SensorRecord   = require('./models/SensorRecord');
 var SP             = require('serialport');
 var Watchdog       = require('./lib/Watchdog');
 var WS 				     = require('./websockets');
 
 // Constants
 const DEFAULT_SERIAL_PORT   = '/dev/ttty.usbserial-AM017Y3E';
-const BAUD_RATE             = 115200;
+const BAUD_RATE             = 38400;
 const MAX_COMMAND_ID    = 65536;
 const SerialPort = SP.SerialPort;
 
@@ -70,6 +71,17 @@ function saveSensorData(macAddress, power, temperature, light, status) {
 	  }).catch(console.error);
 }
 
+function saveTimeSeriesData(outlet) {
+	var newRecord = new SensorRecord({
+		timestamp: outlet.last_updated,
+		mac_address: outlet.mac_address,
+		cur_temperature: outlet.cur_temperature,
+		cur_light: outlet.cur_light,
+		cur_power: outlet.cur_power
+	});
+	return newRecord.save();
+}
+
 /*
  * Handle a Sensor Data Message
  * @returns Promise<Outlet> updated outlet data
@@ -90,14 +102,15 @@ function handleSensorDataMessage(macAddress, payload) {
       status = (sensorValues[3] === 0) ? 'OFF' : 'ON';
 
   return saveSensorData(macAddress, power, temperature, light, status)
-  	//.then(EventScheduler.triggerCommandsFromEvents)
-  	// .then( commands => {
-  	// 	console.log('Triggering commands: ', commands);
-  	// 	// Send and action to the gateway for each command object given
-  	// 	var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
-  	// 	// Wait until all actions are sent.
-  	// 	return Promise.all(commandPromises);
-  	// })
+  	.then( outlet => saveTimeSeriesData(outlet))
+  	.then(EventScheduler.triggerCommandsFromEvents)
+  	.then( commands => {
+  		console.log('Triggering commands: ', commands);
+  		// Send and action to the gateway for each command object given
+  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
+  		// Wait until all actions are sent.
+  		return Promise.all(commandPromises);
+  	})
   	.catch(console.error);
 }
 
@@ -328,6 +341,11 @@ function sendAction(outletMacAddress, action) {
   }).catch(console.error);
 };
 
+function reconnect() {
+	gSerialPort.close( () => {
+		start();
+	});
+}
 
 /*
  * Starts the connection to the gateway node. If a port was not given as an
@@ -354,6 +372,7 @@ function start(port) {
 	 		// Notify app if watchdog timer expires.
 	 		gWatchdogTimer.on('timeout', () => {
 	 			console.error('Gateway watchdog timer expired!');
+	 			reconnect();
 	 			WS.sendDeadGatewayMessage();
 	 		});
 

@@ -41,7 +41,7 @@
 // Enable buffered and signal controlled serial RX
 #define NRK_UART_BUF   1
 
-#define MAX_RX_UART_BUF 20
+#define MAX_RX_UART_BUF 16
 
 
 // Max number of tasks in your application
@@ -51,13 +51,13 @@
 #define NRK_MAX_TASKS       		    9
 #define	NRK_N_RES			            1	
                            
-#define NRK_TASK_IDLE_STK_SIZE         128   // Idle task stack size min=32 
+#define NRK_TASK_IDLE_STK_SIZE         1024   // Idle task stack size min=32 
 //#define NRK_APP_STACKSIZE              512 
-#define NRK_APP_STACKSIZE				512
-#define NRK_KERNEL_STACKSIZE           512 
+#define NRK_APP_STACKSIZE				1024 //512
+#define NRK_KERNEL_STACKSIZE           1024 
 
 // number of semaphores in the system!
-#define NRK_MAX_RESOURCE_CNT           10
+#define NRK_MAX_RESOURCE_CNT           8
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
@@ -66,10 +66,10 @@
 // Enable software watchdog timer
 #define NRK_SW_WDT
 // Set the number of watchdog timers you wish to create
-#define NRK_MAX_SW_WDT 1
+#define NRK_MAX_SW_WDT 3
 
 // watchdog enable
-#define NRK_WATCHDOG
+//#define NRK_WATCHDOG
 //#define NRK_REBOOT_ON_ERROR
 
 

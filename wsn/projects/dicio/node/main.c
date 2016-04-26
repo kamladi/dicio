@@ -33,7 +33,7 @@
 
 // DEFINES
 #define MAC_ADDR 9
-#define HARDWARE_REV 0xD1C10001
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -384,7 +384,7 @@ void inline tx_data() {
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
     // ONLY send one heartbeat per iteration.
-    if((MSG_HEARTBEAT == tx_packet.type) && (TRUE == sent_heart)) {
+    if(((MSG_HEARTBEAT == tx_packet.type) || (MSG_RESET == tx_packet.type)) && (TRUE == sent_heart)) {
       to_send = FALSE;
     } else {
       to_send = TRUE;
@@ -486,7 +486,8 @@ void rx_msg_task() {
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)) {
+          if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)
+            || (MSG_RESET == rx_packet.type)) {
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
@@ -552,6 +553,13 @@ void rx_msg_task() {
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                atomic_kick_watchdog();
+                break;
+              }
+
+              case MSG_RESET: {
                 rx_packet.num_hops++;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
