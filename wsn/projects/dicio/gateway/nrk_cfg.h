@@ -41,7 +41,7 @@
 // Enable buffered and signal controlled serial RX
 #define NRK_UART_BUF   1
 
-#define MAX_RX_UART_BUF 20
+#define MAX_RX_UART_BUF 16
 
 
 // Max number of tasks in your application
@@ -54,10 +54,10 @@
 #define NRK_TASK_IDLE_STK_SIZE         512   // Idle task stack size min=32 
 //#define NRK_APP_STACKSIZE              512 
 #define NRK_APP_STACKSIZE				1024 //512
-#define NRK_KERNEL_STACKSIZE           512 
+#define NRK_KERNEL_STACKSIZE           1024 
 
 // number of semaphores in the system!
-#define NRK_MAX_RESOURCE_CNT           10
+#define NRK_MAX_RESOURCE_CNT           8
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)

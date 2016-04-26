@@ -59,12 +59,12 @@ nrk_task_type HAND_TASK;
 nrk_task_type ALIVE_TASK;
 
 // TASK STACKS
-NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
-NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE];
+NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE/2];
 NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*2];
-NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
-NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
-NRK_STK alive_task_stack[NRK_APP_STACKSIZE];
+NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK hand_task_stack[NRK_APP_STACKSIZE/2];
+NRK_STK alive_task_stack[NRK_APP_STACKSIZE/2];
 
 // BUFFERS
 uint8_t g_net_rx_buf[RF_MAX_PAYLOAD_SIZE];
@@ -662,7 +662,7 @@ void tx_net_task() {
   // setup soft watchdog variables
   nrk_time_t soft_watchdog_period;
   int8_t v;
-  soft_watchdog_period.secs = 2;
+  soft_watchdog_period.secs = 1;
   soft_watchdog_period.nano_secs = 0;
   v = nrk_sw_wdt_init(0, &soft_watchdog_period, NULL);
   nrk_sw_wdt_start(0);
@@ -699,6 +699,7 @@ void alive_task() {
   packet heart_packet, lost_packet;
   uint8_t temp_id;
   uint8_t local_alive_pool_size;
+  uint8_t gateway_reset_counter = 0;
 
   printf("alive_task PID: %d.\r\n", nrk_get_pid());
 
@@ -727,6 +728,14 @@ void alive_task() {
     // increment the sequence number
     heart_packet.seq_num = atomic_increment_seq_num();
 
+    // if we haven't send reset more than MAX_RESET_SENDS
+    if(MAX_RESET_SENDS > gateway_reset_counter){
+      heart_packet.type = MSG_RESET;
+      gateway_reset_counter ++;
+    }
+    else{
+      heart_packet.type = MSG_HEARTBEAT;
+    }
     // add to the g_node_tx_queue -> send out on network
     atomic_push(&g_node_tx_queue, &heart_packet, g_node_tx_queue_mux);
 
@@ -835,7 +844,7 @@ void hand_task() {
  */
 void nrk_create_taskset () {
   RX_NODE_TASK.task = rx_node_task;
-  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&RX_NODE_TASK, rx_node_task_stack, NRK_APP_STACKSIZE/2);
   RX_NODE_TASK.prio = 7;
   RX_NODE_TASK.FirstActivation = TRUE;
   RX_NODE_TASK.Type = BASIC_TASK;
@@ -848,7 +857,7 @@ void nrk_create_taskset () {
   RX_NODE_TASK.offset.nano_secs = 0;
 
   RX_SERV_TASK.task = rx_serv_task;
-  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&RX_SERV_TASK, rx_serv_task_stack, NRK_APP_STACKSIZE/2);
   RX_SERV_TASK.prio = 6;
   RX_SERV_TASK.FirstActivation = TRUE;
   RX_SERV_TASK.Type = BASIC_TASK;
@@ -874,7 +883,7 @@ void nrk_create_taskset () {
   TX_NET_TASK.offset.nano_secs = 0;
 
   TX_SERV_TASK.task = tx_serv_task;
-  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE/2);
   TX_SERV_TASK.prio = 4;
   TX_SERV_TASK.FirstActivation = TRUE;
   TX_SERV_TASK.Type = BASIC_TASK;
@@ -887,7 +896,7 @@ void nrk_create_taskset () {
   TX_SERV_TASK.offset.nano_secs = 0;
 
   ALIVE_TASK.task = alive_task;
-  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&ALIVE_TASK, alive_task_stack, NRK_APP_STACKSIZE/2);
   ALIVE_TASK.prio = 2;
   ALIVE_TASK.FirstActivation = TRUE;
   ALIVE_TASK.Type = BASIC_TASK;
@@ -900,7 +909,7 @@ void nrk_create_taskset () {
   ALIVE_TASK.offset.nano_secs = 0;
 
   HAND_TASK.task = hand_task;
-  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE);
+  nrk_task_set_stk(&HAND_TASK, hand_task_stack, NRK_APP_STACKSIZE/2);
   HAND_TASK.prio = 1;
   HAND_TASK.FirstActivation = TRUE;
   HAND_TASK.Type = BASIC_TASK;
