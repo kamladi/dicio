@@ -66,7 +66,7 @@
 // Enable software watchdog timer
 #define NRK_SW_WDT
 // Set the number of watchdog timers you wish to create
-#define NRK_MAX_SW_WDT 3
+#define NRK_MAX_SW_WDT 1
 
 // watchdog enable
 //#define NRK_WATCHDOG

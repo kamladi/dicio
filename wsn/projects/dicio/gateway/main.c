@@ -38,8 +38,8 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
 uint16_t inline atomic_increment_seq_num();
 uint8_t inline atomic_received_ack();
 void inline atomic_update_received_ack(uint8_t update);
-void inline tx_cmds(void);
-void inline tx_node(void);
+void tx_cmds(void);
+void tx_node(void);
 uint8_t get_server_input(void);
 void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();
@@ -109,6 +109,7 @@ uint8_t g_verbose;
 // Global last cmd
 packet g_last_cmd;
 uint8_t g_retry_cmd_counter = 0;
+uint8_t g_retry_limit_counter = 0;
 
 /***** END PREABMLE *****/
 
@@ -492,7 +493,7 @@ void rx_serv_task() {
 }
 
 // tx_cmd_task - send all commands out to the network
-void inline tx_cmds() {
+void tx_cmds() {
   // local variable instantiation
   uint16_t val;
   nrk_sig_t tx_done_signal;
@@ -535,6 +536,10 @@ void inline tx_cmds() {
       }
       nrk_sem_post(g_net_tx_buf_mux);
 
+      // sent a command, need an ack
+      atomic_update_received_ack(FALSE);
+      g_retry_limit_counter = 0;
+
       nrk_led_clr(RED_LED);
     }
   }
@@ -542,26 +547,34 @@ void inline tx_cmds() {
   else{
     g_retry_cmd_counter ++;
     if(RETRY_CMD_PERIOD <= g_retry_cmd_counter){
-      // increment the sequence number
-      g_last_cmd.seq_num = atomic_increment_seq_num();       
-
-      // print if appropriate
-      if (TRUE == g_verbose) {
-        nrk_kprintf (PSTR ("RETRY PACKET:"));
-        print_packet(&g_last_cmd);
+      if(RETRY_LIMIT <= g_retry_limit_counter){
+        // never received ack.. move on to the next
+        g_retry_limit_counter = 0;
+        atomic_update_received_ack(TRUE);
       }
+      else{
+        g_retry_limit_counter ++;
+        // increment the sequence number
+        g_last_cmd.seq_num = atomic_increment_seq_num();       
 
-      // reset counter and sent
-      g_retry_cmd_counter = 0;
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
-
-        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(NRK_OK != val){
-          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+       // print if appropriate
+        if (TRUE == g_verbose) {
+          nrk_kprintf (PSTR ("RETRY PACKET:"));
+          print_packet(&g_last_cmd);
         }
+
+        // reset counter and sent
+        g_retry_cmd_counter = 0;
+        nrk_sem_pend(g_net_tx_buf_mux); {
+          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
+
+          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+          if(NRK_OK != val){
+            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+          }
+        }
+        nrk_sem_post(g_net_tx_buf_mux);
       }
-      nrk_sem_post(g_net_tx_buf_mux);
     }
   }
 }
@@ -591,7 +604,7 @@ void tx_serv_task() {
 }
 
 // tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
-void inline tx_node() {
+void tx_node() {
   // local variable initialization
   uint16_t val;
   packet tx_packet;

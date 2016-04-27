@@ -72,8 +72,8 @@
 // Set the number of watchdog timers you wish to create
 #define NRK_MAX_SW_WDT 1
 
-//#define NRK_WATCHDOG
-//#define NRK_REBOOT_ON_ERROR
+#define NRK_WATCHDOG
+#define NRK_REBOOT_ON_ERROR
 
 
 

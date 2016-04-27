@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 5
+#define MAC_ADDR 7
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -367,6 +367,7 @@ void tx_data() {
   int8_t val = 0;
   uint8_t sent_heart = FALSE;
   uint8_t to_send;
+  msg_type tx_type;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -383,7 +384,8 @@ void tx_data() {
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
     // ONLY send one heartbeat per iteration.
-    if(((MSG_HEARTBEAT == tx_packet.type) || (MSG_RESET == tx_packet.type)) && (TRUE == sent_heart)) {
+    tx_type = tx_packet.type;
+    if(((MSG_HEARTBEAT == tx_type) || (MSG_RESET == tx_type)) && (TRUE == sent_heart)) {
       to_send = FALSE;
     } else {
       to_send = TRUE;
@@ -407,7 +409,7 @@ void tx_data() {
         }
 
         // set sent_heart flag
-        if(MSG_HEARTBEAT == tx_packet.type) {
+        if(MSG_HEARTBEAT == tx_type) {
           sent_heart = TRUE;
         }
 
@@ -439,6 +441,10 @@ void rx_msg_task() {
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
   uint8_t local_network_joined = FALSE;
+  uint8_t rx_source_id = 0;
+  uint16_t rx_seq_num = 0;
+  uint8_t rx_payload = 0;
+  msg_type rx_type;
 
   printf("rx_msg PID: %d.\r\n", nrk_get_pid());
 
@@ -469,8 +475,11 @@ void rx_msg_task() {
         print_packet(&rx_packet);
       }
 
+      rx_source_id = rx_packet.source_id;
+      rx_seq_num = rx_packet.seq_num;
+      rx_type = rx_packet.type;
       // only receive the message if it's not from this node
-      if(MAC_ADDR != rx_packet.source_id) {
+      if(MAC_ADDR != rx_source_id) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
@@ -485,15 +494,15 @@ void rx_msg_task() {
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)
-            || (MSG_RESET == rx_packet.type)) {
+          if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type)
+            || (MSG_RESET == rx_type)) {
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
             new_node = NONE;
 
             // put the message in the right queue based on the type
-            switch(rx_packet.type) {
+            switch(rx_type) {
               // no message
               case MSG_NO_MESSAGE: {
                 // do nothing.
@@ -578,7 +587,8 @@ void rx_msg_task() {
           clear_pool(&g_seq_pool);
 
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
-          if((MSG_HANDACK == rx_packet.type) && (MAC_ADDR == rx_packet.payload[HANDACK_NODE_ID_INDEX])) {
+          rx_payload = rx_packet.payload[HANDACK_NODE_ID_INDEX];
+          if((MSG_HANDACK == rx_type) && (MAC_ADDR == rx_payload)) {
             atomic_update_network_joined(TRUE);
             local_network_joined = atomic_network_joined();
           }
@@ -1099,7 +1109,7 @@ void inline nrk_create_taskset () {
   BUTTON_TASK.prio = 7;
   BUTTON_TASK.FirstActivation = TRUE;
   BUTTON_TASK.Type = BASIC_TASK;
-  BUTTON_TASK.SchType = PREEMPTIVE;
+  BUTTON_TASK.SchType = NONPREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
   BUTTON_TASK.period.nano_secs = 100*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
@@ -1112,7 +1122,7 @@ void inline nrk_create_taskset () {
   RX_MSG_TASK.prio = 6; 
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
-  RX_MSG_TASK.SchType = PREEMPTIVE;
+  RX_MSG_TASK.SchType = NONPREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
   RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
@@ -1125,7 +1135,7 @@ void inline nrk_create_taskset () {
   ACTUATE_TASK.prio = 5;
   ACTUATE_TASK.FirstActivation = TRUE;
   ACTUATE_TASK.Type = BASIC_TASK;
-  ACTUATE_TASK.SchType = PREEMPTIVE;
+  ACTUATE_TASK.SchType = NONPREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 500*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
@@ -1138,7 +1148,7 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
-  TX_NET_TASK.SchType = PREEMPTIVE;
+  TX_NET_TASK.SchType = NONPREEMPTIVE;
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
@@ -1151,7 +1161,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
-  SAMPLE_TASK.SchType = PREEMPTIVE;
+  SAMPLE_TASK.SchType = NONPREEMPTIVE;
   SAMPLE_TASK.period.secs = 5;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
@@ -1164,7 +1174,7 @@ void inline nrk_create_taskset () {
   HEARTBEAT_TASK.prio = 2;
   HEARTBEAT_TASK.FirstActivation = TRUE;
   HEARTBEAT_TASK.Type = BASIC_TASK;
-  HEARTBEAT_TASK.SchType = PREEMPTIVE;
+  HEARTBEAT_TASK.SchType = NONPREEMPTIVE;
   HEARTBEAT_TASK.period.secs = 5;
   HEARTBEAT_TASK.period.nano_secs = 0;
   HEARTBEAT_TASK.cpu_reserve.secs = 0;
