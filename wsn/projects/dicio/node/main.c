@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 7
+#define MAC_ADDR 5
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -433,7 +433,7 @@ void inline clear_tx_buf(){
 void rx_msg_task() {
   // local variable instantiation
   packet rx_packet;
-  uint8_t len;
+  uint8_t len, node_id;
   int8_t rssi;
   int8_t in_seq_pool;
   uint16_t local_seq_num;
@@ -515,7 +515,8 @@ void rx_msg_task() {
                 // if command is for this node and hasn't been received yet, add it
                 //  to the action queue. Otherwise, add it to the cmd_tx queue for
                 //  forwarding to other nodes.
-                if(MAC_ADDR == rx_packet.payload[CMD_NODE_ID_INDEX]) {
+                node_id = rx_packet.payload[CMD_NODE_ID_INDEX];
+                if(MAC_ADDR == node_id) {
                   atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
                   if (TRUE == g_verbose) {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
@@ -606,19 +607,21 @@ void tx_net_task() {
 
   // loop forever
   while(1) {
-    //nrk_sw_wdt_update(0);
+    // nrk_kprintf(PSTR("IN\r\n"));
     // incrment counter and set flags
     counter++;
     tx_data_flag = counter % NODE_TX_DATA_FLAG;
 
     // if data shoudl be transmitted, then call the tx_data() helper
     if (TRANSMIT == tx_data_flag) {
+      // nrk_kprintf(PSTR("Send data\r\n"));
       tx_data();
       counter = 0;
     } else {
+      // nrk_kprintf(PSTR("Send cmds\r\n"));
       tx_cmds();
     }
-
+    // nrk_kprintf(PSTR("OUT\r\n"));
     nrk_wait_until_next_period();
   }
   nrk_kprintf(PSTR("TX_NET_TASK FALLOUT\r\n"));
@@ -764,7 +767,7 @@ void sample_task() {
     // if the local_network_joined flag hasn't been set yet, send a hello packet
     else {
       // NETWORK JOINED DEBUG COMMAND
-      //atomic_update_network_joined(TRUE);
+      // atomic_update_network_joined(TRUE);
 
       // update seq num
       hello_packet.seq_num = atomic_increment_seq_num();
@@ -1096,7 +1099,7 @@ void inline nrk_create_taskset () {
   BUTTON_TASK.prio = 7;
   BUTTON_TASK.FirstActivation = TRUE;
   BUTTON_TASK.Type = BASIC_TASK;
-  BUTTON_TASK.SchType = NONPREEMPTIVE;
+  BUTTON_TASK.SchType = PREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
   BUTTON_TASK.period.nano_secs = 100*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
@@ -1109,7 +1112,7 @@ void inline nrk_create_taskset () {
   RX_MSG_TASK.prio = 6; 
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
-  RX_MSG_TASK.SchType = NONPREEMPTIVE;
+  RX_MSG_TASK.SchType = PREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
   RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
@@ -1122,7 +1125,7 @@ void inline nrk_create_taskset () {
   ACTUATE_TASK.prio = 5;
   ACTUATE_TASK.FirstActivation = TRUE;
   ACTUATE_TASK.Type = BASIC_TASK;
-  ACTUATE_TASK.SchType = NONPREEMPTIVE;
+  ACTUATE_TASK.SchType = PREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 500*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
@@ -1135,7 +1138,7 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
-  TX_NET_TASK.SchType = NONPREEMPTIVE;
+  TX_NET_TASK.SchType = PREEMPTIVE;
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
@@ -1148,7 +1151,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
-  SAMPLE_TASK.SchType = NONPREEMPTIVE;
+  SAMPLE_TASK.SchType = PREEMPTIVE;
   SAMPLE_TASK.period.secs = 5;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
@@ -1161,7 +1164,7 @@ void inline nrk_create_taskset () {
   HEARTBEAT_TASK.prio = 2;
   HEARTBEAT_TASK.FirstActivation = TRUE;
   HEARTBEAT_TASK.Type = BASIC_TASK;
-  HEARTBEAT_TASK.SchType = NONPREEMPTIVE;
+  HEARTBEAT_TASK.SchType = PREEMPTIVE;
   HEARTBEAT_TASK.period.secs = 5;
   HEARTBEAT_TASK.period.nano_secs = 0;
   HEARTBEAT_TASK.cpu_reserve.secs = 0;
