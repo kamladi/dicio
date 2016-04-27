@@ -296,7 +296,9 @@ void rx_node_task() {
   int8_t in_alive_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
-
+  uint8_t rx_source_id;
+  uint16_t rx_seq_num;
+  msg_type rx_type;
 
   printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
@@ -329,7 +331,8 @@ void rx_node_task() {
       // only receive the message if it's not from the gateway
       //  NOTE: this is required because the gateway will hear re-transmitted packets
       //    originally from itself.
-      if(MAC_ADDR != rx_packet.source_id) {
+      rx_source_id = rx_packet.source_id;
+      if(MAC_ADDR != rx_source_id) {
 
         // check to see if this node is in the sequence pool, if not then add it
         in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
@@ -340,7 +343,9 @@ void rx_node_task() {
 
         // determine if we should act on this packet based on the sequence number
         local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-        if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)) {
+        rx_seq_num = rx_packet.seq_num;
+        rx_type = rx_packet.type;
+        if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type)) {
 
           // check to see if this node is in the ALIVE pool, if not then add it,
           // If it is in the alive pool, update the counter to HEART FACTOR
@@ -359,7 +364,7 @@ void rx_node_task() {
           new_node = NONE;
 
           // put the message in the right queue based on the type
-          switch(rx_packet.type) {
+          switch(rx_type) {
             // command -> do nothing
             case MSG_CMD: {
               // do nothing...commands are sent by the gateway, so there is no
@@ -426,6 +431,7 @@ void rx_serv_task() {
   // local variable instantiation
   packet rx_packet;
   uint16_t server_seq_num = 0;
+  msg_type rx_type;
 
   printf("rx_serv_task PID: %d.\r\n", nrk_get_pid());
 
@@ -451,11 +457,10 @@ void rx_serv_task() {
       rx_packet.seq_num = server_seq_num;
       server_seq_num++;
       rx_packet.num_hops++;
-
-      switch(rx_packet.type) {
+      rx_type = rx_packet.type;
+      switch(rx_type) {
         // command received
         case MSG_CMD: {
-          rx_packet.num_hops++;
           atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
           break;
         }
@@ -530,11 +535,6 @@ void inline tx_cmds() {
       }
       nrk_sem_post(g_net_tx_buf_mux);
 
-      // TODO: ADAM CHECK THIS OUT
-      if(MSG_CMD == tx_packet.type){
-        //reset flag if we sent a command
-        atomic_update_received_ack(FALSE);
-      }
       nrk_led_clr(RED_LED);
     }
   }
@@ -598,6 +598,7 @@ void inline tx_node() {
   uint8_t local_tx_node_queue_size;
   uint8_t sent_handack = FALSE;
   uint8_t to_send;
+  msg_type tx_type;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().
@@ -614,8 +615,8 @@ void inline tx_node() {
 
     // get a packet out of the queue.
     atomic_pop(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
-
-    if((MSG_HANDACK == tx_packet.type) && (TRUE == sent_handack)) {
+    tx_type = tx_packet.type;
+    if((MSG_HANDACK == tx_type) && (TRUE == sent_handack)) {
       to_send = FALSE;
     } else {
       to_send = TRUE;
@@ -638,7 +639,7 @@ void inline tx_node() {
         }
 
         // set flag
-        if(MSG_HANDACK == tx_packet.type){
+        if(MSG_HANDACK == tx_type){
           sent_handack = TRUE;
         }
 
