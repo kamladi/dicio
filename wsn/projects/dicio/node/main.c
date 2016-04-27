@@ -367,7 +367,7 @@ void tx_data() {
   int8_t val = 0;
   uint8_t sent_heart = FALSE;
   uint8_t to_send;
-  msg_type tx_type;
+  volatile msg_type tx_type;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -441,10 +441,10 @@ void rx_msg_task() {
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
   uint8_t local_network_joined = FALSE;
-  uint8_t rx_source_id = 0;
-  uint16_t rx_seq_num = 0;
-  uint8_t rx_payload = 0;
-  msg_type rx_type;
+  volatile uint8_t rx_source_id = 0;
+  volatile uint16_t rx_seq_num = 0;
+  volatile uint8_t rx_payload = 0;
+  volatile msg_type rx_type;
 
   printf("rx_msg PID: %d.\r\n", nrk_get_pid());
 

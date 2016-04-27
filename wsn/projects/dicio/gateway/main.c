@@ -297,9 +297,9 @@ void rx_node_task() {
   int8_t in_alive_pool;
   uint16_t local_seq_num;
   uint8_t new_node = NONE;
-  uint8_t rx_source_id;
-  uint16_t rx_seq_num;
-  msg_type rx_type;
+  volatile uint8_t rx_source_id;
+  volatile uint16_t rx_seq_num;
+  volatile msg_type rx_type;
 
   printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
@@ -432,7 +432,7 @@ void rx_serv_task() {
   // local variable instantiation
   packet rx_packet;
   uint16_t server_seq_num = 0;
-  msg_type rx_type;
+  volatile msg_type rx_type;
 
   printf("rx_serv_task PID: %d.\r\n", nrk_get_pid());
 
@@ -611,7 +611,7 @@ void tx_node() {
   uint8_t local_tx_node_queue_size;
   uint8_t sent_handack = FALSE;
   uint8_t to_send;
-  msg_type tx_type;
+  volatile msg_type tx_type;
 
   // Wait until bmac has started. This should be called by all tasks
   //  using bmac that do not call bmac_init().

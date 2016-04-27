@@ -12,7 +12,8 @@
 // assemble_serv_packet - assemble packet to the server
 void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
 {
-    switch(tx->type)
+    volatile msg_type tx_type = tx->type;
+    switch(tx_type)
     {
         // this should never happen...TODO: throw an error
         case MSG_NO_MESSAGE:
@@ -90,8 +91,8 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
     tx_buf[2] = tx->seq_num & 0xff;
     tx_buf[3] = tx->type;
     tx_buf[4] = tx->num_hops;
-
-    switch(tx->type)
+    volatile msg_type tx_type = tx->type;
+    switch(tx_type)
     {
         // this should never happen....TODO: Throw an error.
         case MSG_NO_MESSAGE: 
