@@ -14,6 +14,7 @@ const SerialPort = SP.SerialPort;
 
 // Message Types
 const LOST_NODE_MESSAGE     = 1;
+const RESET_MESSAGE 				= 2;
 const SENSOR_MESSAGE        = 5;
 const ACTION_MESSAGE        = 6;
 const ACTION_ACK_MESSAGE    = 7;
@@ -241,6 +242,12 @@ function handleLostNodeMessage(macAddress, payload) {
 	  }).catch(console.error);
 }
 
+function deactivateOutlets() {
+	console.log("Received RESET message, setting all outlets to inactive");
+	return Outlet.update({}, { active: false }).exec()
+		.catch(console.error);
+}
+
 // Parse and handle data packet.
 // TODO:
 // 1) Update time series sensor data
@@ -275,6 +282,8 @@ function handleData(data) {
 	    return handleHeartbeatMessage(macAddress, payload);
     case LOST_NODE_MESSAGE:
 	    return handleLostNodeMessage(macAddress, payload);
+	  case RESET_MESSAGE:
+	  	return deactivateOutlets();
 		default:
 			console.error(`Unknown Message type: ${msgId}`);
 			return Promise.reject(new Error(`Unknown Message type: ${msgId}`));
