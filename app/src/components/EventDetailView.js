@@ -17,14 +17,17 @@ import React, {
 import {EditableTextField} from './EditableTextField';
 import {InputValuePicker} from './InputValuePicker';
 import {OutletPicker} from './OutletPicker';
+import {GroupPicker} from './GroupPicker';
 import {SensorPicker} from './SensorPicker';
 import {SENSORS} from '../lib/Constants';
 
 import EventStore from '../stores/EventStore';
 import OutletStore from '../stores/OutletStore';
+import GroupStore from '../stores/GroupStore';
 import EventActions from '../actions/EventActions';
 
 const REFRESH_INTERVAL = 3000;
+const OUTPUT_TYPE_VALUES = ['outlet', 'group'];
 
 class InputThresholdSelector extends Component {
   constructor(props) {
@@ -76,12 +79,15 @@ export class EventDetailView extends Component {
     this.onChange = this.onChange.bind(this);
     this.showOutletSelector = this.showOutletSelector.bind(this);
     this.onFormValueChanged = this.onFormValueChanged.bind(this);
+    this.onOutputTypeChange = this.onOutputTypeChange.bind(this);
     this.onNameChange = this.onNameChange.bind(this);
 	}
 
 	componentDidMount() {
+    var event = EventStore.getState().events.filter( (event) => event._id === this.props.event_id)[0];
     this.setState({
-      event: EventStore.getState().events.filter( (event) => event._id === this.props.event_id)[0],
+      event: event,
+      selectedOutputTypeIndex: (event.output_type === 'outlet') ? 0 : 1,
       loaded: true
     });
     EventStore.listen(this.onChange);
@@ -136,6 +142,21 @@ export class EventDetailView extends Component {
   }
 
   // open a new view with a 'picker' to choose an input/output outlet
+  showGroupSelector(param) {
+    var title = 'Output Group';
+
+    this.props.navigator.push({
+      title: title,
+      component: GroupPicker,
+      passProps: {
+        paramName: param,
+        selectedValue: this.state.event[param],
+        onValueChange: this.onFormValueChanged
+      }
+    });
+  }
+
+  // open a new view with a 'picker' to choose an input/output outlet
   showSensorSelector() {
     this.props.navigator.push({
       title: 'Trigger',
@@ -177,6 +198,33 @@ export class EventDetailView extends Component {
     });
   }
 
+  onOutputTypeChange(e) {
+    var newValue = OUTPUT_TYPE_VALUES[e.nativeEvent.selectedSegmentIndex];
+    if (newValue === 'outlet' && this.state.event.output_type != 'outlet') {
+      if (OutletStore.getState().outlets.length === 0) {
+        AlertIOS.alert("Cannot choose an outlet, no outlets exist");
+        this.setState({ selectedOutputTypeIndex: OUTPUT_TYPE_VALUES.indexOf('group') });
+        return;
+      }
+      var updatedParams = {
+        output_type: newValue,
+        output_outlet_id: OutletStore.getState().outlets[0]._id
+      };
+      EventActions.updateEvent(this.props.event_id, updatedParams);
+    } else if (newValue === 'group' && this.state.event.output_type != 'group') {
+      if (GroupStore.getState().groups.length === 0) {
+        AlertIOS.alert("Cannot choose a group, no groups exist");
+        this.setState({ selectedOutputTypeIndex: OUTPUT_TYPE_VALUES.indexOf('outlet') });
+        return;
+      }
+      var updatedParams = {
+        output_type: newValue,
+        output_group_id: GroupStore.getState().groups[0]._id
+      };
+      EventActions.updateEvent(this.props.event_id, updatedParams);
+    }
+  }
+
   // Convert the selected value to the display format.
   formatThresholdValue(value) {
     if (this.state.event.input === 'time') {
@@ -214,13 +262,50 @@ export class EventDetailView extends Component {
 
 		var event = this.state.event;
     var inputOutlet = OutletStore.findById(event.input_outlet_id);
-    var outputOutlet = OutletStore.findById(event.output_outlet_id);
 		if (!inputOutlet) {
       return (<Text>Unknown Input Outlet Id: {event.input_outlet_id}</Text>);
     }
-    if (!outputOutlet) {
-      return (<Text>Unknown Output Outlet Id: {event.output_outlet_id}</Text>);
+
+
+    var outputChooserView;
+    if (event.output_type === 'outlet') {
+      var outputOutlet = OutletStore.findById(event.output_outlet_id);
+      if (!outputOutlet) {
+        outputChooserView = (<View><Text>Unknown Output Outlet Id: {event.output_outlet_id}</Text></View>);
+      } else {
+        outputChooserView = (
+          <View style={styles.row}>
+            <Text style={styles.label}>Output Outlet:</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonWhite]}
+              onPress={() => this.showOutletSelector('output_outlet_id')}>
+              <Text style={styles.buttonText}>{outputOutlet.name}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+    } else if (event.output_type === 'group') {
+      var outputGroup = GroupStore.findById(event.output_group_id);
+      if (!outputGroup) {
+        console.log('lol');
+        outputChooserView = (<View><Text>Unknown Output Group Id: {event.output_group_id}</Text></View>);
+      } else {
+        outputChooserView = (
+          <View style={styles.row}>
+            <Text style={styles.label}>Output Group:</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonWhite]}
+              onPress={() => this.showGroupSelector('output_group_id')}>
+              <Text style={styles.buttonText}>{outputGroup.name}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
+    } else {
+      outputChooserView = (<View />);
     }
+
     return (
 			<ScrollView
         contentContainerStyle={styles.container}
@@ -259,14 +344,16 @@ export class EventDetailView extends Component {
             </Text>
           </TouchableOpacity>
         </View>
-				<View style={styles.row}>
-          <Text style={styles.label}>Output Outlet:</Text>
-          <TouchableOpacity
-            style={[styles.button, styles.buttonWhite]}
-            onPress={() => this.showOutletSelector('output_outlet_id')}>
-            <Text style={styles.buttonText}>{outputOutlet.name}</Text>
-          </TouchableOpacity>
-				</View>
+        <View style={styles.row}>
+          <Text style={styles.label}>Output Type:</Text>
+          <SegmentedControlIOS
+            style={styles.segmentedControl}
+            values={OUTPUT_TYPE_VALUES}
+            selectedIndex={this.state.selectedOutputTypeIndex}
+            onChange={this.onOutputTypeChange}>
+          </SegmentedControlIOS>
+        </View>
+				{outputChooserView}
         <View style={styles.row}>
           <Text style={styles.label}>Output Action:</Text>
           <SegmentedControlIOS

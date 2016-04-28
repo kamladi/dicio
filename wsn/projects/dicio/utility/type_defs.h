@@ -101,6 +101,7 @@
 
 //retry period
 #define RETRY_CMD_PERIOD 10
+#define RETRY_LIMIT 2 // only send it twice, if node hasnt seen it.. too bad
 
 /*** ENUMERATIONS ***/
 typedef enum {

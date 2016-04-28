@@ -16,7 +16,8 @@ void print_packet(packet *p)
     printf("[msg_type: %d]", p->type);
     printf("[num_hops: %d]", p->num_hops);
     uint8_t *payload = p->payload;
-    switch(p->type)
+    volatile msg_type type = p->type;
+    switch(type)
     {
 
         case MSG_NO_MESSAGE:
@@ -96,8 +97,8 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
     parsed_packet->seq_num = (src[HEADER_SEQ_NUM_INDEX] << 8) | (src[HEADER_SEQ_NUM_INDEX + 1]);
     parsed_packet->type = src[HEADER_TYPE_INDEX];
     parsed_packet->num_hops = src[HEADER_NUM_HOPS_INDEX];
-
-    switch(parsed_packet->type)
+    volatile msg_type type = parsed_packet->type;
+    switch(type)
     {
         case MSG_NO_MESSAGE: 
         {

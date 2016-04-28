@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 5
+#define MAC_ADDR 9
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -209,7 +209,8 @@ int main() {
 /***** HELPER FUNCTIONS *****/
 uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
   uint8_t toReturn;
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     toReturn = pq->size;
   }
   nrk_sem_post(mux);
@@ -218,7 +219,8 @@ uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
 
 // atomic_push - push onto the queue atomically
 void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     push(pq, p);
   }
   nrk_sem_post(mux);
@@ -226,7 +228,8 @@ void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
 
 // atomic_pop - pop onto the queue atomically
 void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     pop(pq, p);
   }
   nrk_sem_post(mux);
@@ -235,7 +238,8 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
 // atomic_increment_seq_num - increment sequence number atomically and return
 uint16_t inline atomic_increment_seq_num() {
   uint16_t returnVal;
-  nrk_sem_pend(g_seq_num_mux); {
+  nrk_sem_pend(g_seq_num_mux); 
+  {
     g_seq_num++;
     returnVal = g_seq_num;
   }
@@ -246,7 +250,8 @@ uint16_t inline atomic_increment_seq_num() {
 // atomic_outlet_state - atomically return outlet state
 uint8_t inline atomic_outlet_state() {
   uint8_t outlet_state = OFF;
-  nrk_sem_pend(g_global_outlet_state_mux); {
+  nrk_sem_pend(g_global_outlet_state_mux); 
+  {
     outlet_state = g_global_outlet_state;
   }
   nrk_sem_post(g_global_outlet_state_mux);
@@ -255,7 +260,8 @@ uint8_t inline atomic_outlet_state() {
 
 // atomic_update_outlet_state - atomically update outlet state
 void inline atomic_update_outlet_state(uint8_t update) {
-  nrk_sem_pend(g_global_outlet_state_mux); {
+  nrk_sem_pend(g_global_outlet_state_mux); 
+  {
     g_global_outlet_state = update;
   }
   nrk_sem_post(g_global_outlet_state_mux);
@@ -264,7 +270,8 @@ void inline atomic_update_outlet_state(uint8_t update) {
 // atomic_network_joined - atomically return the network status
 uint8_t inline atomic_network_joined() {
   uint8_t returnVal;
-  nrk_sem_pend(g_network_joined_mux); { 
+  nrk_sem_pend(g_network_joined_mux); 
+  { 
     returnVal = g_network_joined;
   }
   nrk_sem_post(g_network_joined_mux); 
@@ -273,7 +280,8 @@ uint8_t inline atomic_network_joined() {
 
 // atomic_update_network_joined
 void inline atomic_update_network_joined(uint8_t update) {
-  nrk_sem_pend(g_network_joined_mux); { 
+  nrk_sem_pend(g_network_joined_mux); 
+  { 
     g_network_joined = update;
   }
   nrk_sem_post(g_network_joined_mux);  
@@ -282,7 +290,8 @@ void inline atomic_update_network_joined(uint8_t update) {
 // atomic_button_pressed - atomically return the button_pressed flag
 uint8_t inline atomic_button_pressed() {
   uint8_t returnVal;
-  nrk_sem_pend(g_button_pressed_mux); {
+  nrk_sem_pend(g_button_pressed_mux); 
+  {
     returnVal = g_button_pressed;
   }
   nrk_sem_post(g_button_pressed_mux);
@@ -291,7 +300,8 @@ uint8_t inline atomic_button_pressed() {
 
 // atomic_update_button_pressed - atomically update button_pressed flag
 void inline atomic_update_button_pressed(uint8_t update) {
-  nrk_sem_pend(g_button_pressed_mux); {
+  nrk_sem_pend(g_button_pressed_mux); 
+  {
     g_button_pressed = update;
   }
   nrk_sem_post(g_button_pressed_mux);  
@@ -300,7 +310,8 @@ void inline atomic_update_button_pressed(uint8_t update) {
 // atomic_decrement_watchdog - atomically decrement watchdog timer
 uint8_t inline atomic_decrement_watchdog() {
   uint8_t returnVal;
-  nrk_sem_pend(g_net_watchdog_mux); {
+  nrk_sem_pend(g_net_watchdog_mux); 
+  {
     g_net_watchdog--;
     returnVal = g_net_watchdog;
   }
@@ -310,7 +321,8 @@ uint8_t inline atomic_decrement_watchdog() {
 
 // atomic_kick_watchdog - atomically kick the watchdog timer
 uint8_t inline atomic_kick_watchdog() {
-  nrk_sem_pend(g_net_watchdog_mux); {
+  nrk_sem_pend(g_net_watchdog_mux); 
+  {
     g_net_watchdog = HEART_FACTOR;
   }
   nrk_sem_post(g_net_watchdog_mux);  
@@ -320,9 +332,10 @@ uint8_t inline atomic_kick_watchdog() {
 // tx_cmds() - send all commands out to the network.
 void tx_cmds() {
   // local variable instantiation
-  packet tx_packet;
-  uint8_t local_tx_cmd_queue_size;
-  int8_t val = 0;
+  volatile packet tx_packet;
+  volatile uint8_t local_tx_cmd_queue_size;
+  volatile int8_t val = 0;
+  volatile uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -337,8 +350,15 @@ void tx_cmds() {
     nrk_led_set(ORANGE_LED);
     // get a packet out of the queue.
     atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-    // NOTE: a mutex is required around the network transmit buffer because
-    //  tx_cmd_task() also uses it.
+
+    // assemble the packet and 
+    tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+    val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+       if(NRK_OK != val){
+         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+       }
+    clear_tx_buf();
+
     nrk_sem_pend(g_net_tx_buf_mux); {
       g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
       if (TRUE == g_verbose) {
@@ -362,11 +382,13 @@ void tx_cmds() {
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void tx_data() {
   // local variable initialization
-  packet tx_packet;
-  uint8_t local_tx_data_queue_size;
-  int8_t val = 0;
-  uint8_t sent_heart = FALSE;
-  uint8_t to_send;
+  volatile packet tx_packet;
+  volatile uint8_t local_tx_data_queue_size;
+  volatile int8_t val = 0;
+  volatile uint8_t sent_heart = FALSE;
+  volatile uint8_t to_send;
+  volatile msg_type tx_type;
+  volatile uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -383,13 +405,25 @@ void tx_data() {
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
     // ONLY send one heartbeat per iteration.
-    if(((MSG_HEARTBEAT == tx_packet.type) || (MSG_RESET == tx_packet.type)) && (TRUE == sent_heart)) {
+    tx_type = tx_packet.type;
+    if(((MSG_HEARTBEAT == tx_type) || (MSG_RESET == tx_type)) && (TRUE == sent_heart)) {
       to_send = FALSE;
     } else {
       to_send = TRUE;
     }
 
     if (TRUE == to_send) {
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
+       // set flag
+         if(MSG_HEARTBEAT == tx_type){
+           sent_heart = TRUE;
+          }
+      clear_tx_buf();
+
       // assemble tx buf and send message
       nrk_sem_pend(g_net_tx_buf_mux); {
         g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
@@ -407,7 +441,7 @@ void tx_data() {
         }
 
         // set sent_heart flag
-        if(MSG_HEARTBEAT == tx_packet.type) {
+        if(MSG_HEARTBEAT == tx_type) {
           sent_heart = TRUE;
         }
 
@@ -432,13 +466,17 @@ void inline clear_tx_buf(){
 // rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
-  packet rx_packet;
-  uint8_t len, node_id;
-  int8_t rssi;
-  int8_t in_seq_pool;
-  uint16_t local_seq_num;
-  uint8_t new_node = NONE;
-  uint8_t local_network_joined = FALSE;
+  volatile packet rx_packet;
+  volatile uint8_t len, node_id;
+  volatile int8_t rssi;
+  volatile int8_t in_seq_pool;
+  volatile uint16_t local_seq_num;
+  volatile uint8_t new_node = NONE;
+  volatile uint8_t local_network_joined = FALSE;
+  volatile uint8_t rx_source_id = 0;
+  volatile uint16_t rx_seq_num = 0;
+  volatile uint8_t rx_payload = 0;
+  volatile msg_type rx_type;
 
   printf("rx_msg PID: %d.\r\n", nrk_get_pid());
 
@@ -469,8 +507,11 @@ void rx_msg_task() {
         print_packet(&rx_packet);
       }
 
+      rx_source_id = rx_packet.source_id;
+      rx_seq_num = rx_packet.seq_num;
+      rx_type = rx_packet.type;
       // only receive the message if it's not from this node
-      if(MAC_ADDR != rx_packet.source_id) {
+      if(MAC_ADDR != rx_source_id) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
@@ -485,15 +526,15 @@ void rx_msg_task() {
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_packet.seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_packet.type)
-            || (MSG_RESET == rx_packet.type)) {
+          if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type)
+            || (MSG_RESET == rx_type)) {
 
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
             new_node = NONE;
 
             // put the message in the right queue based on the type
-            switch(rx_packet.type) {
+            switch(rx_type) {
               // no message
               case MSG_NO_MESSAGE: {
                 // do nothing.
@@ -506,8 +547,8 @@ void rx_msg_task() {
               }
               // data received -> forward to server
               case MSG_DATA: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -522,45 +563,45 @@ void rx_msg_task() {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
-                // else {
-                //   //rx_packet.num_hops++;
-                //   //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
-                // }
+                else {
+                  //rx_packet.num_hops++;
+                  //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                /*if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  //rx_packet.num_hops++;
-                  //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
-                }*/
+                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
+                  rx_packet.num_hops++;
+                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                }
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
@@ -578,7 +619,8 @@ void rx_msg_task() {
           clear_pool(&g_seq_pool);
 
           // if a handshake ack has been received, then set the network joined flag. Otherwise, ignore.
-          if((MSG_HANDACK == rx_packet.type) && (MAC_ADDR == rx_packet.payload[HANDACK_NODE_ID_INDEX])) {
+          rx_payload = rx_packet.payload[HANDACK_NODE_ID_INDEX];
+          if((MSG_HANDACK == rx_type) && (MAC_ADDR == rx_payload)) {
             atomic_update_network_joined(TRUE);
             local_network_joined = atomic_network_joined();
           }
@@ -593,9 +635,9 @@ void rx_msg_task() {
 
 // net_tx_task - send network messages
 void tx_net_task() {
-  uint8_t counter = 0;
-  uint8_t tx_cmd_flag;
-  uint8_t tx_data_flag;
+  volatile uint8_t counter = 0;
+  volatile uint8_t tx_cmd_flag;
+  volatile uint8_t tx_data_flag;
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
@@ -1099,7 +1141,7 @@ void inline nrk_create_taskset () {
   BUTTON_TASK.prio = 7;
   BUTTON_TASK.FirstActivation = TRUE;
   BUTTON_TASK.Type = BASIC_TASK;
-  BUTTON_TASK.SchType = PREEMPTIVE;
+  BUTTON_TASK.SchType = NONPREEMPTIVE;
   BUTTON_TASK.period.secs = 0;
   BUTTON_TASK.period.nano_secs = 100*NANOS_PER_MS;
   BUTTON_TASK.cpu_reserve.secs = 0;
@@ -1112,7 +1154,7 @@ void inline nrk_create_taskset () {
   RX_MSG_TASK.prio = 6; 
   RX_MSG_TASK.FirstActivation = TRUE;
   RX_MSG_TASK.Type = BASIC_TASK;
-  RX_MSG_TASK.SchType = PREEMPTIVE;
+  RX_MSG_TASK.SchType = NONPREEMPTIVE;
   RX_MSG_TASK.period.secs = 0;
   RX_MSG_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_MSG_TASK.cpu_reserve.secs = 0;
@@ -1125,7 +1167,7 @@ void inline nrk_create_taskset () {
   ACTUATE_TASK.prio = 5;
   ACTUATE_TASK.FirstActivation = TRUE;
   ACTUATE_TASK.Type = BASIC_TASK;
-  ACTUATE_TASK.SchType = PREEMPTIVE;
+  ACTUATE_TASK.SchType = NONPREEMPTIVE;
   ACTUATE_TASK.period.secs = 0;
   ACTUATE_TASK.period.nano_secs = 500*NANOS_PER_MS;
   ACTUATE_TASK.cpu_reserve.secs = 0;
@@ -1138,7 +1180,7 @@ void inline nrk_create_taskset () {
   TX_NET_TASK.prio = 4;
   TX_NET_TASK.FirstActivation = TRUE;
   TX_NET_TASK.Type = BASIC_TASK;
-  TX_NET_TASK.SchType = PREEMPTIVE;
+  TX_NET_TASK.SchType = NONPREEMPTIVE;
   TX_NET_TASK.period.secs = 0;
   TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
   TX_NET_TASK.cpu_reserve.secs = 0;
@@ -1151,7 +1193,7 @@ void inline nrk_create_taskset () {
   SAMPLE_TASK.prio = 3;
   SAMPLE_TASK.FirstActivation = TRUE;
   SAMPLE_TASK.Type = BASIC_TASK;
-  SAMPLE_TASK.SchType = PREEMPTIVE;
+  SAMPLE_TASK.SchType = NONPREEMPTIVE;
   SAMPLE_TASK.period.secs = 5;
   SAMPLE_TASK.period.nano_secs = 0;
   SAMPLE_TASK.cpu_reserve.secs = 0;
@@ -1164,7 +1206,7 @@ void inline nrk_create_taskset () {
   HEARTBEAT_TASK.prio = 2;
   HEARTBEAT_TASK.FirstActivation = TRUE;
   HEARTBEAT_TASK.Type = BASIC_TASK;
-  HEARTBEAT_TASK.SchType = PREEMPTIVE;
+  HEARTBEAT_TASK.SchType = NONPREEMPTIVE;
   HEARTBEAT_TASK.period.secs = 5;
   HEARTBEAT_TASK.period.nano_secs = 0;
   HEARTBEAT_TASK.cpu_reserve.secs = 0;
