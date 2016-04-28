@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 9
+#define MAC_ADDR 7
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -329,13 +329,20 @@ uint8_t inline atomic_kick_watchdog() {
   return HEART_FACTOR;  
 }
 
+void inline clear_tx_buf(){
+  for(uint8_t i = 0; i < g_net_tx_index; i++) {
+    g_net_tx_buf[i] = 0;
+  }
+  g_net_tx_index = 0;
+}
+
 // tx_cmds() - send all commands out to the network.
 void tx_cmds() {
   // local variable instantiation
-  volatile packet tx_packet;
   volatile uint8_t local_tx_cmd_queue_size;
-  volatile int8_t val = 0;
   volatile uint8_t tx_length = 0;
+  volatile int8_t val = 0;
+  volatile packet tx_packet;
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -351,29 +358,14 @@ void tx_cmds() {
     // get a packet out of the queue.
     atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
 
-    // assemble the packet and 
+    // assemble the packet and senx
     tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
     val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-       if(NRK_OK != val){
-         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-       }
+    if(NRK_OK != val){
+      nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+    }
     clear_tx_buf();
 
-    nrk_sem_pend(g_net_tx_buf_mux); {
-      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-      if (TRUE == g_verbose) {
-        nrk_kprintf(PSTR("TX: "));
-        print_packet(&tx_packet);
-      }
-      // send the packet
-      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-      if(NRK_OK != val) {
-        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-      }
-
-      clear_tx_buf();
-    }
-    nrk_sem_post(g_net_tx_buf_mux);
     nrk_led_clr(ORANGE_LED);
   }
   return;
@@ -382,13 +374,13 @@ void tx_cmds() {
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void tx_data() {
   // local variable initialization
-  volatile packet tx_packet;
-  volatile uint8_t local_tx_data_queue_size;
   volatile int8_t val = 0;
   volatile uint8_t sent_heart = FALSE;
   volatile uint8_t to_send;
-  volatile msg_type tx_type;
   volatile uint8_t tx_length = 0;
+  volatile uint8_t local_tx_data_queue_size;
+  volatile packet tx_packet;
+  volatile msg_type tx_type;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -404,8 +396,10 @@ void tx_data() {
     // get a packet out of the queue.
     atomic_pop(&g_data_tx_queue, &tx_packet, g_data_tx_queue_mux);
 
-    // ONLY send one heartbeat per iteration.
+    // get packet parameters
     tx_type = tx_packet.type;
+
+    // only hop one heartbeat per iteration.
     if(((MSG_HEARTBEAT == tx_type) || (MSG_RESET == tx_type)) && (TRUE == sent_heart)) {
       to_send = FALSE;
     } else {
@@ -413,42 +407,17 @@ void tx_data() {
     }
 
     if (TRUE == to_send) {
+      // assembe and send packet
       tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
       val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-         if(NRK_OK != val){
-           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-         }
-       // set flag
-         if(MSG_HEARTBEAT == tx_type){
-           sent_heart = TRUE;
-          }
-      clear_tx_buf();
-
-      // assemble tx buf and send message
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-
-        // print out packet
-        if (TRUE == g_verbose) {
-          nrk_kprintf(PSTR("TX: "));
-          print_packet(&tx_packet);
-        }
-
-        // send the packet
-        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(NRK_OK != val) {
-          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-        }
-
-        // set sent_heart flag
-        if(MSG_HEARTBEAT == tx_type) {
-          sent_heart = TRUE;
-        }
-
-        // clear the buffer
-        clear_tx_buf();
+      if(NRK_OK != val){
+        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
       }
-      nrk_sem_post(g_net_tx_buf_mux);
+      // set flag
+      if(MSG_HEARTBEAT == tx_type){
+        sent_heart = TRUE;
+      }
+      clear_tx_buf();
     }
     nrk_led_clr(ORANGE_LED);
   }
@@ -456,49 +425,41 @@ void tx_data() {
   return;
 }
 
-void inline clear_tx_buf(){
-  for(uint8_t i = 0; i < g_net_tx_index; i++) {
-    g_net_tx_buf[i] = 0;
-  }
-  g_net_tx_index = 0;
-}
-
 // rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
-  volatile packet rx_packet;
-  volatile uint8_t len, node_id;
   volatile int8_t rssi;
   volatile int8_t in_seq_pool;
-  volatile uint16_t local_seq_num;
   volatile uint8_t new_node = NONE;
   volatile uint8_t local_network_joined = FALSE;
   volatile uint8_t rx_source_id = 0;
-  volatile uint16_t rx_seq_num = 0;
+  volatile uint8_t len, node_id;
   volatile uint8_t rx_payload = 0;
+  volatile uint16_t rx_seq_num = 0;
+  volatile uint16_t rx_num_hops = 0;
+  volatile uint16_t local_seq_num;
+  volatile packet rx_packet;
   volatile msg_type rx_type;
-
+  // print task PID
   printf("rx_msg PID: %d.\r\n", nrk_get_pid());
 
   // initialize network receive buffer
   bmac_rx_pkt_set_buffer(g_net_rx_buf, RF_MAX_PAYLOAD_SIZE);
 
-  // Wait until bmac has started. This should be called by all tasks using bmac that do not call bmac_init()
+  // Wait until bmac has started.
   while (!bmac_started ()) {
     nrk_wait_until_next_period ();
   }
 
-  // loop forever
+  // loop forever - run the task
   while(1) {
     // only execute if there is a packet available
     if(bmac_rx_pkt_ready()) {
       nrk_led_set(BLUE_LED);
 
-      // get the packet, parse and release !!!!!!!!!!!!!!!!!!
+      // get the packet, parse and release
       bmac_rx_pkt_get(&len, &rssi);
-
       parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
-
       bmac_rx_pkt_release();
 
       // print incoming packet if appropriate
@@ -507,9 +468,12 @@ void rx_msg_task() {
         print_packet(&rx_packet);
       }
 
+      // get message parameters
       rx_source_id = rx_packet.source_id;
       rx_seq_num = rx_packet.seq_num;
       rx_type = rx_packet.type;
+      rx_num_hops = rx_packet.num_hops;
+ 
       // only receive the message if it's not from this node
       if(MAC_ADDR != rx_source_id) {
         // determine if the network has been joined
@@ -518,44 +482,33 @@ void rx_msg_task() {
         // execute the normal sequence of events if the network has been joined
         if(TRUE == local_network_joined) {
           // check to see if this node is in the sequence pool, if not then add it
-          in_seq_pool = in_pool(&g_seq_pool, rx_packet.source_id);
+          in_seq_pool = in_pool(&g_seq_pool, rx_source_id);
           if(NOT_IN_POOL == in_seq_pool) {
-            add_to_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
+            add_to_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NODE_FOUND;
           }
 
           // determine if we should act on this packet based on the sequence number
-          local_seq_num = get_data_val(&g_seq_pool, rx_packet.source_id);
-          if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type)
-            || (MSG_RESET == rx_type)) {
+          local_seq_num = get_data_val(&g_seq_pool, rx_source_id);
+          if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type) || (MSG_RESET == rx_type)) {
 
             // update the sequence pool and reset the new_node flag
-            update_pool(&g_seq_pool, rx_packet.source_id, rx_packet.seq_num);
+            update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NONE;
 
             // put the message in the right queue based on the type
             switch(rx_type) {
-              // no message
-              case MSG_NO_MESSAGE: {
-                // do nothing.
-                break;
-              }
-              // gateway message -> for future expansion
-              case MSG_GATEWAY: {
-                // do nothing...no messages have been defined with this type yet
-                break;
-              }
+
               // data received -> forward to server
               case MSG_DATA: {
-                rx_packet.num_hops++;
+                rx_packet.num_hops = rx_num_hops+1;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
               case MSG_CMD: {
-                // if command is for this node and hasn't been received yet, add it
-                //  to the action queue. Otherwise, add it to the cmd_tx queue for
-                //  forwarding to other nodes.
+                // if command is for this node and add it to the action queue. 
+                // Otherwise, add it to the cmd_tx queue for forwarding to other nodes.
                 node_id = rx_packet.payload[CMD_NODE_ID_INDEX];
                 if(MAC_ADDR == node_id) {
                   atomic_push(&g_act_queue, &rx_packet, g_act_queue_mux);
@@ -564,28 +517,27 @@ void rx_msg_task() {
                   }
                 }
                 else {
-                  //rx_packet.num_hops++;
-                  //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                  rx_packet.num_hops = rx_num_hops+1;
+                  atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                rx_packet.num_hops++;
+                rx_packet.num_hops = rx_num_hops+1;
                 atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
-              // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                rx_packet.num_hops++;
+                rx_packet.num_hops = rx_num_hops+1;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
                 if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  rx_packet.num_hops++;
+                  rx_packet.num_hops = rx_num_hops+1;
                   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
                 }
                 break;
@@ -593,23 +545,22 @@ void rx_msg_task() {
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                rx_packet.num_hops++;
+                rx_packet.num_hops = rx_num_hops+1;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                rx_packet.num_hops++;
+                rx_packet.num_hops = rx_num_hops+1;
                 atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
-              default: {
-                // do nothing
-                // NOTICE: really this should never happen. Eventually, throw and error here.
+              case MSG_NO_MESSAGE:
+              case MSG_GATEWAY:
+              default:
                 break;
-              }
             }
           }
         }
@@ -630,7 +581,7 @@ void rx_msg_task() {
     }
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("RX_MSG_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: rx_msg_task\r\n"));
 }
 
 // net_tx_task - send network messages
@@ -638,7 +589,7 @@ void tx_net_task() {
   volatile uint8_t counter = 0;
   volatile uint8_t tx_cmd_flag;
   volatile uint8_t tx_data_flag;
-
+  // print task pid
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
   // Wait until bmac has started. This should be called by all tasks
@@ -649,8 +600,7 @@ void tx_net_task() {
 
   // loop forever
   while(1) {
-    // nrk_kprintf(PSTR("IN\r\n"));
-    // incrment counter and set flags
+    // increment counter and set flags
     counter++;
     tx_data_flag = counter % NODE_TX_DATA_FLAG;
 
@@ -666,26 +616,27 @@ void tx_net_task() {
     // nrk_kprintf(PSTR("OUT\r\n"));
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("TX_NET_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: tx_net_task\r\n"));
 }
 
 // sample_task - sample sensors
 void sample_task() {
   // local variable instantiation
-  uint8_t pwr_period_count = 0;
-  uint8_t temp_period_count = 0;
-  uint8_t light_period_count = 0;
-  uint8_t sensor_sampled = FALSE;
-  uint16_t local_pwr_val = 0;
-  uint16_t local_temp_val = 0;
-  uint16_t local_light_val = 0;
-  packet tx_packet, hello_packet;
-  uint8_t local_network_joined = FALSE;
-  int8_t val;
-  uint16_t adc_buf[2];
-  uint8_t pwr_rcvd[3];
-  uint8_t hw_rev;
-
+  volatile int8_t val;
+  volatile uint8_t hw_rev;
+  volatile uint8_t local_network_joined = FALSE;
+  volatile uint8_t pwr_period_count = 0;
+  volatile uint8_t temp_period_count = 0;
+  volatile uint8_t light_period_count = 0;
+  volatile uint8_t pwr_rcvd[3];
+  volatile uint8_t sensor_sampled = FALSE;
+  volatile uint16_t local_pwr_val = 0;
+  volatile uint16_t local_temp_val = 0;
+  volatile uint16_t local_light_val = 0;
+  volatile uint16_t adc_buf[2];
+  volatile packet tx_packet;
+  volatile packet hello_packet;
+  // print task pid
   printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
   // initialize sensor packet
@@ -716,11 +667,10 @@ void sample_task() {
     nrk_kprintf(PSTR("Failed to open ADC driver\r\n"));
   }   
 
-  // loop forever
+  // loop forever - run th task
   while (1) {
     // check if the network has been joined
     local_network_joined = atomic_network_joined();
-
 
     // if the network has been joined then start sampling sensors
     if(TRUE == local_network_joined) {
@@ -735,12 +685,13 @@ void sample_task() {
 
       // sample power sensor if appropriate
       if((SAMPLE_SENSOR == pwr_period_count) && (HW_REV0 == hw_rev)) {
-        // requrest temperature
+        // read power
         pwr_read(WATT, (uint8_t *)&pwr_rcvd);
 
         // pull out dinner location
         local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
-        g_sensor_pkt.pwr_val = transform_pwr(local_pwr_val);
+        local_pwr_val = transform_pwr(local_pwr_val);
+        g_sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
       }
 
@@ -760,7 +711,8 @@ void sample_task() {
             nrk_kprintf(PSTR("Failed to read ADC\r\n"));
           } else {
             local_temp_val = (uint16_t)adc_buf[0];
-            g_sensor_pkt.temp_val = transform_temp(local_temp_val);
+            local_temp_val = transform_temp(local_temp_val);
+            g_sensor_pkt.temp_val = local_temp_val;
             sensor_sampled = TRUE;
           }
         }          
@@ -819,17 +771,17 @@ void sample_task() {
     }
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("SAMPLE_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: sample_task\r\n"));
 }
 
 // button_task - check the state of the physical button
 void button_task() {
-  button_pressed_state curr_state = STATE_SNIFF;
-  uint8_t local_button_pressed = FALSE;
-
+  volatile uint8_t local_button_pressed = FALSE;
+  volatile button_pressed_state curr_state = STATE_SNIFF;
+  // print task pid
   printf("button_task PID: %d.\r\n", nrk_get_pid());
 
-  // loop forever
+  // loop forever - run task
   while(1) {
     switch(curr_state) {
       // STATE_SNIFF:
@@ -870,18 +822,20 @@ void button_task() {
     }
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("BUTTON_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: button_task\r\n"));
 }
 
 // actuate_task() - actuate any commands that have been received for this node.
 void actuate_task() {
   // local variable instantiation
-  uint8_t act_queue_size;
-  packet act_packet, tx_packet;
-  int8_t action;
-  uint8_t local_network_joined = FALSE;
-  uint8_t local_button_pressed = FALSE;
+  volatile int8_t action;
+  volatile uint8_t act_queue_size;
+  volatile uint8_t local_network_joined = FALSE;
+  volatile uint8_t local_button_pressed = FALSE;
+  volatile packet act_packet;
+  volatile packet tx_packet;
 
+  // print task pid
   printf("actuate_task PID: %d.\r\n", nrk_get_pid());
 
   // CURRENT STATE
@@ -1059,7 +1013,7 @@ void actuate_task() {
     }
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("ACTUATE_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: actuate_task\r\n"));
 }
 
 /**
@@ -1067,12 +1021,12 @@ void actuate_task() {
  *  updated heartbeat counter, check to see if the timer has been expired.
  */
 void heartbeat_task() {
-  int8_t local_watchdog;
-  uint8_t local_network_joined = FALSE;
-
+  volatile int8_t local_watchdog;
+  volatile uint8_t local_network_joined = FALSE;
+  // print task pid
   printf("heartbeat_task PID: %d.\r\n", nrk_get_pid());
 
-  // loop forever
+  // loop forever - run the task
   while(1) {
     // determine if the network has been joined
     local_network_joined = atomic_network_joined();
@@ -1101,7 +1055,7 @@ void heartbeat_task() {
     }
     nrk_wait_until_next_period();
   }
-  nrk_kprintf(PSTR("HEARTBEAT_TASK FALLOUT\r\n"));
+  nrk_kprintf(PSTR("Fallthrough: heartbeat_task\r\n"));
 }
 
 /**** CONFIGURATION ****/
