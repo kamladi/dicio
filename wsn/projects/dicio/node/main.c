@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 7
+#define MAC_ADDR 9
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -323,6 +323,7 @@ void tx_cmds() {
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
   int8_t val = 0;
+  uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -339,21 +340,28 @@ void tx_cmds() {
     atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
     // NOTE: a mutex is required around the network transmit buffer because
     //  tx_cmd_task() also uses it.
-    nrk_sem_pend(g_net_tx_buf_mux); {
-      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-      if (TRUE == g_verbose) {
-        nrk_kprintf(PSTR("TX: "));
-        print_packet(&tx_packet);
-      }
-      // send the packet
-      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-      if(NRK_OK != val) {
-        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-      }
-
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
       clear_tx_buf();
-    }
-    nrk_sem_post(g_net_tx_buf_mux);
+    //**/**
+    // nrk_sem_pend(g_net_tx_buf_mux); {
+    //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+    //   if (TRUE == g_verbose) {
+    //     nrk_kprintf(PSTR("TX: "));
+    //     print_packet(&tx_packet);
+    //   }
+    //   // send the packet
+    //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+    //   if(NRK_OK != val) {
+    //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+    //   }
+
+    //   clear_tx_buf();
+    // }
+    // nrk_sem_post(g_net_tx_buf_mux);
     nrk_led_clr(ORANGE_LED);
   }
   return;
@@ -368,6 +376,7 @@ void tx_data() {
   uint8_t sent_heart = FALSE;
   uint8_t to_send;
   volatile msg_type tx_type;
+  uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -392,31 +401,42 @@ void tx_data() {
     }
 
     if (TRUE == to_send) {
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
+       // set flag
+         if(MSG_HEARTBEAT == tx_type){
+           sent_heart = TRUE;
+          }
+      clear_tx_buf();
+      //**/**
       // assemble tx buf and send message
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      // nrk_sem_pend(g_net_tx_buf_mux); {
+      //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
-        // print out packet
-        if (TRUE == g_verbose) {
-          nrk_kprintf(PSTR("TX: "));
-          print_packet(&tx_packet);
-        }
+      //   // print out packet
+      //   if (TRUE == g_verbose) {
+      //     nrk_kprintf(PSTR("TX: "));
+      //     print_packet(&tx_packet);
+      //   }
 
-        // send the packet
-        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(NRK_OK != val) {
-          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-        }
+      //   // send the packet
+      //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      //   if(NRK_OK != val) {
+      //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      //   }
 
-        // set sent_heart flag
-        if(MSG_HEARTBEAT == tx_type) {
-          sent_heart = TRUE;
-        }
+      //   // set sent_heart flag
+      //   if(MSG_HEARTBEAT == tx_type) {
+      //     sent_heart = TRUE;
+      //   }
 
-        // clear the buffer
-        clear_tx_buf();
-      }
-      nrk_sem_post(g_net_tx_buf_mux);
+      //   // clear the buffer
+      //   clear_tx_buf();
+      // }
+      // nrk_sem_post(g_net_tx_buf_mux);
     }
     nrk_led_clr(ORANGE_LED);
   }
@@ -515,8 +535,8 @@ void rx_msg_task() {
               }
               // data received -> forward to server
               case MSG_DATA: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -531,45 +551,45 @@ void rx_msg_task() {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
-                // else {
-                //   //rx_packet.num_hops++;
-                //   //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
-                // }
+                else {
+                  //rx_packet.num_hops++;
+                  //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                }
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               // NOTE: will only receive type MSG_HAND to forward
               case MSG_HAND: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                /*if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  //rx_packet.num_hops++;
-                  //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
-                }*/
+                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
+                  rx_packet.num_hops++;
+                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                }
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                //rx_packet.num_hops++;
-                //atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                rx_packet.num_hops++;
+                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }

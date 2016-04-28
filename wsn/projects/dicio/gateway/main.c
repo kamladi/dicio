@@ -500,13 +500,9 @@ void tx_cmds() {
   packet tx_packet;
   uint8_t local_tx_cmd_queue_size;
   uint8_t local_cmd_ack_received = FALSE;
+  uint8_t local_tx_buf[RF_MAX_PAYLOAD_SIZE];
+  uint8_t tx_length = 0;
 
-  // Wait until bmac has started. This should be called by all tasks
-  //  using bmac that do not call bmac_init().
-  while(!bmac_started()) {
-    nrk_wait_until_next_period();
-  }
-  
   local_cmd_ack_received = atomic_received_ack();
 
   // If we have received an ack
@@ -525,16 +521,25 @@ void tx_cmds() {
       tx_packet.seq_num = atomic_increment_seq_num();
       copy_packet(&g_last_cmd, &tx_packet);
 
-      // transmit the command
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
+      clear_tx_buf();
 
-        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(NRK_OK != val){
-          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-        }
-      }
-      nrk_sem_post(g_net_tx_buf_mux);
+
+      // transmit the command
+      // **/**
+      // nrk_sem_pend(g_net_tx_buf_mux); {
+      //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+
+      //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      //   if(NRK_OK != val){
+      //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      //   }
+      // }
+      // nrk_sem_post(g_net_tx_buf_mux);
 
       // sent a command, need an ack
       atomic_update_received_ack(FALSE);
@@ -565,15 +570,22 @@ void tx_cmds() {
 
         // reset counter and sent
         g_retry_cmd_counter = 0;
-        nrk_sem_pend(g_net_tx_buf_mux); {
-          g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
+        tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
+        val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
+        clear_tx_buf();
+        //**/**
+        // nrk_sem_pend(g_net_tx_buf_mux); {
+        //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
 
-          val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-          if(NRK_OK != val){
-            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-          }
-        }
-        nrk_sem_post(g_net_tx_buf_mux);
+        //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+        //   if(NRK_OK != val){
+        //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+        //   }
+        // }
+        // nrk_sem_post(g_net_tx_buf_mux);
       }
     }
   }
@@ -610,14 +622,9 @@ void tx_node() {
   packet tx_packet;
   uint8_t local_tx_node_queue_size;
   uint8_t sent_handack = FALSE;
-  uint8_t to_send;
+  uint8_t to_send = 0;
   volatile msg_type tx_type;
-
-  // Wait until bmac has started. This should be called by all tasks
-  //  using bmac that do not call bmac_init().
-  while(!bmac_started ()) {
-    nrk_wait_until_next_period ();
-  }
+  uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_node_queue_size = atomic_size(&g_node_tx_queue, g_node_tx_queue_mux);
@@ -637,28 +644,41 @@ void tx_node() {
 
     if(TRUE == to_send){
       // transmit to nodes
-      nrk_sem_pend(g_net_tx_buf_mux); {
-        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+         if(NRK_OK != val){
+           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+         }
+       // set flag
+         if(MSG_HANDACK == tx_type){
+           sent_handack = TRUE;
+          }
+      clear_tx_buf();
 
-        if(TRUE == g_verbose) {
-          nrk_kprintf (PSTR ("TX Node: "));
-          print_packet(&tx_packet);
-        }
+
+      // **/**
+      // nrk_sem_pend(g_net_tx_buf_mux); {
+      //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+
+      //   if(TRUE == g_verbose) {
+      //     nrk_kprintf (PSTR ("TX Node: "));
+      //     print_packet(&tx_packet);
+      //   }
         
-        // send the packet
-        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-        if(NRK_OK != val){
-          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-        }
+      //   // send the packet
+      //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      //   if(NRK_OK != val){
+      //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      //   }
 
-        // set flag
-        if(MSG_HANDACK == tx_type){
-          sent_handack = TRUE;
-        }
+      //   // set flag
+      //   if(MSG_HANDACK == tx_type){
+      //     sent_handack = TRUE;
+      //   }
 
-        clear_tx_buf();
-      }
-      nrk_sem_post(g_net_tx_buf_mux);
+      //   clear_tx_buf();
+      // }
+      //nrk_sem_post(g_net_tx_buf_mux);
     }
     nrk_led_clr(RED_LED);
   }
@@ -671,24 +691,35 @@ void tx_net_task() {
   uint8_t tx_data_flag;
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
+  nrk_time_t sw_watchdog_period;
+  int8_t v;
+  sw_watchdog_period.secs=10;
+  sw_watchdog_period.nano_secs=0;
+  // Setup software watchdog timer 0 to expire every 15 seconds and reboot
+  v=nrk_sw_wdt_init(0, &sw_watchdog_period, NULL);
 
+    // Wait until bmac has started. This should be called by all tasks
+  //  using bmac that do not call bmac_init().
+  while(!bmac_started ()) {
+    nrk_wait_until_next_period ();
+  }
   // loop forever
   while(1) {
+    nrk_sw_wdt_update(0);
     // incrment counter and set flags
     counter++;
-    tx_cmd_flag = counter % TX_CMD_FLAG;
+    //tx_cmd_flag = counter % TX_CMD_FLAG;
     tx_data_flag = counter % GATE_TX_DATA_FLAG;
 
     // if commands should be transmitted, then call the tx_cmds() helper
-    if (TRANSMIT == tx_cmd_flag) {
-      tx_cmds();
-    }
-
-    // if data shoudl be transmitted, then call the tx_data() helper
     if (TRANSMIT == tx_data_flag) {
       tx_node();
       counter = 0;
     }
+    else{
+      tx_cmds();
+    }
+
     nrk_wait_until_next_period();
   }
   nrk_kprintf (PSTR ("out tx_net \r\n"));

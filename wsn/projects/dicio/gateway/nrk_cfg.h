@@ -51,13 +51,13 @@
 #define NRK_MAX_TASKS       		    9
 #define	NRK_N_RES			            1	
                            
-#define NRK_TASK_IDLE_STK_SIZE         256   // Idle task stack size min=32 
+#define NRK_TASK_IDLE_STK_SIZE         128   // Idle task stack size min=32 
 //#define NRK_APP_STACKSIZE              512 
 #define NRK_APP_STACKSIZE				256 //512
 #define NRK_KERNEL_STACKSIZE           256 
 
 // number of semaphores in the system!
-#define NRK_MAX_RESOURCE_CNT           8
+#define NRK_MAX_RESOURCE_CNT           10
 
 // Define ALL signals below
 #define NRK_UART_RX_EVENT   (NRK_MAX_RESOURCE_CNT+3)
@@ -69,8 +69,8 @@
 #define NRK_MAX_SW_WDT 1
 
 // watchdog enable
-//#define NRK_WATCHDOG
-//#define NRK_REBOOT_ON_ERROR
+ #define NRK_WATCHDOG
+// #define NRK_REBOOT_ON_ERROR
 
 
 #endif
