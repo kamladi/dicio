@@ -214,6 +214,12 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             length = 5;
             break;
         }
+
+        case MSG_RESET:
+        {
+            length = 5;
+            break;
+        }
         default:
             break;
     }

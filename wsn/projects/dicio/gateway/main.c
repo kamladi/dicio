@@ -517,7 +517,7 @@ void tx_cmd_task() {
            if(NRK_OK != val){
              nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
            }
-        clear_tx_buf();
+        //clear_tx_buf();
 
         // update flags/counters
         atomic_update_received_ack(FALSE);
@@ -561,7 +561,7 @@ void tx_cmd_task() {
           if(NRK_OK != val){
             nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
           }
-          clear_tx_buf();
+          //clear_tx_buf();
         }
       }
     }
@@ -604,6 +604,9 @@ void tx_node_task() {
   volatile packet tx_packet;
   volatile msg_type tx_type;
 
+  nrk_sig_t tx_done_signal;
+  tx_done_signal=bmac_get_tx_done_signal();
+
   printf("tx_node_task PID: %d.\r\n", nrk_get_pid());
   // do not execute until BMAC has started
   while(!bmac_started()) {
@@ -637,12 +640,17 @@ void tx_node_task() {
           nrk_kprintf( PSTR( "tx fail!\r\n" ));
         }
         // set sent_handack flag
+        /*val = bmac_tx_pkt_nonblocking(g_net_tx_buf, tx_length);
+        ret = nrk_event_wait (SIG(tx_done_signal));
+        // Just check to be sure signal is okay
+       if(ret & SIG(tx_done_signal) == 0 ) 
+         nrk_kprintf (PSTR ("TX done signal error\r\n"));*/
         if(MSG_HANDACK == tx_type){
           sent_handack = TRUE;
         }
 
         // clear the buffer
-        clear_tx_buf();
+        //clear_tx_buf();
       }
       nrk_led_clr(RED_LED);
     }
