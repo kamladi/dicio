@@ -270,7 +270,7 @@ export class OutletDetailView extends Component {
 				<View style={styles.row}>
 				  <Text style={styles.label}>Light:</Text>
 	        <Text style={styles.sensorValue}>
-	        	{(outlet.cur_light < LIGHT_VALUE_THRESHOLD) ? 'Dark' : 'Light'}
+	        	{(outlet.cur_light < LIGHT_VALUE_THRESHOLD) ? 'Dark' : 'Bright'}
 	        </Text>
 	      </View>
 			);

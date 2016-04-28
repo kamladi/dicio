@@ -49,6 +49,7 @@ app.delete('/events/:id', eventsCtrl.deleteEvent);
 app.get('/groups/', groupsCtrl.getGroups);
 app.post('/groups/', groupsCtrl.createGroup);
 app.get('/groups/clear', groupsCtrl.clearGroups);
+app.get('/groups/:id/:action(on|off)', groupsCtrl.sendGroupAction);
 app.get('/groups/:id', groupsCtrl.getGroupDetails);
 app.post('/groups/:id', groupsCtrl.updateGroup);
 app.delete('/groups/:id', groupsCtrl.deleteGroup);
