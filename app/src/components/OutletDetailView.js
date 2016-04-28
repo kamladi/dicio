@@ -18,9 +18,11 @@ import { LineChart } from 'react-native-ios-charts';
 import moment from 'moment';
 
 import {EditableTextField} from './EditableTextField';
-import {API_OUTLETS_URL} from '../lib/Constants';
+import {API_OUTLETS_URL,API_GRAPHS_URL, hasPowerSensor, hasLightSensor} from '../lib/Constants';
 import OutletStore from '../stores/OutletStore';
 import OutletActions from '../actions/OutletActions';
+
+const LIGHT_VALUE_THRESHOLD = 500;
 
 class OutletChart extends Component {
   constructor(props) {
@@ -40,7 +42,7 @@ class OutletChart extends Component {
 
   fetchData(granularity) {
     var granularity = granularity || 'second';
-    var url = 'http://localhost:3000/graphs/' + this.props.outlet_id + '?granularity=' + granularity;
+    var url = API_GRAPHS_URL + '/' + this.props.outlet_id + '?granularity=' + granularity;
     fetch(url)
       .then((response) => response.json())
       .then( graphData => {
@@ -261,6 +263,33 @@ export class OutletDetailView extends Component {
 		}
 
 		var outlet = this.state.outlet;
+
+		var lightView;
+		if (hasLightSensor(outlet)) {
+			lightView = (
+				<View style={styles.row}>
+				  <Text style={styles.label}>Light:</Text>
+	        <Text style={styles.sensorValue}>
+	        	{(outlet.cur_light < LIGHT_VALUE_THRESHOLD) ? 'Dark' : 'Light'}
+	        </Text>
+	      </View>
+			);
+		} else {
+			lightView = (<View/>);
+		}
+
+		var powerView;
+		if (hasPowerSensor(outlet)) {
+			powerView = (
+				<View style={styles.row}>
+				  <Text style={styles.label}>Power:</Text>
+	        <Text style={styles.sensorValue}>{outlet.cur_power}</Text>
+	      </View>
+	    );
+		} else {
+			powerView = (<View/>);
+		}
+
 		return (
 			<ScrollView
         contentContainerStyle={styles.container}
@@ -273,14 +302,8 @@ export class OutletDetailView extends Component {
           <Text style={styles.label}>Temp:</Text>
           <Text style={styles.sensorValue}>{outlet.cur_temperature}&deg;C</Text>
         </View>
-        <View style={styles.row}>
-				  <Text style={styles.label}>Light:</Text>
-          <Text style={styles.sensorValue}>{outlet.cur_light}</Text>
-        </View>
-        <View style={styles.row}>
-				  <Text style={styles.label}>Power:</Text>
-          <Text style={styles.sensorValue}>{outlet.cur_power}</Text>
-        </View>
+        {lightView}
+        {powerView}
         <View style={styles.row}>
 				  <Text style={styles.label}>Status:</Text>
           <Text style={styles.sensorValue}>{outlet.status}</Text>
