@@ -12,7 +12,11 @@
 // assemble_serv_packet - assemble packet to the server
 void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
 {
-    switch(tx->type)
+    volatile msg_type tx_type = tx->type;
+    volatile uint8_t tx_source_id = tx->source_id;
+    volatile uint16_t tx_seq_num = (uint16_t)tx->seq_num;
+    volatile uint8_t tx_num_hops = tx->num_hops;
+    switch(tx_type)
     {
         // this should never happen...TODO: throw an error
         case MSG_NO_MESSAGE:
@@ -22,8 +26,9 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // lost node message - indicate the loss of a particular node in the system
         case MSG_LOST:
         {
-            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
-                tx->payload[LOST_NODE_INDEX]);
+            volatile uint8_t tx_lost_id = tx->payload[LOST_NODE_INDEX];
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,", tx_source_id, tx_seq_num, tx_type, tx_num_hops,
+                tx_lost_id);
             break;
         }
         // mesage from gateway -> undefined
@@ -37,9 +42,10 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
             uint16_t data_pwr = ((tx->payload[DATA_PWR_INDEX] << 8) | (tx->payload[DATA_PWR_INDEX + 1]));
             uint16_t data_temp = ((tx->payload[DATA_TEMP_INDEX] << 8) | (tx->payload[DATA_TEMP_INDEX + 1]));
             uint16_t data_light = ((tx->payload[DATA_LIGHT_INDEX] << 8) | (tx->payload[DATA_LIGHT_INDEX + 1]));
+            uint8_t tx_data_state = tx->payload[DATA_STATE_INDEX];
 
-            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops, 
-                data_pwr, data_temp, data_light, tx->payload[DATA_STATE_INDEX]);
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d,%d,%d", tx_source_id, (uint16_t)tx_seq_num, tx_type,
+             tx_num_hops, data_pwr, data_temp, data_light, tx_data_state);
             break;
         }
         // command message ... this will never happen. (Commands come from the server!)
@@ -50,8 +56,10 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // command acknowledgement
         case MSG_CMDACK:
         {
-            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d", tx->source_id, tx->seq_num, tx->type, tx->num_hops,
-                (uint16_t)tx->payload[CMDACK_CMDID_INDEX], tx->payload[CMDACK_STATE_INDEX]);
+            uint16_t tx_cmdAck_cmdID = (uint16_t)tx->payload[CMDACK_CMDID_INDEX];
+            uint8_t tx_cmdAck_state = tx->payload[CMDACK_STATE_INDEX];
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%d", tx_source_id, tx_seq_num, tx_type, tx_num_hops,
+                tx_cmdAck_cmdID, tx_cmdAck_state);
             break;
         }
         // handshake request ... this will never happend (Server only receives HANDACKs)
@@ -62,17 +70,18 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
         // hanshake acknowledgement - sent to the server to indicate a new node
         case MSG_HANDACK:
         {
+            uint8_t tx_handAck_node_id = tx->payload[HANDACK_NODE_ID_INDEX];
             uint16_t hardware_config_1 = ((tx->payload[HANDACK_CONFIG_ID_INDEX] << 8) | (tx->payload[HANDACK_CONFIG_ID_INDEX+1]));
             uint16_t hardware_config_2 = ((tx->payload[HANDACK_CONFIG_ID_INDEX+2] << 8) | tx->payload[HANDACK_CONFIG_ID_INDEX + 3]);
             
-            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%u,%u", tx->source_id, (uint16_t)tx->seq_num, tx->type, tx->num_hops,
-                tx->payload[HANDACK_NODE_ID_INDEX], hardware_config_1, hardware_config_2);
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:%d,%u,%u", tx_source_id, tx_seq_num, tx_type, tx_num_hops,
+                tx_handAck_node_id, hardware_config_1, hardware_config_2);
             break;
         }
         // heart beat message - so the server knows the gateway is still alive
         case MSG_HEARTBEAT:
         {
-            sprintf((char *)tx_buf, "%d:%d:%d:%d:,", tx->source_id, tx->seq_num, tx->type, tx->num_hops);
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:,", tx_source_id, tx_seq_num, tx_type, tx_num_hops);
             break;
         }
         default:
@@ -90,8 +99,8 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
     tx_buf[2] = tx->seq_num & 0xff;
     tx_buf[3] = tx->type;
     tx_buf[4] = tx->num_hops;
-
-    switch(tx->type)
+    volatile msg_type tx_type = tx->type;
+    switch(tx_type)
     {
         // this should never happen....TODO: Throw an error.
         case MSG_NO_MESSAGE: 
