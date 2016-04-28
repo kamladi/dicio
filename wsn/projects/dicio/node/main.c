@@ -209,7 +209,8 @@ int main() {
 /***** HELPER FUNCTIONS *****/
 uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
   uint8_t toReturn;
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     toReturn = pq->size;
   }
   nrk_sem_post(mux);
@@ -218,7 +219,8 @@ uint8_t inline atomic_size(packet_queue *pq, nrk_sem_t *mux) {
 
 // atomic_push - push onto the queue atomically
 void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     push(pq, p);
   }
   nrk_sem_post(mux);
@@ -226,7 +228,8 @@ void inline atomic_push(packet_queue *pq, packet *p, nrk_sem_t *mux) {
 
 // atomic_pop - pop onto the queue atomically
 void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
-  nrk_sem_pend(mux); {
+  nrk_sem_pend(mux); 
+  {
     pop(pq, p);
   }
   nrk_sem_post(mux);
@@ -235,7 +238,8 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux) {
 // atomic_increment_seq_num - increment sequence number atomically and return
 uint16_t inline atomic_increment_seq_num() {
   uint16_t returnVal;
-  nrk_sem_pend(g_seq_num_mux); {
+  nrk_sem_pend(g_seq_num_mux); 
+  {
     g_seq_num++;
     returnVal = g_seq_num;
   }
@@ -246,7 +250,8 @@ uint16_t inline atomic_increment_seq_num() {
 // atomic_outlet_state - atomically return outlet state
 uint8_t inline atomic_outlet_state() {
   uint8_t outlet_state = OFF;
-  nrk_sem_pend(g_global_outlet_state_mux); {
+  nrk_sem_pend(g_global_outlet_state_mux); 
+  {
     outlet_state = g_global_outlet_state;
   }
   nrk_sem_post(g_global_outlet_state_mux);
@@ -255,7 +260,8 @@ uint8_t inline atomic_outlet_state() {
 
 // atomic_update_outlet_state - atomically update outlet state
 void inline atomic_update_outlet_state(uint8_t update) {
-  nrk_sem_pend(g_global_outlet_state_mux); {
+  nrk_sem_pend(g_global_outlet_state_mux); 
+  {
     g_global_outlet_state = update;
   }
   nrk_sem_post(g_global_outlet_state_mux);
@@ -264,7 +270,8 @@ void inline atomic_update_outlet_state(uint8_t update) {
 // atomic_network_joined - atomically return the network status
 uint8_t inline atomic_network_joined() {
   uint8_t returnVal;
-  nrk_sem_pend(g_network_joined_mux); { 
+  nrk_sem_pend(g_network_joined_mux); 
+  { 
     returnVal = g_network_joined;
   }
   nrk_sem_post(g_network_joined_mux); 
@@ -273,7 +280,8 @@ uint8_t inline atomic_network_joined() {
 
 // atomic_update_network_joined
 void inline atomic_update_network_joined(uint8_t update) {
-  nrk_sem_pend(g_network_joined_mux); { 
+  nrk_sem_pend(g_network_joined_mux); 
+  { 
     g_network_joined = update;
   }
   nrk_sem_post(g_network_joined_mux);  
@@ -282,7 +290,8 @@ void inline atomic_update_network_joined(uint8_t update) {
 // atomic_button_pressed - atomically return the button_pressed flag
 uint8_t inline atomic_button_pressed() {
   uint8_t returnVal;
-  nrk_sem_pend(g_button_pressed_mux); {
+  nrk_sem_pend(g_button_pressed_mux); 
+  {
     returnVal = g_button_pressed;
   }
   nrk_sem_post(g_button_pressed_mux);
@@ -291,7 +300,8 @@ uint8_t inline atomic_button_pressed() {
 
 // atomic_update_button_pressed - atomically update button_pressed flag
 void inline atomic_update_button_pressed(uint8_t update) {
-  nrk_sem_pend(g_button_pressed_mux); {
+  nrk_sem_pend(g_button_pressed_mux); 
+  {
     g_button_pressed = update;
   }
   nrk_sem_post(g_button_pressed_mux);  
@@ -300,7 +310,8 @@ void inline atomic_update_button_pressed(uint8_t update) {
 // atomic_decrement_watchdog - atomically decrement watchdog timer
 uint8_t inline atomic_decrement_watchdog() {
   uint8_t returnVal;
-  nrk_sem_pend(g_net_watchdog_mux); {
+  nrk_sem_pend(g_net_watchdog_mux); 
+  {
     g_net_watchdog--;
     returnVal = g_net_watchdog;
   }
@@ -310,7 +321,8 @@ uint8_t inline atomic_decrement_watchdog() {
 
 // atomic_kick_watchdog - atomically kick the watchdog timer
 uint8_t inline atomic_kick_watchdog() {
-  nrk_sem_pend(g_net_watchdog_mux); {
+  nrk_sem_pend(g_net_watchdog_mux); 
+  {
     g_net_watchdog = HEART_FACTOR;
   }
   nrk_sem_post(g_net_watchdog_mux);  
@@ -320,10 +332,10 @@ uint8_t inline atomic_kick_watchdog() {
 // tx_cmds() - send all commands out to the network.
 void tx_cmds() {
   // local variable instantiation
-  packet tx_packet;
-  uint8_t local_tx_cmd_queue_size;
-  int8_t val = 0;
-  uint8_t tx_length = 0;
+  volatile packet tx_packet;
+  volatile uint8_t local_tx_cmd_queue_size;
+  volatile int8_t val = 0;
+  volatile uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -338,30 +350,30 @@ void tx_cmds() {
     nrk_led_set(ORANGE_LED);
     // get a packet out of the queue.
     atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-    // NOTE: a mutex is required around the network transmit buffer because
-    //  tx_cmd_task() also uses it.
-      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-         if(NRK_OK != val){
-           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-         }
-      clear_tx_buf();
-    //**/**
-    // nrk_sem_pend(g_net_tx_buf_mux); {
-    //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-    //   if (TRUE == g_verbose) {
-    //     nrk_kprintf(PSTR("TX: "));
-    //     print_packet(&tx_packet);
-    //   }
-    //   // send the packet
-    //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-    //   if(NRK_OK != val) {
-    //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-    //   }
 
-    //   clear_tx_buf();
-    // }
-    // nrk_sem_post(g_net_tx_buf_mux);
+    // assemble the packet and 
+    tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+    val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+       if(NRK_OK != val){
+         nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+       }
+    clear_tx_buf();
+
+    nrk_sem_pend(g_net_tx_buf_mux); {
+      g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      if (TRUE == g_verbose) {
+        nrk_kprintf(PSTR("TX: "));
+        print_packet(&tx_packet);
+      }
+      // send the packet
+      val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+      if(NRK_OK != val) {
+        nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+      }
+
+      clear_tx_buf();
+    }
+    nrk_sem_post(g_net_tx_buf_mux);
     nrk_led_clr(ORANGE_LED);
   }
   return;
@@ -370,13 +382,13 @@ void tx_cmds() {
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void tx_data() {
   // local variable initialization
-  packet tx_packet;
-  uint8_t local_tx_data_queue_size;
-  int8_t val = 0;
-  uint8_t sent_heart = FALSE;
-  uint8_t to_send;
+  volatile packet tx_packet;
+  volatile uint8_t local_tx_data_queue_size;
+  volatile int8_t val = 0;
+  volatile uint8_t sent_heart = FALSE;
+  volatile uint8_t to_send;
   volatile msg_type tx_type;
-  uint8_t tx_length = 0;
+  volatile uint8_t tx_length = 0;
 
   // atomically get the queue size
   local_tx_data_queue_size = atomic_size(&g_data_tx_queue, g_data_tx_queue_mux);
@@ -411,32 +423,32 @@ void tx_data() {
            sent_heart = TRUE;
           }
       clear_tx_buf();
-      //**/**
+
       // assemble tx buf and send message
-      // nrk_sem_pend(g_net_tx_buf_mux); {
-      //   g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      nrk_sem_pend(g_net_tx_buf_mux); {
+        g_net_tx_index = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
-      //   // print out packet
-      //   if (TRUE == g_verbose) {
-      //     nrk_kprintf(PSTR("TX: "));
-      //     print_packet(&tx_packet);
-      //   }
+        // print out packet
+        if (TRUE == g_verbose) {
+          nrk_kprintf(PSTR("TX: "));
+          print_packet(&tx_packet);
+        }
 
-      //   // send the packet
-      //   val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
-      //   if(NRK_OK != val) {
-      //     nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-      //   }
+        // send the packet
+        val = bmac_tx_pkt(g_net_tx_buf, g_net_tx_index);
+        if(NRK_OK != val) {
+          nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
+        }
 
-      //   // set sent_heart flag
-      //   if(MSG_HEARTBEAT == tx_type) {
-      //     sent_heart = TRUE;
-      //   }
+        // set sent_heart flag
+        if(MSG_HEARTBEAT == tx_type) {
+          sent_heart = TRUE;
+        }
 
-      //   // clear the buffer
-      //   clear_tx_buf();
-      // }
-      // nrk_sem_post(g_net_tx_buf_mux);
+        // clear the buffer
+        clear_tx_buf();
+      }
+      nrk_sem_post(g_net_tx_buf_mux);
     }
     nrk_led_clr(ORANGE_LED);
   }
@@ -454,13 +466,13 @@ void inline clear_tx_buf(){
 // rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
-  packet rx_packet;
-  uint8_t len, node_id;
-  int8_t rssi;
-  int8_t in_seq_pool;
-  uint16_t local_seq_num;
-  uint8_t new_node = NONE;
-  uint8_t local_network_joined = FALSE;
+  volatile packet rx_packet;
+  volatile uint8_t len, node_id;
+  volatile int8_t rssi;
+  volatile int8_t in_seq_pool;
+  volatile uint16_t local_seq_num;
+  volatile uint8_t new_node = NONE;
+  volatile uint8_t local_network_joined = FALSE;
   volatile uint8_t rx_source_id = 0;
   volatile uint16_t rx_seq_num = 0;
   volatile uint8_t rx_payload = 0;
@@ -623,9 +635,9 @@ void rx_msg_task() {
 
 // net_tx_task - send network messages
 void tx_net_task() {
-  uint8_t counter = 0;
-  uint8_t tx_cmd_flag;
-  uint8_t tx_data_flag;
+  volatile uint8_t counter = 0;
+  volatile uint8_t tx_cmd_flag;
+  volatile uint8_t tx_data_flag;
 
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
 
