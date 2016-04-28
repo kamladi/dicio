@@ -23,7 +23,6 @@ const HEARTBEAT_MESSAGE		= 10;
 
 // Globals
 var gSerialPort = null;
-var gCommandId = 0;
 var gWatchdogTimer = null;
 
 /*
@@ -301,25 +300,16 @@ function sendAction(outletMacAddress, action) {
       // Packet format: "source_mac_addr:seq_num:msg_type:num_hops:payload"
  			//   where "payload" has structure "cmd_id,dest_outlet_id,action,"
       // Server sends message with source_id 0, seq_num 0, num_hops 0
-      var packet = `0:0:${ACTION_MESSAGE}:0:0,${outletMacAddress},${action},`;
       var sourceMacAddr = 0x0,
       		seqNum = 0x0,
       		msgType = ACTION_MESSAGE,
       		numHops = 0x0,
       		destOutletAddr = parseInt(outletMacAddress) & 0xFF;
 
-      // increment command ID
-      gCommandId = (gCommandId + 1) % MAX_COMMAND_ID;
-
-      // split command id into two bytes
-      var cmdIdLower = gCommandId & 0xFF;
-      var cmdIdUpper = (gCommandId >> 8) & 0xFF;
-
-
       // 0x0D is the integer value for '\r' (carriage return)
       var packet = new Buffer([
       	sourceMacAddr, 0, 0, msgType, numHops,
-      	cmdIdUpper, cmdIdLower, destOutletAddr, action, 0x0D
+      	0, 0, destOutletAddr, action, 0x0D
       ]);
       console.log("Packet to be sent: ", packet);
 
