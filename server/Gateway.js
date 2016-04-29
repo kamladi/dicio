@@ -336,7 +336,9 @@ function sendAction(outletMacAddress, action) {
 	      			return reject(err);
 	      		} else {
 	      			console.log("Successfully sent packet to gateway!");
-	      			resolve(packet);
+	      			// Add a 100ms delay before we mark this packet as being successfully
+	      			// 'sent' (because firefly/nano-rk sucks and can't parse quickly enough)
+	      			setTimeout( () => resolve(packet), 100);
 	      		}
 	     		});
         }

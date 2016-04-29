@@ -121,17 +121,28 @@ exports.sendGroupAction = (req, res, next) => {
 			if (Gateway.isConnected()) {
 				// Forward command to gateway to propagate to the network. Group commands
 				// are treated as fire-and-forget (doesn't wait for a CMD-ACK message)
-				group.outlets.forEach( outlet => {
-					console.log('herp derp ', outlet.mac_address, action);
-					return Gateway.sendAction(outlet.mac_address, action)
-						.catch(console.error);
-				});
-				return group;
+				if (group.outlets.length > 0) {
+					var promise = Gateway.sendAction(group.outlets[0].mac_address, action);
+					// Since the value of 'i' can change by the time each promise executes,
+					// wrap the usage of 'i' in a closure so each promise will use the proper
+					// value.
+					var send = (function (i) { return () => Gateway.sendAction(group.outlets[i].mac_address, action)});
+					for(var i=1; i < group.outlets.length; i++) {
+						var curSend = send(i);
+						promise = promise.then( () => curSend());
+					}
+
+					promise.catch(console.error);
+					return promise;
+				} else {
+					// nothing to send
+					return null;
+				}
 			} else {
 				console.warn("Gateway not connected, not sending commands for group");
 				return group;
 			}
 		})
-		.then((group) => { return res.json(group); })
+		.then(() => { return res.send("success"); })
 		.catch(next);
 }
