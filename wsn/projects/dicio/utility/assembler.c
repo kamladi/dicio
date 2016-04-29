@@ -102,22 +102,10 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
     volatile msg_type tx_type = tx->type;
     switch(tx_type)
     {
-        // this should never happen....TODO: Throw an error.
         case MSG_NO_MESSAGE: 
-        {
-            break;
-        }
-        // message from the gateway -> undefined
         case MSG_GATEWAY: 
-        {
-            break;
-        }
-        // lost node message - this will never happen. This message only gets sent to the server
         case MSG_LOST: 
-        {
             break;
-        }
-        // data message - to get data back to the server
         case MSG_DATA:
         {
             length = 12;
@@ -146,14 +134,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 2] = tx->payload[CMD_NODE_ID_INDEX];
             // action (1 byte)
             tx_buf[HEADER_SIZE + 3] = tx->payload[CMD_ACT_INDEX];
-            /*
-            // command ID (2 bytes)
-            tx_buf[HEADER_SIZE + CMD_CMDID_INDEX] = (uint16_t)tx->payload[CMD_CMDID_INDEX];
-            // node ID (1 byte)
-            tx_buf[HEADER_SIZE + CMD_NODE_ID_INDEX] = tx->payload[CMD_NODE_ID_INDEX];
-            // action (1 byte)
-            tx_buf[HEADER_SIZE + CMD_ACT_INDEX] = tx->payload[CMD_ACT_INDEX];
-            */
             break;
         }
         // command acknowledgment - send from a node back to the server to confirm actuation 
@@ -166,12 +146,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 1] = tx->payload[CMDACK_CMDID_INDEX + 1];
             // node state (1 byte)
             tx_buf[HEADER_SIZE + 2] = tx->payload[CMDACK_STATE_INDEX];
-            /*
-            // command ID (2 bytes)
-            tx_buf[HEADER_SIZE + CMDACK_CMDID_INDEX] = (uint16_t)tx->payload[CMDACK_CMDID_INDEX];
-            // node state (1 byte)
-            tx_buf[HEADER_SIZE + CMDACK_STATE_INDEX] = tx->payload[CMDACK_STATE_INDEX];
-            */
             break;
         }
         // handshake request - send to the gateway to gain access to the network
@@ -184,13 +158,6 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
             tx_buf[HEADER_SIZE + 1] = tx->payload[HAND_CONFIG_ID_INDEX + 1];
             tx_buf[HEADER_SIZE + 2] = tx->payload[HAND_CONFIG_ID_INDEX + 2];
             tx_buf[HEADER_SIZE + 3] = tx->payload[HAND_CONFIG_ID_INDEX + 3];
-            /*
-            // hardware configuration (4 bytes)
-            tx_buf[HEADER_SIZE + HAND_CONFIG_ID_INDEX] = (uint16_t)tx->payload[HAND_CONFIG_ID_INDEX];
-            tx_buf[HEADER_SIZE + 1] = tx->payload[HAND_CONFIG_ID_INDEX + 1];
-            tx_buf[HEADER_SIZE + 2] = tx->payload[HAND_CONFIG_ID_INDEX + 2];
-            tx_buf[HEADER_SIZE + 3] = tx->payload[HAND_CONFIG_ID_INDEX + 3];
-            */
             break;
         }
         // handshake acknowledgement - response to handshake request
