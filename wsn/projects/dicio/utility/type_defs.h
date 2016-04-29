@@ -60,6 +60,7 @@
 #define NODE_TX_DATA_FLAG 20
 #define GATE_TX_DATA_FLAG 10
 #define MAX_RESET_SENDS 5
+#define MAX_HOPS 3
 
 // tables/pools
 #define MAX_NEIGHBOR_TABLE 3
