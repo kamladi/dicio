@@ -166,6 +166,11 @@ void parse_msg(packet *parsed_packet, uint8_t *src, uint8_t len)
             break;
         }
 
+        case MSG_RESET:
+        {
+            break;
+        }
+
         default:{
             printf("invalid msg_type \r\n");
         }

@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 5
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 9
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -175,9 +175,9 @@ int main() {
   g_net_watchdog_mux        = nrk_sem_create(1, 8);
 
   // sensor periods (in seconds / 2)
-  g_pwr_period = 3;
-  g_temp_period = 6;
-  g_light_period = 6;
+  g_pwr_period = 2;
+  g_temp_period = 3;
+  g_light_period = 4;
 
   // packet queues
   packet_queue_init(&g_act_queue);
