@@ -31,7 +31,6 @@ function shouldTriggerAction(event, outlet) {
 		threshold = event.input_value;
 	}
 
-	console.log(event.input, testValue, thresholdDirection, threshold);
 	// Create 'action' object if the test value is past the threshold
 	// in the desired direction.
 	return (thresholdDirection === 'above' && threshold <= testValue)
@@ -60,9 +59,8 @@ function eventsToActions(events, outlet) {
 					.then(outputOutlet => {
 						if (!outputOutlet) throw new Error('Invalid output outlet id in event');
 
-						console.log(`Outlet ${outputOutlet.mac_address} ${outputOutlet.status}=>${event.output_action}`);
-
 						if (outputOutlet.status != event.output_action) {
+							console.log(`Outlet ${outputOutlet.mac_address} ${outputOutlet.status}=>${event.output_action}`);
 
 							// Add the output outlet's mac address to the action object
 							actions.push({
@@ -105,7 +103,6 @@ function eventsToActions(events, outlet) {
 					});
 			}
 		} else {
-			console.log(event.name, event.input_outlet_id, "nah");
 			return Promise.resolve([]);
 		}
 
@@ -127,7 +124,6 @@ function triggerCommandsFromEvents(outlet) {
 			// build a list of 'action' objects specifiying destination outlets and
 			// actions, if any outlets need to be actuated.
 			// TODO: how to handle duplicate/conflicting actions?
-			console.log(events);
 			return eventsToActions(events, outlet);
 		});
 }

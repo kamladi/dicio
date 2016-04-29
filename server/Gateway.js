@@ -105,11 +105,16 @@ function handleSensorDataMessage(macAddress, payload) {
   	.then( outlet => saveTimeSeriesData(outlet))
   	.then(EventScheduler.triggerCommandsFromEvents)
   	.then( commands => {
-  		console.log('Triggering commands: ', commands);
-  		// Send and action to the gateway for each command object given
-  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
-  		// Wait until all actions are sent.
-  		return Promise.all(commandPromises);
+  		if (commands.length > 0) {
+  			console.log('Triggering commands: ', commands);
+	  		// Send and action to the gateway for each command object given
+	  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
+	  		// Wait until all actions are sent.
+	  		return Promise.all(commandPromises);
+  		} else {
+  			// No need to do anything if no events need to be triggered
+  			return null;
+  		}
   	})
   	.catch(console.error);
 }
