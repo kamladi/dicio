@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 9
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
