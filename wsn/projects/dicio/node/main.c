@@ -339,10 +339,10 @@ void inline clear_tx_buf(){
 // tx_cmds() - send all commands out to the network.
 void tx_cmds() {
   // local variable instantiation
+  packet tx_packet;
   volatile uint8_t local_tx_cmd_queue_size;
   volatile uint8_t tx_length = 0;
   volatile int8_t val = 0;
-  volatile packet tx_packet;
 
   // atomically get the queue size
   local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
@@ -373,12 +373,12 @@ void tx_cmds() {
 // tx_data_task() - send standard messages out to the network (i.e. handshake messages, etc.)
 void tx_data() {
   // local variable initialization
+  packet tx_packet;
   volatile int8_t val = 0;
   volatile uint8_t sent_heart = FALSE;
   volatile uint8_t to_send;
   volatile uint8_t tx_length = 0;
   volatile uint8_t local_tx_data_queue_size;
-  volatile packet tx_packet;
   volatile msg_type tx_type;
 
   // atomically get the queue size
@@ -426,18 +426,14 @@ void tx_data() {
 // rx_msg_task() - receive messages from the network
 void rx_msg_task() {
   // local variable instantiation
-  volatile int8_t rssi;
-  volatile int8_t in_seq_pool;
-  volatile uint8_t new_node = NONE;
+  int8_t rssi;
+  uint8_t len;
+  packet rx_packet;
+  uint8_t *local_rx_buf;
   volatile uint8_t local_network_joined = FALSE;
   volatile uint8_t rx_source_id = 0;
-  volatile uint8_t len, node_id;
+  volatile uint8_t node_id;
   volatile uint8_t rx_payload = 0;
-  uint8_t *local_rx_buf;
-  volatile uint16_t rx_seq_num = 0;
-  volatile uint16_t rx_num_hops = 0;
-  volatile uint16_t local_seq_num;
-  volatile packet rx_packet;
   volatile msg_type rx_type;
   // print task PID
   printf("rx_msg PID: %d.\r\n", nrk_get_pid());
@@ -469,9 +465,7 @@ void rx_msg_task() {
 
       // get message parameters
       rx_source_id = rx_packet.source_id;
-      rx_seq_num = rx_packet.seq_num;
       rx_type = rx_packet.type;
-      rx_num_hops = rx_packet.num_hops;
  
       // only receive the message if it's not from this node
       if((GATEWAY_MAC == rx_source_id) || (SERVER_MAC == rx_source_id)) {
@@ -527,7 +521,6 @@ void rx_msg_task() {
 // net_tx_task - send network messages
 void tx_net_task() {
   volatile uint8_t counter = 0;
-  volatile uint8_t tx_cmd_flag;
   volatile uint8_t tx_data_flag;
   // print task pid
   printf("tx_net PID: %d.\r\n", nrk_get_pid());
@@ -560,6 +553,8 @@ void tx_net_task() {
 // sample_task - sample sensors
 void sample_task() {
   // local variable instantiation
+  packet tx_packet;
+  packet hello_packet;
   volatile int8_t val;
   volatile uint8_t hw_rev;
   volatile uint8_t local_network_joined = FALSE;
@@ -572,8 +567,7 @@ void sample_task() {
   volatile uint16_t local_temp_val = 0;
   volatile uint16_t local_light_val = 0;
   volatile uint16_t adc_buf[2];
-  volatile packet tx_packet;
-  volatile packet hello_packet;
+
   // print task pid
   printf("sample_task PID: %d.\r\n", nrk_get_pid());
 
@@ -765,13 +759,14 @@ void button_task() {
 
 // actuate_task() - actuate any commands that have been received for this node.
 void actuate_task() {
+  packet act_packet;
+  packet tx_packet;
   // local variable instantiation
   volatile int8_t action;
   volatile uint8_t act_queue_size;
   volatile uint8_t local_network_joined = FALSE;
   volatile uint8_t local_button_pressed = FALSE;
-  volatile packet act_packet;
-  volatile packet tx_packet;
+
 
   // print task pid
   printf("actuate_task PID: %d.\r\n", nrk_get_pid());
