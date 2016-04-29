@@ -75,7 +75,7 @@ function eventsToActions(events, outlet) {
 
 						return actions;
 					}).catch(e => {
-						return Promise.reject(e);
+						throw e;
 					});
 
 			} else {
@@ -101,11 +101,14 @@ function eventsToActions(events, outlet) {
 
 						return actions;
 					}).catch(e => {
-						return Promise.reject(e);
+						throw e;
 					});
 			}
+		} else {
+			console.log(event.name, event.input_outlet_id, "nah");
+			return Promise.resolve([]);
 		}
-		return Promise.resolve([]);
+
 	});
 
 	// Return the actions list whe all promises are complete.
@@ -124,6 +127,7 @@ function triggerCommandsFromEvents(outlet) {
 			// build a list of 'action' objects specifiying destination outlets and
 			// actions, if any outlets need to be actuated.
 			// TODO: how to handle duplicate/conflicting actions?
+			console.log(events);
 			return eventsToActions(events, outlet);
 		});
 }

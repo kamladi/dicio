@@ -79,7 +79,7 @@ function saveTimeSeriesData(outlet) {
 		cur_light: outlet.cur_light,
 		cur_power: outlet.cur_power
 	});
-	return newRecord.save();
+	return newRecord.save().then( () => outlet);
 }
 
 /*
@@ -244,7 +244,7 @@ function handleLostNodeMessage(macAddress, payload) {
 
 function deactivateOutlets() {
 	console.log("Received RESET message, setting all outlets to inactive");
-	return Outlet.update({}, { active: false }).exec()
+	return Outlet.update({}, { active: false }, {multi: true}).exec()
 		.catch(console.error);
 }
 
