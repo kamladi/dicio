@@ -11,7 +11,7 @@ const TIME_VALUES = ['12am','1am','2am','3am','4am','5am','6am','7am','8am',
 		'9pm','10pm','11pm'];
 const TEMP_VALUES = ['20deg', '30deg','40deg','50deg','60deg',
 		'70deg','80deg','90deg'];
-const LIGHT_VALUES = ['25', '50','75','100','125','150','175','200','225'];
+const LIGHT_VALUES = ['200', '400', '600', '800', '1000'];
 
 const SENSOR_TO_OPTIONS = {
 	'time': TIME_VALUES,

@@ -30,6 +30,8 @@ function shouldTriggerAction(event, outlet) {
 		testValue = outlet.cur_temperature;
 		threshold = event.input_value;
 	}
+
+	console.log(event.input, testValue, thresholdDirection, threshold);
 	// Create 'action' object if the test value is past the threshold
 	// in the desired direction.
 	return (thresholdDirection === 'above' && threshold <= testValue)
@@ -58,8 +60,9 @@ function eventsToActions(events, outlet) {
 					.then(outputOutlet => {
 						if (!outputOutlet) throw new Error('Invalid output outlet id in event');
 
+						console.log(`Outlet ${outputOutlet.mac_address} ${outputOutlet.status}=>${event.output_action}`);
+
 						if (outputOutlet.status != event.output_action) {
-							console.log(`Outlet ${outputOutlet.mac_address} ${outputOutlet.status}=>${event.output_action}`);
 
 							// Add the output outlet's mac address to the action object
 							actions.push({
