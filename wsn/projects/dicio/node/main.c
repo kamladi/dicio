@@ -164,15 +164,15 @@ int main() {
   g_button_pressed  = FALSE;
 
   // mutexs
-  g_net_tx_buf_mux          = nrk_sem_create(1, 7);
-  g_act_queue_mux           = nrk_sem_create(1, 7);
-  g_cmd_tx_queue_mux        = nrk_sem_create(1, 7);
-  g_data_tx_queue_mux       = nrk_sem_create(1, 7);
-  g_seq_num_mux             = nrk_sem_create(1, 7);
-  g_network_joined_mux      = nrk_sem_create(1, 7);
-  g_global_outlet_state_mux = nrk_sem_create(1, 7);
-  g_button_pressed_mux      = nrk_sem_create(1, 7);
-  g_net_watchdog_mux        = nrk_sem_create(1, 7);
+  g_net_tx_buf_mux          = nrk_sem_create(1, 8);
+  g_act_queue_mux           = nrk_sem_create(1, 8);
+  g_cmd_tx_queue_mux        = nrk_sem_create(1, 8);
+  g_data_tx_queue_mux       = nrk_sem_create(1, 8);
+  g_seq_num_mux             = nrk_sem_create(1, 8);
+  g_network_joined_mux      = nrk_sem_create(1, 8);
+  g_global_outlet_state_mux = nrk_sem_create(1, 8);
+  g_button_pressed_mux      = nrk_sem_create(1, 8);
+  g_net_watchdog_mux        = nrk_sem_create(1, 8);
 
   // sensor periods (in seconds / 2)
   g_pwr_period = 3;
@@ -433,6 +433,7 @@ void rx_msg_task() {
   volatile uint8_t rx_source_id = 0;
   volatile uint8_t len, node_id;
   volatile uint8_t rx_payload = 0;
+  uint8_t *local_rx_buf;
   volatile uint16_t rx_seq_num = 0;
   volatile uint16_t rx_num_hops = 0;
   volatile uint16_t local_seq_num;
@@ -456,8 +457,8 @@ void rx_msg_task() {
       nrk_led_set(BLUE_LED);
 
       // get the packet, parse and release
-      bmac_rx_pkt_get(&len, &rssi);
-      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+      local_rx_buf = bmac_rx_pkt_get(&len, &rssi);
+      parse_msg(&rx_packet, local_rx_buf, len);
       bmac_rx_pkt_release();
 
       // print incoming packet if appropriate
