@@ -294,16 +294,12 @@ void clear_tx_buf(){
 // rx_node_task - receive messages from the network
 void rx_node_task() {
   // local variable instantiation
-  volatile int8_t rssi;
-  volatile int8_t in_seq_pool;
+  int8_t rssi;
+  uint8_t len;
+  packet rx_packet;
   volatile int8_t in_alive_pool;
-  volatile uint8_t len;
-  volatile uint8_t new_node = NONE;
   volatile uint8_t rx_source_id;
   volatile uint8_t rx_num_hops;
-  volatile uint16_t local_seq_num;
-  volatile uint16_t rx_seq_num;
-  volatile packet rx_packet;
   volatile msg_type rx_type;
 
   uint8_t *local_rx_buf;
@@ -338,67 +334,45 @@ void rx_node_task() {
 
       // get message parameters
       rx_source_id = rx_packet.source_id;
-      rx_seq_num = rx_packet.seq_num;
       rx_type = rx_packet.type;
       rx_num_hops = rx_packet.num_hops;
 
-      // only receive the message if it's not from the myself      
-      if(MAC_ADDR != rx_source_id) {
+      // check to see if this node is in the ALIVE pool, if not then add it,
+      // If it is in the alive pool, update the counter to HEART FACTOR
+      in_alive_pool = in_pool(&g_alive_pool, rx_source_id);
+      if(NOT_IN_POOL == in_alive_pool) {
+        add_to_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
+      } else {
+        update_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
+      }
 
-        // check to see if this node is in the sequence pool, if not then add it
-        in_seq_pool = in_pool(&g_seq_pool, rx_source_id);
-        if(NOT_IN_POOL == in_seq_pool) {
-          add_to_pool(&g_seq_pool, rx_source_id, rx_seq_num);
-          new_node = NODE_FOUND;
+      // put the message in the right queue based on the type
+      switch(rx_type) {
+        // command ack -> forward to server
+        case MSG_CMDACK: {
+          // set CMD_ACK_RECEIVED flag to true
+          rx_packet.num_hops = rx_num_hops+1;
+          atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
+          break;
         }
-
-        // determine if we should act on this packet based on the sequence number
-        local_seq_num = get_data_val(&g_seq_pool, rx_source_id);
-
-        if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type)) {
-
-          // check to see if this node is in the ALIVE pool, if not then add it,
-          // If it is in the alive pool, update the counter to HEART FACTOR
-          in_alive_pool = in_pool(&g_alive_pool, rx_source_id);
-          if(NOT_IN_POOL == in_alive_pool) {
-            add_to_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
-          } else {
-            update_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
-          }
-
-          // update the sequence pool and reset the new_node flag
-          update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
-          new_node = NONE;
-
-          // put the message in the right queue based on the type
-          switch(rx_type) {
-            // command ack -> forward to server
-            case MSG_CMDACK: {
-              // set CMD_ACK_RECEIVED flag to true
-              rx_packet.num_hops = rx_num_hops+1;
-              atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
-              break;
-            }
-            // data received  -> forward to server
-            case MSG_DATA: {
-              rx_packet.num_hops = rx_num_hops+1;
-              atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
-              break;
-            }
-            // handshake message recieved -> deal with in handshake function
-            case MSG_HAND: {
-              atomic_push(&g_hand_rx_queue, &rx_packet, g_hand_rx_queue_mux);
-              break;
-            }
-            case MSG_CMD:
-            case MSG_HANDACK:
-            case MSG_GATEWAY:
-            case MSG_HEARTBEAT:
-            case MSG_NO_MESSAGE:
-            default:
-              break;
-          }
+        // data received  -> forward to server
+        case MSG_DATA: {
+          rx_packet.num_hops = rx_num_hops+1;
+          atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
+          break;
         }
+        // handshake message recieved -> deal with in handshake function
+        case MSG_HAND: {
+          atomic_push(&g_hand_rx_queue, &rx_packet, g_hand_rx_queue_mux);
+          break;
+        }
+        case MSG_CMD:
+        case MSG_HANDACK:
+        case MSG_GATEWAY:
+        case MSG_HEARTBEAT:
+        case MSG_NO_MESSAGE:
+        default:
+          break;
       }
       nrk_led_clr(BLUE_LED);
     }
@@ -410,10 +384,10 @@ void rx_node_task() {
 // rx_serv_task - receive messages from the server
 void rx_serv_task() {
   // local variable instantiation
+  packet rx_packet;
   volatile uint8_t msg_received;
   volatile uint8_t rx_num_hops;
   volatile uint16_t server_seq_num = 0;
-  volatile packet rx_packet;
   volatile msg_type rx_type;
   // print task pid
   printf("rx_serv_task PID: %d.\r\n", nrk_get_pid());
@@ -470,18 +444,11 @@ void rx_serv_task() {
 
 // tx_net_task - send all commands out to the network
 void tx_net_task() {
+  packet tx_packet;
   // local variable instantiation
   volatile uint8_t local_tx_net_queue_size;
-  volatile uint8_t local_cmd_ack_received = FALSE;
-  volatile uint8_t local_tx_buf[RF_MAX_PAYLOAD_SIZE];
   volatile uint8_t tx_length = 0;
   volatile uint16_t val;
-  volatile nrk_sig_t tx_done_signal;
-  volatile packet tx_packet;
-  volatile uint8_t sent_handack = FALSE;
-  volatile uint8_t to_send = 0;
-  volatile msg_type tx_type;
-  volatile int8_t ret = 0;
 
   printf("tx_net_task PID: %d.\r\n", nrk_get_pid());
   // do not execute until BMAC has started
@@ -507,39 +474,14 @@ void tx_net_task() {
       }
     }
     nrk_wait_until_next_period();
-    
-      // get type and determine if the packet should be sent
-    //   tx_type = tx_packet.type;
-    //   if((MSG_HANDACK == tx_type) && (TRUE == sent_handack)) {
-    //     to_send = FALSE;
-    //   } else {
-    //     to_send = TRUE;
-    //   }
-
-    //   // send a message if appropriate
-    //   if(TRUE == to_send){
-    //     // transmit to nodes
-    //     tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-    //     val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-    //     if(NRK_OK != val) {
-    //       nrk_kprintf(PSTR( "tx fail!\r\n" ));
-    //     }
-
-    //     // set handack flag
-    //     if(MSG_HANDACK == tx_type){
-    //       sent_handack = TRUE;
-    //     }
-    //   }
-    //   nrk_led_clr(RED_LED);
-    // }
-    // sent_handack = FALSE;
   }
 }
 
 // tx_serv_task - transmit message to the server
 void tx_serv_task() {
+  packet tx_packet;
   volatile uint8_t local_tx_serv_queue_size;
-  volatile packet tx_packet;
+
   // print task pid
   printf("tx_serv_task PID: %d.\r\n", nrk_get_pid());
 
@@ -565,11 +507,11 @@ void tx_serv_task() {
 //  - send heartbeat message to the network and user (LEDS) 
 //  - check heartbeat status of all nodes in the network
 void alive_task() {
+  packet heart_packet, lost_packet;
   volatile uint8_t LED_FLAG = 0;
   volatile uint8_t temp_id;
   volatile uint8_t local_alive_pool_size;
   volatile uint8_t gateway_reset_counter = 0;
-  volatile packet heart_packet, lost_packet;
   // print task 
   printf("alive_task PID: %d.\r\n", nrk_get_pid());
 
@@ -641,12 +583,12 @@ void alive_task() {
 
 // hand_task - handle handshakes
 void hand_task() {
+  pool_t ack_pool;
+  packet rx_packet, tx_packet;
   volatile int8_t in_ack_pool;
   volatile uint8_t local_hand_rx_queue_size;
   volatile uint8_t rx_source_id;
   volatile uint8_t rx_seq_num;
-  volatile packet rx_packet, tx_packet;
-  volatile pool_t ack_pool;
   // print task pid
   printf("hand_task PID: %d.\r\n", nrk_get_pid());
 

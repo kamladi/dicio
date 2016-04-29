@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 2
+#define MAC_ADDR 7
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
