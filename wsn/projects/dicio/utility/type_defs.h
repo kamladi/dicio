@@ -53,7 +53,7 @@
 #define MAX_NUM_HOPS 3
 #define MAX_PACKET_BUFFER 8
 #define GATEWAY_ID 1
-#define HEART_FACTOR 20
+#define HEART_FACTOR 6
 #define ALIVE_LIMIT 1
 #define NOT_ALIVE 0
 #define TX_CMD_FLAG 1

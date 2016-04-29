@@ -311,6 +311,8 @@ void rx_node_task() {
   volatile uint16_t rx_seq_num;
   volatile packet rx_packet;
   volatile msg_type rx_type;
+
+  uint8_t *local_rx_buf;
   // print task pid
   printf("rx_node_task PID: %d.\r\n", nrk_get_pid());
 
@@ -329,8 +331,9 @@ void rx_node_task() {
       nrk_led_set(BLUE_LED);
 
       // get the packet, parse and release
-      bmac_rx_pkt_get(&len, &rssi);
-      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+      local_rx_buf = bmac_rx_pkt_get(&len, &rssi);
+      //parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+      parse_msg(&rx_packet, local_rx_buf, len);
       bmac_rx_pkt_release ();
 
       // print incoming packet if appropriate
@@ -595,16 +598,16 @@ void tx_cmd_task() {
         // transmit to nodes
         tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
 
-        /*val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+        val = bmac_tx_pkt(g_net_tx_buf, tx_length);
         if(NRK_OK != val){
           nrk_kprintf( PSTR( "tx fail!\r\n" ));
-        }*/
+        }
         // set sent_handack flag
-        val = bmac_tx_pkt_nonblocking(g_net_tx_buf, tx_length);
+        /*val = bmac_tx_pkt_nonblocking(g_net_tx_buf, tx_length);
         ret = nrk_event_wait (SIG(tx_done_signal));
         // Just check to be sure signal is okay
        if(ret & SIG(tx_done_signal) == 0 ) 
-         nrk_kprintf (PSTR ("TX done signal error\r\n"));
+         nrk_kprintf (PSTR ("TX done signal error\r\n"));*/
 
         if(MSG_HANDACK == tx_type){
           sent_handack = TRUE;
@@ -928,7 +931,7 @@ void nrk_create_taskset () {
   RX_SERV_TASK.period.secs = 0;
   RX_SERV_TASK.period.nano_secs = 100*NANOS_PER_MS;
   RX_SERV_TASK.cpu_reserve.secs = 0;
-  RX_SERV_TASK.cpu_reserve.nano_secs = 10*NANOS_PER_MS;
+  RX_SERV_TASK.cpu_reserve.nano_secs = 20*NANOS_PER_MS;
   RX_SERV_TASK.offset.secs = 0;
   RX_SERV_TASK.offset.nano_secs = 0;
 
