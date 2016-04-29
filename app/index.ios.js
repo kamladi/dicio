@@ -22,6 +22,7 @@ import {GroupListView} from './src/components/GroupListView';
 import {EventDetailView} from './src/components/EventDetailView';
 import OutletActions from './src/actions/OutletActions';
 import EventActions from './src/actions/EventActions';
+import GroupActions from './src/actions/GroupActions';
 import {WebSocketHandler} from './src/lib/WebSocketHandler';
 
 class dicio_ios extends Component {
