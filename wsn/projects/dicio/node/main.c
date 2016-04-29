@@ -473,27 +473,25 @@ void rx_msg_task() {
       rx_type = rx_packet.type;
       rx_num_hops = rx_packet.num_hops;
  
-      //printf("\r\n\r\nsrc: %d, seq_num: %d, hops: %d, type: %d\r\n", rx_source_id, rx_seq_num, rx_num_hops, rx_type);
       // only receive the message if it's not from this node
-      if((MAC_ADDR != rx_source_id) && (rx_num_hops < MAX_HOPS)) {
+      if((0 == rx_source_id) || (1 == rx_source_id)) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
         // execute the normal sequence of events if the network has been joined
         if(TRUE == local_network_joined) {
-          //printf("network joined\r\n");
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&g_seq_pool, rx_source_id);
           if(NOT_IN_POOL == in_seq_pool) {
             add_to_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NODE_FOUND;
           }
-          //printf("in_seq_pool: %d, new_node: %d\r\n", in_seq_pool, new_node);
+          printf("in_seq_pool: %d, new_node: %d\r\n", in_seq_pool, new_node);
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_source_id);
           if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type) || (MSG_RESET == rx_type)) {
-            //printf("delivered\r\n");
+            printf("delivered\r\n");
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NONE;
@@ -503,8 +501,8 @@ void rx_msg_task() {
 
               // data received -> forward to server
               case MSG_DATA: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -518,46 +516,46 @@ void rx_msg_task() {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
-                else {
-                  rx_packet.num_hops = rx_num_hops+1;
-                  atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
-                }
+                // else {
+                //   rx_packet.num_hops = rx_num_hops+1;
+                //   atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                // }
                 atomic_kick_watchdog();
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               case MSG_HAND: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  rx_packet.num_hops = rx_num_hops+1;
-                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
-                }
+                // if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
+                //   rx_packet.num_hops = rx_num_hops+1;
+                //   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                // }
                 atomic_kick_watchdog();
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }

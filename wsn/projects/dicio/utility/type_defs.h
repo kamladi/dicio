@@ -25,6 +25,10 @@
 
 
 /*** DEFINE STATEMENTS ***/
+// important people 
+#define SERVER_MAC 0
+#define GATEWAY_MAC 1
+ 
 // boolean replacements
 #define NONE 0
 #define NODE_FOUND 1
