@@ -42,7 +42,9 @@ class OutletChart extends Component {
 
   fetchData(granularity) {
     var granularity = granularity || 'second';
-    var url = API_GRAPHS_URL + '/' + this.props.outlet_id + '?granularity=' + granularity;
+    var sensor = this.props.sensor || 'temperature';
+    var url = API_GRAPHS_URL + '/' + this.props.outlet_id + '?granularity=' + granularity + '&sensor=' + sensor;
+    console.log(url);
     fetch(url)
       .then((response) => response.json())
       .then( graphData => {
@@ -50,9 +52,10 @@ class OutletChart extends Component {
         console.log(graphData.slice(0,10).map(record => this.formatTimestamp(record.timestamp)));
         this.setState({
           labels: graphData.slice(0,10).map(record => this.formatTimestamp(record.timestamp)),
-          values: graphData.slice(0,10).map(record => record.power)
+          values: graphData.slice(0,10).map(record => record[sensor])
         });
-        console.log(this.state);
+        console.table(this.state.labels);
+        console.table(this.state.values);
       }).catch(console.errror);
   }
 
@@ -232,17 +235,15 @@ export class OutletDetailView extends Component {
     return true;
   }
 
-  getGraphData(granularity) {
-    return fetch()
-  }
-
   showChart(outlet_id) {
+    var sensor = hasPowerSensor(this.state.outlet) ? 'power' : 'temperature';
     this.props.navigator.push({
       title: 'chart',
       name: 'outlet',
       component: OutletChart,
       passProps: {
         outlet_id: outlet_id,
+        sensor: sensor
       }
     });
   }
@@ -270,7 +271,8 @@ export class OutletDetailView extends Component {
 				<View style={styles.row}>
 				  <Text style={styles.label}>Light:</Text>
 	        <Text style={styles.sensorValue}>
-	        	{(outlet.cur_light < LIGHT_VALUE_THRESHOLD) ? 'Dark' : 'Light'}
+	        	{(outlet.cur_light < LIGHT_VALUE_THRESHOLD) ? 'Dark' : 'Bright'}
+            &nbsp;({outlet.cur_light})
 	        </Text>
 	      </View>
 			);

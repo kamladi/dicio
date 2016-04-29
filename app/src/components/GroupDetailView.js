@@ -18,13 +18,53 @@ import {EditableTextField} from './EditableTextField';
 import {InputValuePicker} from './InputValuePicker';
 import {OutletPicker} from './OutletPicker';
 import {SensorPicker} from './SensorPicker';
-import {SENSORS} from '../lib/Constants';
+import {SENSORS, API_GROUPS_URL} from '../lib/Constants';
 
 import GroupStore from '../stores/GroupStore';
 import OutletStore from '../stores/OutletStore';
 import GroupActions from '../actions/GroupActions';
 
 const REFRESH_INTERVAL = 3000;
+
+class GroupActionButton extends Component {
+  constructor(props) {
+    super(props);
+    this.onButtonPressed = this.onButtonPressed.bind(this);
+  }
+
+  onButtonPressed(action) {
+    fetch(`${API_GROUPS_URL}/${this.props.group_id}/${action}`)
+      .then((response) => response.json())
+      .then((responseData) => {
+        this.setState({
+          group: responseData,
+          loaded: true,
+        });
+      })
+      .then( () => AlertIOS.alert(`"${action.toUpperCase()}" command sent to group.`))
+      .done();
+  }
+
+  render() {
+    return (
+      <View>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonOff]}
+          underlayColor='#CCCCCC'
+          onPress={() => this.onButtonPressed('off')}>
+          <Text style={styles.buttonText}>Turn Off</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonOn]}
+          underlayColor='#CCCCCC'
+          onPress={() => this.onButtonPressed('on')}>
+          <Text style={styles.buttonText}>Turn On</Text>
+        </TouchableOpacity>
+      </View>
+    );
+
+  }
+}
 
 export class GroupDetailView extends Component {
 	constructor(props) {
@@ -178,6 +218,9 @@ export class GroupDetailView extends Component {
             onPress={() => this.showOutletSelector('new_outlet')}>
             <Text style={styles.buttonText}>Add Outlet to Group</Text>
           </TouchableOpacity>
+        </View>
+        <View style={styles.row}>
+          <GroupActionButton group_id={group._id} />
         </View>
         <View style={styles.row}>
           <TouchableOpacity

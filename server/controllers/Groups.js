@@ -1,4 +1,5 @@
 var BadRequestError = require('../lib/utils').BadRequestError;
+var Gateway         = require('../Gateway');
 var Group           = require('../models/Group');
 var ObjectId        = require('mongoose').Types.ObjectId;
 
@@ -107,3 +108,30 @@ exports.clearGroups = (req, res) => {
 			return res.send('groups reset');
 		});
 };
+
+exports.sendGroupAction = (req, res, next) => {
+	req.checkParams('id', 'Invalid Group ID').notEmpty().isObjectId();
+	var id = new ObjectId(req.params.id);
+	return Group.findById(id).populate('outlets').exec()
+		.then( group => {
+			if (!group) {
+				throw new BadRequestError(`Cannot find group with id ${id}`);
+			}
+			var action = (req.params.action === 'on') ? 'ON' : 'OFF';
+			if (Gateway.isConnected()) {
+				// Forward command to gateway to propagate to the network. Group commands
+				// are treated as fire-and-forget (doesn't wait for a CMD-ACK message)
+				group.outlets.forEach( outlet => {
+					console.log('herp derp ', outlet.mac_address, action);
+					return Gateway.sendAction(outlet.mac_address, action)
+						.catch(console.error);
+				});
+				return group;
+			} else {
+				console.warn("Gateway not connected, not sending commands for group");
+				return group;
+			}
+		})
+		.then((group) => { return res.json(group); })
+		.catch(next);
+}
