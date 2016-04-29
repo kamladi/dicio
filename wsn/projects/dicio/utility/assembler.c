@@ -84,6 +84,12 @@ void assemble_serv_packet(uint8_t *tx_buf, packet *tx)
             sprintf((char *)tx_buf, "%d:%d:%d:%d:,", tx_source_id, tx_seq_num, tx_type, tx_num_hops);
             break;
         }
+
+        case MSG_RESET:
+        {
+            sprintf((char *)tx_buf, "%d:%d:%d:%d:,", tx_source_id, tx_seq_num, tx_type, tx_num_hops);
+            break;
+        }
         default:
             break;
     }
@@ -178,6 +184,12 @@ uint8_t assemble_packet(uint8_t *tx_buf, packet *tx)
         case MSG_HEARTBEAT:
         {
             // no payload!
+            length = 5;
+            break;
+        }
+
+        case MSG_RESET:
+        {
             length = 5;
             break;
         }

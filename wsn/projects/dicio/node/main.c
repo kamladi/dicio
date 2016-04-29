@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 5
+#define MAC_ADDR 2
 #define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
@@ -164,20 +164,20 @@ int main() {
   g_button_pressed  = FALSE;
 
   // mutexs
-  g_net_tx_buf_mux          = nrk_sem_create(1, 7);
-  g_act_queue_mux           = nrk_sem_create(1, 7);
-  g_cmd_tx_queue_mux        = nrk_sem_create(1, 7);
-  g_data_tx_queue_mux       = nrk_sem_create(1, 7);
-  g_seq_num_mux             = nrk_sem_create(1, 7);
-  g_network_joined_mux      = nrk_sem_create(1, 7);
-  g_global_outlet_state_mux = nrk_sem_create(1, 7);
-  g_button_pressed_mux      = nrk_sem_create(1, 7);
-  g_net_watchdog_mux        = nrk_sem_create(1, 7);
+  g_net_tx_buf_mux          = nrk_sem_create(1, 8);
+  g_act_queue_mux           = nrk_sem_create(1, 8);
+  g_cmd_tx_queue_mux        = nrk_sem_create(1, 8);
+  g_data_tx_queue_mux       = nrk_sem_create(1, 8);
+  g_seq_num_mux             = nrk_sem_create(1, 8);
+  g_network_joined_mux      = nrk_sem_create(1, 8);
+  g_global_outlet_state_mux = nrk_sem_create(1, 8);
+  g_button_pressed_mux      = nrk_sem_create(1, 8);
+  g_net_watchdog_mux        = nrk_sem_create(1, 8);
 
   // sensor periods (in seconds / 2)
-  g_pwr_period = 3;
-  g_temp_period = 6;
-  g_light_period = 6;
+  g_pwr_period = 2;
+  g_temp_period = 3;
+  g_light_period = 4;
 
   // packet queues
   packet_queue_init(&g_act_queue);
@@ -196,7 +196,7 @@ int main() {
 
   // initialize bmac
   bmac_task_config ();
-  bmac_init (13);
+  bmac_init(13);
 
   nrk_register_drivers();
   nrk_set_gpio();
@@ -433,6 +433,7 @@ void rx_msg_task() {
   volatile uint8_t rx_source_id = 0;
   volatile uint8_t len, node_id;
   volatile uint8_t rx_payload = 0;
+  uint8_t *local_rx_buf;
   volatile uint16_t rx_seq_num = 0;
   volatile uint16_t rx_num_hops = 0;
   volatile uint16_t local_seq_num;
@@ -456,8 +457,8 @@ void rx_msg_task() {
       nrk_led_set(BLUE_LED);
 
       // get the packet, parse and release
-      bmac_rx_pkt_get(&len, &rssi);
-      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+      local_rx_buf = bmac_rx_pkt_get(&len, &rssi);
+      parse_msg(&rx_packet, local_rx_buf, len);
       bmac_rx_pkt_release();
 
       // print incoming packet if appropriate
@@ -518,6 +519,7 @@ void rx_msg_task() {
                   rx_packet.num_hops = rx_num_hops+1;
                   atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 }
+                atomic_kick_watchdog();
                 break;
               }
               // command ack received -> forward to the server
@@ -538,6 +540,7 @@ void rx_msg_task() {
                   rx_packet.num_hops = rx_num_hops+1;
                   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
                 }
+                atomic_kick_watchdog();
                 break;
               }
               // heartbeat message -> forward to the server and
@@ -571,6 +574,7 @@ void rx_msg_task() {
           rx_payload = rx_packet.payload[HANDACK_NODE_ID_INDEX];
           if((MSG_HANDACK == rx_type) && (MAC_ADDR == rx_payload)) {
             atomic_update_network_joined(TRUE);
+            atomic_kick_watchdog();
             local_network_joined = atomic_network_joined();
           }
         }
@@ -1064,7 +1068,7 @@ void inline SPI_Init() {
   hw_rev = GET_REV(HARDWARE_REV);
   SPI_MasterInit();
 
-  // Initialize SPI and open the ATMEGA ADC device as read
+  // Initialize SPI
   if(HW_REV0 == hw_rev) {
     SPI_SlaveInit(PWR_CS);
   }
