@@ -29,7 +29,7 @@ int8_t inline in_pool(pool_t *pool, uint8_t node_address) {
 
     // loop through all nodes
     for(uint8_t i = 0; i < pool_size; i++) {
-        node_id = pool->node[i];
+        node_id = pool->node_id[i];
         if(node_id == node_address) {
             return (int8_t)1;
         }
@@ -46,7 +46,7 @@ void inline decrement_all(pool_t *pool) {
     // loop through all nodes
     for(uint8_t i = 0; i < pool_size; i++) {
         data_val = pool->data_vals[i];
-        if(ALIVE_LIMIT < data_vals) {
+        if(ALIVE_LIMIT < data_val) {
             pool->data_vals[i] = data_val-1;
         }
     }
