@@ -263,7 +263,7 @@ export class EventDetailView extends Component {
 		var event = this.state.event;
     var inputOutlet = OutletStore.findById(event.input_outlet_id);
 		if (!inputOutlet) {
-      return (<Text>Unknown Input Outlet Id: {event.input_outlet_id}</Text>);
+      return (<View style={styles.container}><Text>Unknown Input Outlet Id: {event.input_outlet_id}</Text></View>);
     }
 
 
@@ -271,7 +271,7 @@ export class EventDetailView extends Component {
     if (event.output_type === 'outlet') {
       var outputOutlet = OutletStore.findById(event.output_outlet_id);
       if (!outputOutlet) {
-        outputChooserView = (<View><Text>Unknown Output Outlet Id: {event.output_outlet_id}</Text></View>);
+        outputChooserView = (<View style={styles.container}><Text>Unknown Output Outlet Id: {event.output_outlet_id}</Text></View>);
       } else {
         outputChooserView = (
           <View style={styles.row}>
@@ -288,7 +288,7 @@ export class EventDetailView extends Component {
       var outputGroup = GroupStore.findById(event.output_group_id);
       if (!outputGroup) {
         console.log('lol');
-        outputChooserView = (<View><Text>Unknown Output Group Id: {event.output_group_id}</Text></View>);
+        outputChooserView = (<View style={styles.container}><Text>Unknown Output Group Id: {event.output_group_id}</Text></View>);
       } else {
         outputChooserView = (
           <View style={styles.row}>
@@ -303,7 +303,7 @@ export class EventDetailView extends Component {
       }
 
     } else {
-      outputChooserView = (<View />);
+      outputChooserView = (<View style={styles.container}/>);
     }
 
     return (
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15
+    marginBottom: 15
   },
   label: {
     fontSize: 20,

@@ -317,6 +317,7 @@ export class OutletDetailView extends Component {
             {hasPowerSensor(outlet) ? 'Show Power Usage' : 'Show Temperature History'}
           </Text>
         </TouchableHighlight>
+        <Text style={{color: '#666666', fontSize: 14}}>Active: {outlet.active ? 'True' : 'False'}</Text>
 			</ScrollView>
 		);
 	}
