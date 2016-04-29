@@ -349,7 +349,7 @@ void rx_node_task() {
       rx_num_hops = rx_packet.num_hops;
 
       // only receive the message if it's not from the myself      
-      if(MAC_ADDR != rx_source_id) {
+      if((MAC_ADDR != rx_source_id) && (rx_num_hops < MAX_HOPS)) {
 
         // check to see if this node is in the sequence pool, if not then add it
         in_seq_pool = in_pool(&g_seq_pool, rx_source_id);

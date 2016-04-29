@@ -32,7 +32,7 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 9
+#define MAC_ADDR 2
 #define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
@@ -473,24 +473,27 @@ void rx_msg_task() {
       rx_type = rx_packet.type;
       rx_num_hops = rx_packet.num_hops;
  
+      //printf("\r\n\r\nsrc: %d, seq_num: %d, hops: %d, type: %d\r\n", rx_source_id, rx_seq_num, rx_num_hops, rx_type);
       // only receive the message if it's not from this node
-      if(MAC_ADDR != rx_source_id) {
+      if((MAC_ADDR != rx_source_id) && (rx_num_hops < MAX_HOPS)) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
         // execute the normal sequence of events if the network has been joined
         if(TRUE == local_network_joined) {
+          //printf("network joined\r\n");
           // check to see if this node is in the sequence pool, if not then add it
           in_seq_pool = in_pool(&g_seq_pool, rx_source_id);
           if(NOT_IN_POOL == in_seq_pool) {
             add_to_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NODE_FOUND;
           }
+          //printf("in_seq_pool: %d, new_node: %d\r\n", in_seq_pool, new_node);
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_source_id);
           if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type) || (MSG_RESET == rx_type)) {
-
+            //printf("delivered\r\n");
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NONE;
