@@ -79,7 +79,7 @@ function saveTimeSeriesData(outlet) {
 		cur_light: outlet.cur_light,
 		cur_power: outlet.cur_power
 	});
-	return newRecord.save();
+	return newRecord.save().then( () => outlet);
 }
 
 /*
@@ -105,11 +105,16 @@ function handleSensorDataMessage(macAddress, payload) {
   	.then( outlet => saveTimeSeriesData(outlet))
   	.then(EventScheduler.triggerCommandsFromEvents)
   	.then( commands => {
-  		console.log('Triggering commands: ', commands);
-  		// Send and action to the gateway for each command object given
-  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
-  		// Wait until all actions are sent.
-  		return Promise.all(commandPromises);
+  		if (commands.length > 0) {
+  			console.log('Triggering commands: ', commands);
+	  		// Send and action to the gateway for each command object given
+	  		var commandPromises = commands.map(c => sendAction(c.destMacAddress, c.action));
+	  		// Wait until all actions are sent.
+	  		return Promise.all(commandPromises);
+  		} else {
+  			// No need to do anything if no events need to be triggered
+  			return null;
+  		}
   	})
   	.catch(console.error);
 }
@@ -244,7 +249,7 @@ function handleLostNodeMessage(macAddress, payload) {
 
 function deactivateOutlets() {
 	console.log("Received RESET message, setting all outlets to inactive");
-	return Outlet.update({}, { active: false }).exec()
+	return Outlet.update({}, { active: false }, {multi: true}).exec()
 		.catch(console.error);
 }
 
@@ -331,7 +336,9 @@ function sendAction(outletMacAddress, action) {
 	      			return reject(err);
 	      		} else {
 	      			console.log("Successfully sent packet to gateway!");
-	      			resolve(packet);
+	      			// Add a 100ms delay before we mark this packet as being successfully
+	      			// 'sent' (because firefly/nano-rk sucks and can't parse quickly enough)
+	      			setTimeout( () => resolve(packet), 100);
 	      		}
 	     		});
         }

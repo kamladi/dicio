@@ -30,6 +30,7 @@ function shouldTriggerAction(event, outlet) {
 		testValue = outlet.cur_temperature;
 		threshold = event.input_value;
 	}
+
 	// Create 'action' object if the test value is past the threshold
 	// in the desired direction.
 	return (thresholdDirection === 'above' && threshold <= testValue)
@@ -72,7 +73,7 @@ function eventsToActions(events, outlet) {
 
 						return actions;
 					}).catch(e => {
-						return Promise.reject(e);
+						throw e;
 					});
 
 			} else {
@@ -98,11 +99,13 @@ function eventsToActions(events, outlet) {
 
 						return actions;
 					}).catch(e => {
-						return Promise.reject(e);
+						throw e;
 					});
 			}
+		} else {
+			return Promise.resolve([]);
 		}
-		return Promise.resolve([]);
+
 	});
 
 	// Return the actions list whe all promises are complete.

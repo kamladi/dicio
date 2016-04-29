@@ -313,8 +313,11 @@ export class OutletDetailView extends Component {
         </View>
         <TouchableHighlight style={[styles.button, styles.showChartButton]}
           onPress={() => this.showChart(outlet._id)}>
-          <Text style={styles.buttonText}>Show Power Usage</Text>
+          <Text style={styles.buttonText}>
+            {hasPowerSensor(outlet) ? 'Show Power Usage' : 'Show Temperature History'}
+          </Text>
         </TouchableHighlight>
+        <Text style={{color: '#666666', fontSize: 14}}>Active: {outlet.active ? 'True' : 'False'}</Text>
 			</ScrollView>
 		);
 	}

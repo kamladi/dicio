@@ -34,13 +34,6 @@ class GroupActionButton extends Component {
 
   onButtonPressed(action) {
     fetch(`${API_GROUPS_URL}/${this.props.group_id}/${action}`)
-      .then((response) => response.json())
-      .then((responseData) => {
-        this.setState({
-          group: responseData,
-          loaded: true,
-        });
-      })
       .then( () => AlertIOS.alert(`"${action.toUpperCase()}" command sent to group.`))
       .done();
   }

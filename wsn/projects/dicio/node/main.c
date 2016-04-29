@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 5
-#define HARDWARE_REV 0xD1C10000
+#define MAC_ADDR 2
+#define HARDWARE_REV 0xD1C10001
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -164,20 +164,20 @@ int main() {
   g_button_pressed  = FALSE;
 
   // mutexs
-  g_net_tx_buf_mux          = nrk_sem_create(1, 7);
-  g_act_queue_mux           = nrk_sem_create(1, 7);
-  g_cmd_tx_queue_mux        = nrk_sem_create(1, 7);
-  g_data_tx_queue_mux       = nrk_sem_create(1, 7);
-  g_seq_num_mux             = nrk_sem_create(1, 7);
-  g_network_joined_mux      = nrk_sem_create(1, 7);
-  g_global_outlet_state_mux = nrk_sem_create(1, 7);
-  g_button_pressed_mux      = nrk_sem_create(1, 7);
-  g_net_watchdog_mux        = nrk_sem_create(1, 7);
+  g_net_tx_buf_mux          = nrk_sem_create(1, 8);
+  g_act_queue_mux           = nrk_sem_create(1, 8);
+  g_cmd_tx_queue_mux        = nrk_sem_create(1, 8);
+  g_data_tx_queue_mux       = nrk_sem_create(1, 8);
+  g_seq_num_mux             = nrk_sem_create(1, 8);
+  g_network_joined_mux      = nrk_sem_create(1, 8);
+  g_global_outlet_state_mux = nrk_sem_create(1, 8);
+  g_button_pressed_mux      = nrk_sem_create(1, 8);
+  g_net_watchdog_mux        = nrk_sem_create(1, 8);
 
   // sensor periods (in seconds / 2)
-  g_pwr_period = 3;
-  g_temp_period = 6;
-  g_light_period = 6;
+  g_pwr_period = 2;
+  g_temp_period = 3;
+  g_light_period = 4;
 
   // packet queues
   packet_queue_init(&g_act_queue);
@@ -196,7 +196,7 @@ int main() {
 
   // initialize bmac
   bmac_task_config ();
-  bmac_init (13);
+  bmac_init(13);
 
   nrk_register_drivers();
   nrk_set_gpio();
@@ -433,6 +433,7 @@ void rx_msg_task() {
   volatile uint8_t rx_source_id = 0;
   volatile uint8_t len, node_id;
   volatile uint8_t rx_payload = 0;
+  uint8_t *local_rx_buf;
   volatile uint16_t rx_seq_num = 0;
   volatile uint16_t rx_num_hops = 0;
   volatile uint16_t local_seq_num;
@@ -456,8 +457,8 @@ void rx_msg_task() {
       nrk_led_set(BLUE_LED);
 
       // get the packet, parse and release
-      bmac_rx_pkt_get(&len, &rssi);
-      parse_msg(&rx_packet, (uint8_t *)&g_net_rx_buf, len);
+      local_rx_buf = bmac_rx_pkt_get(&len, &rssi);
+      parse_msg(&rx_packet, local_rx_buf, len);
       bmac_rx_pkt_release();
 
       // print incoming packet if appropriate
@@ -473,7 +474,7 @@ void rx_msg_task() {
       rx_num_hops = rx_packet.num_hops;
  
       // only receive the message if it's not from this node
-      if(MAC_ADDR != rx_source_id) {
+      if((0 == rx_source_id) || (1 == rx_source_id)) {
         // determine if the network has been joined
         local_network_joined = atomic_network_joined();
 
@@ -485,11 +486,12 @@ void rx_msg_task() {
             add_to_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NODE_FOUND;
           }
+          printf("in_seq_pool: %d, new_node: %d\r\n", in_seq_pool, new_node);
 
           // determine if we should act on this packet based on the sequence number
           local_seq_num = get_data_val(&g_seq_pool, rx_source_id);
           if((rx_seq_num > local_seq_num) || (NODE_FOUND == new_node) || (MSG_HAND == rx_type) || (MSG_RESET == rx_type)) {
-
+            printf("delivered\r\n");
             // update the sequence pool and reset the new_node flag
             update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
             new_node = NONE;
@@ -499,8 +501,8 @@ void rx_msg_task() {
 
               // data received -> forward to server
               case MSG_DATA: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // command received -> forward or actuate
@@ -514,44 +516,46 @@ void rx_msg_task() {
                     nrk_kprintf(PSTR("Received command ^^^\r\n"));
                   }
                 }
-                else {
-                  rx_packet.num_hops = rx_num_hops+1;
-                  atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
-                }
+                // else {
+                //   rx_packet.num_hops = rx_num_hops+1;
+                //   atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                // }
+                atomic_kick_watchdog();
                 break;
               }
               // command ack received -> forward to the server
               case MSG_CMDACK: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
                 break;
               }
               // handshake message -> forward to the server
               case MSG_HAND: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 break;
               }
               // handshake ack message -> forward to the server
               case MSG_HANDACK: {
-                if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
-                  rx_packet.num_hops = rx_num_hops+1;
-                  atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
-                }
+                // if(MAC_ADDR != rx_packet.payload[HANDACK_NODE_ID_INDEX]) {
+                //   rx_packet.num_hops = rx_num_hops+1;
+                //   atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);                  
+                // }
+                atomic_kick_watchdog();
                 break;
               }
               // heartbeat message -> forward to the server and
               //  kick the watchdog counter
               case MSG_HEARTBEAT: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
 
               case MSG_RESET: {
-                rx_packet.num_hops = rx_num_hops+1;
-                atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
+                // rx_packet.num_hops = rx_num_hops+1;
+                // atomic_push(&g_data_tx_queue, &rx_packet, g_data_tx_queue_mux);
                 atomic_kick_watchdog();
                 break;
               }
@@ -571,6 +575,7 @@ void rx_msg_task() {
           rx_payload = rx_packet.payload[HANDACK_NODE_ID_INDEX];
           if((MSG_HANDACK == rx_type) && (MAC_ADDR == rx_payload)) {
             atomic_update_network_joined(TRUE);
+            atomic_kick_watchdog();
             local_network_joined = atomic_network_joined();
           }
         }
@@ -1064,7 +1069,7 @@ void inline SPI_Init() {
   hw_rev = GET_REV(HARDWARE_REV);
   SPI_MasterInit();
 
-  // Initialize SPI and open the ATMEGA ADC device as read
+  // Initialize SPI
   if(HW_REV0 == hw_rev) {
     SPI_SlaveInit(PWR_CS);
   }
