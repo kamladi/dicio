@@ -38,7 +38,7 @@ void inline atomic_pop(packet_queue *pq, packet *p, nrk_sem_t *mux);
 uint16_t inline atomic_increment_seq_num();
 uint8_t inline atomic_received_ack();
 void inline atomic_update_received_ack(uint8_t update);
-void tx_cmd_task(void);
+void tx_net_task(void);
 //void tx_node_task(void);
 uint8_t get_server_input(void);
 void copy_packet(packet *dest, packet *src);
@@ -54,7 +54,7 @@ void nrk_create_taskset ();
 nrk_task_type RX_NODE_TASK;
 nrk_task_type RX_SERV_TASK;
 //nrk_task_type TX_NET_TASK;
-nrk_task_type TX_CMD_TASK;
+nrk_task_type TX_NET_TASK;
 //nrk_task_type TX_NODE_TASK;
 nrk_task_type TX_SERV_TASK;
 nrk_task_type HAND_TASK;
@@ -64,7 +64,7 @@ nrk_task_type ALIVE_TASK;
 NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
 NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE];
 //NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
-NRK_STK tx_cmd_task_stack[NRK_APP_STACKSIZE*8];
+NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
 //NRK_STK tx_node_task_stack[NRK_APP_STACKSIZE*8];
 NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
 NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
@@ -479,10 +479,10 @@ void rx_serv_task() {
   nrk_kprintf(PSTR("Fallthrough: rx_serv_task\r\n"));
 }
 
-// tx_cmd_task - send all commands out to the network
-void tx_cmd_task() {
+// tx_net_task - send all commands out to the network
+void tx_net_task() {
   // local variable instantiation
-  volatile uint8_t local_tx_cmd_queue_size;
+  volatile uint8_t local_tx_net_queue_size;
   volatile uint8_t local_cmd_ack_received = FALSE;
   volatile uint8_t local_tx_buf[RF_MAX_PAYLOAD_SIZE];
   volatile uint8_t tx_length = 0;
@@ -494,8 +494,8 @@ void tx_cmd_task() {
   volatile msg_type tx_type;
   volatile int8_t ret = 0;
 
-  printf("tx_cmd_task PID: %d.\r\n", nrk_get_pid());
-    // do not execute until BMAC has started
+  printf("tx_net_task PID: %d.\r\n", nrk_get_pid());
+  // do not execute until BMAC has started
   while(!bmac_started()) {
     nrk_wait_until_next_period ();
   }
@@ -574,12 +574,12 @@ void tx_cmd_task() {
   //   }
   //     nrk_wait_until_next_period();
   // }
-    while(1){
+  while(1){
     // atomically get the queue size
-    local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+    local_tx_net_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
 
     // loop on queue size received above, and no more.
-    for(uint8_t i = 0; i < local_tx_cmd_queue_size; i++) {
+    for(uint8_t i = 0; i < local_tx_net_queue_size; i++) {
       nrk_led_set(RED_LED);
 
       // get a packet out of the queue.
@@ -597,24 +597,15 @@ void tx_cmd_task() {
       if(TRUE == to_send){
         // transmit to nodes
         tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-
         val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-        if(NRK_OK != val){
-          nrk_kprintf( PSTR( "tx fail!\r\n" ));
+        if(NRK_OK != val) {
+          nrk_kprintf(PSTR( "tx fail!\r\n" ));
         }
-        // set sent_handack flag
-        /*val = bmac_tx_pkt_nonblocking(g_net_tx_buf, tx_length);
-        ret = nrk_event_wait (SIG(tx_done_signal));
-        // Just check to be sure signal is okay
-       if(ret & SIG(tx_done_signal) == 0 ) 
-         nrk_kprintf (PSTR ("TX done signal error\r\n"));*/
 
+        // set handack flag
         if(MSG_HANDACK == tx_type){
           sent_handack = TRUE;
         }
-
-        // clear the buffer
-        //clear_tx_buf();
       }
       nrk_led_clr(RED_LED);
     }
@@ -800,7 +791,6 @@ void alive_task() {
     }
 
     // add to the g_node_tx_queue -> send out on network
-    //atomic_push(&g_node_tx_queue, &heart_packet, g_node_tx_queue_mux);
     atomic_push(&g_cmd_tx_queue, &heart_packet, g_cmd_tx_queue_mux);
 
     // add to the g_serv_tx_queue -> send to the server
@@ -808,8 +798,8 @@ void alive_task() {
 
     // decrement all items in alive pool
     //nrk_sem_pend(g_alive_pool_mux);{
-      decrement_all(&g_alive_pool);
-      local_alive_pool_size = g_alive_pool.size;
+    decrement_all(&g_alive_pool);
+    local_alive_pool_size = g_alive_pool.size;
     //}
     //nrk_sem_post(g_alive_pool_mux);
 
@@ -821,11 +811,11 @@ void alive_task() {
 
       // if alive_pool[i] is NOT_ALIVE set temp_id flags
       //nrk_sem_pend(g_alive_pool_mux);{
-        uint8_t temp_val = g_alive_pool.data_vals[i];
-        if(ALIVE_LIMIT == temp_val){
-          g_alive_pool.data_vals[i] = NOT_ALIVE;
-          temp_id = g_alive_pool.node_id[i];
-        }
+      uint8_t temp_val = g_alive_pool.data_vals[i];
+      if(ALIVE_LIMIT == temp_val){
+        g_alive_pool.data_vals[i] = NOT_ALIVE;
+        temp_id = g_alive_pool.node_id[i];
+      }
       //}
       //nrk_sem_post(g_alive_pool_mux);
 
@@ -947,18 +937,18 @@ void nrk_create_taskset () {
   // TX_NET_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
   // TX_NET_TASK.offset.secs = 0;
   // TX_NET_TASK.offset.nano_secs = 0;
-  TX_CMD_TASK.task = tx_cmd_task;
-  nrk_task_set_stk(&TX_CMD_TASK, tx_cmd_task_stack, NRK_APP_STACKSIZE*8);
-  TX_CMD_TASK.prio = 5;
-  TX_CMD_TASK.FirstActivation = TRUE;
-  TX_CMD_TASK.Type = BASIC_TASK;
-  TX_CMD_TASK.SchType = NONPREEMPTIVE;
-  TX_CMD_TASK.period.secs = 1;
-  TX_CMD_TASK.period.nano_secs = 0;
-  TX_CMD_TASK.cpu_reserve.secs = 0;
-  TX_CMD_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
-  TX_CMD_TASK.offset.secs = 0;
-  TX_CMD_TASK.offset.nano_secs = 0;
+  TX_NET_TASK.task = tx_net_task;
+  nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*8);
+  TX_NET_TASK.prio = 5;
+  TX_NET_TASK.FirstActivation = TRUE;
+  TX_NET_TASK.Type = BASIC_TASK;
+  TX_NET_TASK.SchType = NONPREEMPTIVE;
+  TX_NET_TASK.period.secs = 1;
+  TX_NET_TASK.period.nano_secs = 0;
+  TX_NET_TASK.cpu_reserve.secs = 0;
+  TX_NET_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
+  TX_NET_TASK.offset.secs = 0;
+  TX_NET_TASK.offset.nano_secs = 0;
 
   // TX_NODE_TASK.task = tx_node_task;
   // nrk_task_set_stk(&TX_NODE_TASK, tx_node_task_stack, NRK_APP_STACKSIZE*8);
@@ -1016,7 +1006,7 @@ void nrk_create_taskset () {
   nrk_activate_task(&RX_SERV_TASK);
   nrk_activate_task(&TX_SERV_TASK);
   //nrk_activate_task(&TX_NET_TASK);
-  nrk_activate_task(&TX_CMD_TASK);
+  nrk_activate_task(&TX_NET_TASK);
   //nrk_activate_task(&TX_NODE_TASK);
   nrk_activate_task(&ALIVE_TASK);
   nrk_activate_task(&HAND_TASK);
