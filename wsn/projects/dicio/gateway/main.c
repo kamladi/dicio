@@ -39,13 +39,11 @@ uint16_t inline atomic_increment_seq_num();
 uint8_t inline atomic_received_ack();
 void inline atomic_update_received_ack(uint8_t update);
 void tx_net_task(void);
-//void tx_node_task(void);
 uint8_t get_server_input(void);
 void copy_packet(packet *dest, packet *src);
 void clear_serv_buf();
 void rx_node_task(void);
 void rx_serv_task(void);
-//void tx_net_task(void);
 void tx_serv_task(void);
 void hand_task(void);
 void nrk_create_taskset ();
@@ -53,9 +51,7 @@ void nrk_create_taskset ();
 // TASKS
 nrk_task_type RX_NODE_TASK;
 nrk_task_type RX_SERV_TASK;
-//nrk_task_type TX_NET_TASK;
 nrk_task_type TX_NET_TASK;
-//nrk_task_type TX_NODE_TASK;
 nrk_task_type TX_SERV_TASK;
 nrk_task_type HAND_TASK;
 nrk_task_type ALIVE_TASK;
@@ -63,9 +59,7 @@ nrk_task_type ALIVE_TASK;
 // TASK STACKS
 NRK_STK rx_node_task_stack[NRK_APP_STACKSIZE];
 NRK_STK rx_serv_task_stack[NRK_APP_STACKSIZE];
-//NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
 NRK_STK tx_net_task_stack[NRK_APP_STACKSIZE*8];
-//NRK_STK tx_node_task_stack[NRK_APP_STACKSIZE*8];
 NRK_STK tx_serv_task_stack[NRK_APP_STACKSIZE];
 NRK_STK hand_task_stack[NRK_APP_STACKSIZE];
 NRK_STK alive_task_stack[NRK_APP_STACKSIZE];
@@ -81,8 +75,8 @@ nrk_sem_t* g_net_tx_buf_mux;
 uint8_t g_serv_tx_buf[RF_MAX_PAYLOAD_SIZE];
 
 // QUEUES
-packet_queue g_cmd_tx_queue;
-nrk_sem_t* g_cmd_tx_queue_mux;
+packet_queue g_net_tx_queue;
+nrk_sem_t* g_net_tx_queue_mux;
 packet_queue g_node_tx_queue;
 nrk_sem_t* g_node_tx_queue_mux;
 packet_queue g_serv_tx_queue;
@@ -136,7 +130,7 @@ int main () {
 
   // mutexs
   g_net_tx_buf_mux    = nrk_sem_create(1, 9);
-  g_cmd_tx_queue_mux  = nrk_sem_create(1, 9);
+  g_net_tx_queue_mux  = nrk_sem_create(1, 9);
   g_node_tx_queue_mux = nrk_sem_create(1, 9);
   g_serv_tx_queue_mux = nrk_sem_create(1, 9);
   g_hand_rx_queue_mux = nrk_sem_create(1, 9);
@@ -145,7 +139,7 @@ int main () {
   g_cmd_mux           = nrk_sem_create(1, 9);
 
   // packet queues
-  packet_queue_init(&g_cmd_tx_queue);
+  packet_queue_init(&g_net_tx_queue);
   packet_queue_init(&g_node_tx_queue);
   packet_queue_init(&g_serv_tx_queue);
   packet_queue_init(&g_hand_rx_queue);
@@ -349,7 +343,7 @@ void rx_node_task() {
       rx_num_hops = rx_packet.num_hops;
 
       // only receive the message if it's not from the myself      
-      if((MAC_ADDR != rx_source_id) && (rx_num_hops < MAX_HOPS)) {
+      if(MAC_ADDR != rx_source_id) {
 
         // check to see if this node is in the sequence pool, if not then add it
         in_seq_pool = in_pool(&g_seq_pool, rx_source_id);
@@ -365,16 +359,12 @@ void rx_node_task() {
 
           // check to see if this node is in the ALIVE pool, if not then add it,
           // If it is in the alive pool, update the counter to HEART FACTOR
-          //nrk_sem_pend(g_alive_pool_mux);
-          {
-            in_alive_pool = in_pool(&g_alive_pool, rx_source_id);
-            if(NOT_IN_POOL == in_alive_pool) {
-              add_to_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
-            } else {
-              update_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
-            }
+          in_alive_pool = in_pool(&g_alive_pool, rx_source_id);
+          if(NOT_IN_POOL == in_alive_pool) {
+            add_to_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
+          } else {
+            update_pool(&g_alive_pool, rx_source_id, HEART_FACTOR);
           }
-          //nrk_sem_post(g_alive_pool_mux);
 
           // update the sequence pool and reset the new_node flag
           update_pool(&g_seq_pool, rx_source_id, rx_seq_num);
@@ -385,14 +375,13 @@ void rx_node_task() {
             // command ack -> forward to server
             case MSG_CMDACK: {
               // set CMD_ACK_RECEIVED flag to true
-              atomic_update_received_ack(TRUE);
-
               rx_packet.num_hops = rx_num_hops+1;
               atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
               break;
             }
             // data received  -> forward to server
             case MSG_DATA: {
+              rx_packet.num_hops = rx_num_hops+1;
               atomic_push(&g_serv_tx_queue, &rx_packet, g_serv_tx_queue_mux);
               break;
             }
@@ -460,7 +449,7 @@ void rx_serv_task() {
       switch(rx_type) {
         // command received
         case MSG_CMD: {
-          atomic_push(&g_cmd_tx_queue, &rx_packet, g_cmd_tx_queue_mux);
+          atomic_push(&g_net_tx_queue, &rx_packet, g_net_tx_queue_mux);
           break;
         }
         case MSG_CMDACK:
@@ -499,118 +488,51 @@ void tx_net_task() {
   while(!bmac_started()) {
     nrk_wait_until_next_period ();
   }
-  // while(1){
-  //   local_cmd_ack_received = atomic_received_ack();
 
-  //   // If we have received an ack then send another command
-  //   if(TRUE == local_cmd_ack_received){
-  //     // atomically get the queue size
-  //     local_tx_cmd_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
-
-  //     // If there is a command to send.
-  //     if(0 < local_tx_cmd_queue_size){
-  //       nrk_led_set(RED_LED);
-
-  //       // get a packet out of the queue.
-  //       atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-
-  //       // increment the sequence number and copy packet
-  //       tx_packet.seq_num = atomic_increment_seq_num();
-  //       copy_packet(&g_last_cmd, &tx_packet);
-
-  //       // assemble and send
-  //       tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-  //       val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-  //          if(NRK_OK != val){
-  //            nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-  //          }
-  //       //clear_tx_buf();
-
-  //       // update flags/counters
-  //       atomic_update_received_ack(FALSE);
-  //       g_retry_limit_counter = 0;
-
-  //       nrk_led_clr(RED_LED);
-  //     }
-  //   }
-  //   // If we havne't received an ack the retry
-  //   else {
-  //     // increment global retry counter
-  //     g_retry_cmd_counter ++;
-
-  //     // if the retry period has expired then chech the globabl limit counter
-  //     if(RETRY_CMD_PERIOD <= g_retry_cmd_counter){
-
-  //       // if the limit counter has expired then consider the command dead
-  //       if(RETRY_LIMIT <= g_retry_limit_counter){
-  //         // never received ack.. move on to the next
-  //         g_retry_limit_counter = 0;
-  //         atomic_update_received_ack(TRUE);
-  //       }
-  //       // if the limit counter is not expire then resend the command
-  //       else {
-  //         // increment the counter
-  //         g_retry_limit_counter ++;
-
-  //         // increment the sequence number
-  //         g_last_cmd.seq_num = atomic_increment_seq_num();       
-
-  //         // print if appropriate
-  //         if (TRUE == g_verbose) {
-  //           nrk_kprintf (PSTR ("RETRY PACKET:"));
-  //           print_packet(&g_last_cmd);
-  //         }
-
-  //         // reset counter, assemble and send
-  //         g_retry_cmd_counter = 0;
-  //         tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &g_last_cmd);
-  //         val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-  //         if(NRK_OK != val){
-  //           nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
-  //         }
-  //         //clear_tx_buf();
-  //       }
-  //     }
-  //   }
-  //     nrk_wait_until_next_period();
-  // }
+  // loop forever - run the task
   while(1){
     // atomically get the queue size
-    local_tx_net_queue_size = atomic_size(&g_cmd_tx_queue, g_cmd_tx_queue_mux);
+    local_tx_net_queue_size = atomic_size(&g_net_tx_queue, g_net_tx_queue_mux);
 
     // loop on queue size received above, and no more.
     for(uint8_t i = 0; i < local_tx_net_queue_size; i++) {
       nrk_led_set(RED_LED);
 
       // get a packet out of the queue.
-      atomic_pop(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
-
-      // get type and determine if the packet should be sent
-      tx_type = tx_packet.type;
-      if((MSG_HANDACK == tx_type) && (TRUE == sent_handack)) {
-        to_send = FALSE;
-      } else {
-        to_send = TRUE;
+      atomic_pop(&g_net_tx_queue, &tx_packet, g_net_tx_queue_mux);
+      tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+      val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+      if(NRK_OK != val) {
+        nrk_kprintf(PSTR( "tx fail!\r\n" ));
       }
-
-      // send a message if appropriate
-      if(TRUE == to_send){
-        // transmit to nodes
-        tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-        val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-        if(NRK_OK != val) {
-          nrk_kprintf(PSTR( "tx fail!\r\n" ));
-        }
-
-        // set handack flag
-        if(MSG_HANDACK == tx_type){
-          sent_handack = TRUE;
-        }
-      }
-      nrk_led_clr(RED_LED);
     }
-    sent_handack = FALSE;
     nrk_wait_until_next_period();
+    
+      // get type and determine if the packet should be sent
+    //   tx_type = tx_packet.type;
+    //   if((MSG_HANDACK == tx_type) && (TRUE == sent_handack)) {
+    //     to_send = FALSE;
+    //   } else {
+    //     to_send = TRUE;
+    //   }
+
+    //   // send a message if appropriate
+    //   if(TRUE == to_send){
+    //     // transmit to nodes
+    //     tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
+    //     val = bmac_tx_pkt(g_net_tx_buf, tx_length);
+    //     if(NRK_OK != val) {
+    //       nrk_kprintf(PSTR( "tx fail!\r\n" ));
+    //     }
+
+    //     // set handack flag
+    //     if(MSG_HANDACK == tx_type){
+    //       sent_handack = TRUE;
+    //     }
+    //   }
+    //   nrk_led_clr(RED_LED);
+    // }
+    // sent_handack = FALSE;
   }
 }
 
@@ -638,113 +560,6 @@ void tx_serv_task() {
   }
   nrk_kprintf(PSTR("Fallthrough: tx_serv_task\r\n"));
 }
-
-// tx_node_task - send standard messages out to the network (i.e. heartbeat messages, etc.)
-// void tx_node_task() {
-//   volatile uint8_t local_tx_node_queue_size;
-//   volatile uint8_t sent_handack = FALSE;
-//   volatile uint8_t to_send = 0;
-//   volatile uint8_t tx_length = 0;
-//   volatile uint16_t val;
-//   volatile packet tx_packet;
-//   volatile msg_type tx_type;
-
-//   nrk_sig_t tx_done_signal;
-//   tx_done_signal=bmac_get_tx_done_signal();
-
-//   printf("tx_node_task PID: %d.\r\n", nrk_get_pid());
-//   // do not execute until BMAC has started
-//   while(!bmac_started()) {
-//     nrk_wait_until_next_period ();
-//   }
-//   while(1){
-//     // atomically get the queue size
-//     local_tx_node_queue_size = atomic_size(&g_node_tx_queue, g_node_tx_queue_mux);
-
-//     // loop on queue size received above, and no more.
-//     for(uint8_t i = 0; i < local_tx_node_queue_size; i++) {
-//       nrk_led_set(RED_LED);
-
-//       // get a packet out of the queue.
-//       atomic_pop(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
-
-//       // get type and determine if the packet should be sent
-//       tx_type = tx_packet.type;
-//       if((MSG_HANDACK == tx_type) && (TRUE == sent_handack)) {
-//         to_send = FALSE;
-//       } else {
-//         to_send = TRUE;
-//       }
-
-//       // send a message if appropriate
-//       if(TRUE == to_send){
-//         // transmit to nodes
-//         tx_length = assemble_packet((uint8_t *)&g_net_tx_buf, &tx_packet);
-//         val = bmac_tx_pkt(g_net_tx_buf, tx_length);
-//         if(NRK_OK != val){
-//           nrk_kprintf( PSTR( "tx fail!\r\n" ));
-//         }
-//         // set sent_handack flag
-//         /*val = bmac_tx_pkt_nonblocking(g_net_tx_buf, tx_length);
-//         ret = nrk_event_wait (SIG(tx_done_signal));
-//         // Just check to be sure signal is okay
-//        if(ret & SIG(tx_done_signal) == 0 ) 
-//          nrk_kprintf (PSTR ("TX done signal error\r\n"));*/
-//         if(MSG_HANDACK == tx_type){
-//           sent_handack = TRUE;
-//         }
-
-//         // clear the buffer
-//         //clear_tx_buf();
-//       }
-//       nrk_led_clr(RED_LED);
-//     }
-//     sent_handack = FALSE;
-//     nrk_wait_until_next_period();
-//   }
-// }
-
-// // net_tx_task - send network messages
-// void tx_net_task() {
-//   volatile uint8_t counter = 0;
-//   volatile uint8_t tx_cmd_flag;
-//   volatile uint8_t tx_data_flag;
-//   volatile int8_t v;
-//   volatile nrk_time_t sw_watchdog_period;
-//   // print out pid
-//   printf("tx_net PID: %d.\r\n", nrk_get_pid());
-
-//   // Setup software watchdog timer 0 to expire every 15 seconds and reboot
-//   sw_watchdog_period.secs=10;
-//   sw_watchdog_period.nano_secs=0;
-//   v=nrk_sw_wdt_init(0, &sw_watchdog_period, NULL);
-
-//   // do not execute until BMAC has started
-//   while(!bmac_started()) {
-//     nrk_wait_until_next_period ();
-//   }
-
-//   // loop forever - run the task
-//   while(1) {
-//     // kick the watchdog 
-//     nrk_sw_wdt_update(0);
-
-//     // increment the counter and set tx_data_flag 
-//     counter++;
-//     tx_data_flag = counter % GATE_TX_DATA_FLAG;
-
-//     // transmit either data or commands, but not both
-//     if (TRANSMIT == tx_data_flag) {
-//       tx_node();
-//       counter = 0;
-//     } 
-//     else {
-//       tx_cmds();
-//     }
-//     nrk_wait_until_next_period();
-//   }
-//   nrk_kprintf(PSTR("Fallthrough: tx_net_task\r\n"));
-// }
 
 // alive_task 
 //  - send heartbeat message to the network and user (LEDS) 
@@ -791,17 +606,14 @@ void alive_task() {
     }
 
     // add to the g_node_tx_queue -> send out on network
-    atomic_push(&g_cmd_tx_queue, &heart_packet, g_cmd_tx_queue_mux);
+    atomic_push(&g_net_tx_queue, &heart_packet, g_net_tx_queue_mux);
 
     // add to the g_serv_tx_queue -> send to the server
     atomic_push(&g_serv_tx_queue, &heart_packet, g_serv_tx_queue_mux);
 
     // decrement all items in alive pool
-    //nrk_sem_pend(g_alive_pool_mux);{
     decrement_all(&g_alive_pool);
     local_alive_pool_size = g_alive_pool.size;
-    //}
-    //nrk_sem_post(g_alive_pool_mux);
 
     // check all items in the alive pool to determine if any 
     //  counters have expired
@@ -810,14 +622,11 @@ void alive_task() {
       temp_id = 0;
 
       // if alive_pool[i] is NOT_ALIVE set temp_id flags
-      //nrk_sem_pend(g_alive_pool_mux);{
       uint8_t temp_val = g_alive_pool.data_vals[i];
       if(ALIVE_LIMIT == temp_val){
         g_alive_pool.data_vals[i] = NOT_ALIVE;
         temp_id = g_alive_pool.node_id[i];
       }
-      //}
-      //nrk_sem_post(g_alive_pool_mux);
 
       // if alive_pool[i] is NOT_ALIVE - send message to the server
       if(0 != temp_id){
@@ -880,8 +689,7 @@ void hand_task() {
         tx_packet.payload[HANDACK_CONFIG_ID_INDEX + 3] = rx_packet.payload[HAND_CONFIG_ID_INDEX +3];
 
         // send response back to the node and to the server
-        //atomic_push(&g_node_tx_queue, &tx_packet, g_node_tx_queue_mux);
-        atomic_push(&g_cmd_tx_queue, &tx_packet, g_cmd_tx_queue_mux);
+        atomic_push(&g_net_tx_queue, &tx_packet, g_net_tx_queue_mux);
         atomic_push(&g_serv_tx_queue, &tx_packet, g_serv_tx_queue_mux);
       }
     }
@@ -925,18 +733,6 @@ void nrk_create_taskset () {
   RX_SERV_TASK.offset.secs = 0;
   RX_SERV_TASK.offset.nano_secs = 0;
 
-  // TX_NET_TASK.task = tx_net_task;
-  // nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*8);
-  // TX_NET_TASK.prio = 5;
-  // TX_NET_TASK.FirstActivation = TRUE;
-  // TX_NET_TASK.Type = BASIC_TASK;
-  // TX_NET_TASK.SchType = NONPREEMPTIVE;
-  // TX_NET_TASK.period.secs = 0;
-  // TX_NET_TASK.period.nano_secs = 500*NANOS_PER_MS;
-  // TX_NET_TASK.cpu_reserve.secs = 0;
-  // TX_NET_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
-  // TX_NET_TASK.offset.secs = 0;
-  // TX_NET_TASK.offset.nano_secs = 0;
   TX_NET_TASK.task = tx_net_task;
   nrk_task_set_stk(&TX_NET_TASK, tx_net_task_stack, NRK_APP_STACKSIZE*8);
   TX_NET_TASK.prio = 5;
@@ -949,19 +745,6 @@ void nrk_create_taskset () {
   TX_NET_TASK.cpu_reserve.nano_secs = 100*NANOS_PER_MS;
   TX_NET_TASK.offset.secs = 0;
   TX_NET_TASK.offset.nano_secs = 0;
-
-  // TX_NODE_TASK.task = tx_node_task;
-  // nrk_task_set_stk(&TX_NODE_TASK, tx_node_task_stack, NRK_APP_STACKSIZE*8);
-  // TX_NODE_TASK.prio = 3;
-  // TX_NODE_TASK.FirstActivation = TRUE;
-  // TX_NODE_TASK.Type = BASIC_TASK;
-  // TX_NODE_TASK.SchType = NONPREEMPTIVE;
-  // TX_NODE_TASK.period.secs = 1;
-  // TX_NODE_TASK.period.nano_secs = 0;
-  // TX_NODE_TASK.cpu_reserve.secs = 0;
-  // TX_NODE_TASK.cpu_reserve.nano_secs = 50*NANOS_PER_MS;
-  // TX_NODE_TASK.offset.secs = 0;
-  // TX_NODE_TASK.offset.nano_secs = 0;
 
   TX_SERV_TASK.task = tx_serv_task;
   nrk_task_set_stk(&TX_SERV_TASK, tx_serv_task_stack, NRK_APP_STACKSIZE);
@@ -1005,9 +788,7 @@ void nrk_create_taskset () {
   nrk_activate_task(&RX_NODE_TASK);
   nrk_activate_task(&RX_SERV_TASK);
   nrk_activate_task(&TX_SERV_TASK);
-  //nrk_activate_task(&TX_NET_TASK);
   nrk_activate_task(&TX_NET_TASK);
-  //nrk_activate_task(&TX_NODE_TASK);
   nrk_activate_task(&ALIVE_TASK);
   nrk_activate_task(&HAND_TASK);
 
