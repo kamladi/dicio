@@ -20,19 +20,19 @@ void pwr_init() {
     Iscale[0] = GET_TOP_BYTE(IMAX);
     Iscale[1] = GET_MID_BYTE(IMAX);
     Iscale[2] = GET_LOW_BYTE(IMAX);
-    pwr_write(ISCALE, (uint8_t *)&Iscale);
+    pwr_write(ISCALE, &Iscale);
 
     // voltage scaling factor: 120V -> 0x01D4C0
     Vscale[0] = GET_TOP_BYTE(VMAX);
     Vscale[1] = GET_MID_BYTE(VMAX);
     Vscale[2] = GET_LOW_BYTE(VMAX);
-    pwr_write(VSCALE, (uint8_t *)&Vscale);
+    pwr_write(VSCALE, &Vscale);
 
     // power scaling factor: 1200VA -> 0x124F80
     Pscale[0] = GET_TOP_BYTE(PMAX);
     Pscale[1] = GET_MID_BYTE(PMAX);
     Pscale[2] = GET_LOW_BYTE(PMAX);
-    pwr_write(PSCALE, (uint8_t *)&Pscale);
+    pwr_write(PSCALE, &Pscale);
 
     // sticky reg
     Zeros[0] = 0x00;
@@ -54,12 +54,12 @@ void pwr_read(uint16_t reg, uint8_t *read_buf) {
     send_receive_buf[4] = 0x00;             // padding for reading
 
     // send message
-    SPI_SendMessage((uint8_t *)&send_receive_buf, (uint8_t *)&send_receive_buf, PWR_MSG_LEN, PWR_CS);
+    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
 
     // get the return value
     read_buf[0] = send_receive_buf[2];
     read_buf[1] = send_receive_buf[3];
-    read_buf[2] = send_receive_buf[4];
+    read_buf[2] = send_receive_buf[3];
 }
 
 // pwr_write - write to the power sensor
@@ -73,7 +73,7 @@ void pwr_write(uint16_t reg, uint8_t *write_buf) {
     send_receive_buf[4] = write_buf[2];
 
     // send the message
-    SPI_SendMessage((uint8_t *)&send_receive_buf, (uint8_t *)&send_receive_buf, PWR_MSG_LEN, PWR_CS);
+    SPI_SendMessage(&send_receive_buf, &send_receive_buf, PWR_MSG_LEN, PWR_CS);
 }
 
 // transform_pwr - change power sensor reading to a fixed point value
