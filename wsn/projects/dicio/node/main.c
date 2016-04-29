@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 7
-#define HARDWARE_REV 0xD1C10001
+#define MAC_ADDR 5
+#define HARDWARE_REV 0xD1C10000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -364,7 +364,6 @@ void tx_cmds() {
     if(NRK_OK != val){
       nrk_kprintf( PSTR( "NO ack or Reserve Violated!\r\n" ));
     }
-    clear_tx_buf();
 
     nrk_led_clr(ORANGE_LED);
   }
@@ -417,7 +416,6 @@ void tx_data() {
       if(MSG_HEARTBEAT == tx_type){
         sent_heart = TRUE;
       }
-      clear_tx_buf();
     }
     nrk_led_clr(ORANGE_LED);
   }
