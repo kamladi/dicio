@@ -59,7 +59,7 @@ void pwr_read(uint16_t reg, uint8_t *read_buf) {
     // get the return value
     read_buf[0] = send_receive_buf[2];
     read_buf[1] = send_receive_buf[3];
-    read_buf[2] = send_receive_buf[3];
+    read_buf[2] = send_receive_buf[4];
 }
 
 // pwr_write - write to the power sensor
