@@ -32,8 +32,8 @@
 #include <type_defs.h>
 
 // DEFINES
-#define MAC_ADDR 7
-#define HARDWARE_REV 0xD1C10001
+#define MAC_ADDR 5
+#define HARDWARE_REV 0xD1C1000
 
 // FUNCTION DECLARATIONS
 int main(void);
@@ -556,6 +556,7 @@ void sample_task() {
   packet tx_packet;
   packet hello_packet;
   volatile int8_t val;
+  volatile int8_t pwr_back;
   volatile uint8_t hw_rev;
   volatile uint8_t local_network_joined = FALSE;
   volatile uint8_t pwr_period_count = 0;
@@ -619,10 +620,17 @@ void sample_task() {
       if((SAMPLE_SENSOR == pwr_period_count) && (HW_REV0 == hw_rev)) {
         // read power
         pwr_read(WATT, (uint8_t *)&pwr_rcvd);
-
-        // pull out dinner location
-        local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
-        local_pwr_val = transform_pwr(local_pwr_val);
+        pwr_back = pwr_rcvd[2];
+        if (pwr_back < 0) {
+          local_pwr_val = (~pwr_back) + 1;
+        } else {
+          local_pwr_val = pwr_back;
+        }
+        // // pull out dinner location
+        // local_pwr_val = (pwr_rcvd[0] << 8) | pwr_rcvd[1];
+        // printf("val1: %x:%x:%x\r\n", pwr_rcvd[0], pwr_rcvd[1], pwr_rcvd[2]);
+        // local_pwr_val = transform_pwr(local_pwr_val);
+        // printf("val2: %d\r\n", local_pwr_val);
         g_sensor_pkt.pwr_val = local_pwr_val;
         sensor_sampled = TRUE;
       }
@@ -996,13 +1004,9 @@ void inline SPI_Init() {
   uint8_t hw_rev;
 
   // get the hardware rev of this node
-  hw_rev = GET_REV(HARDWARE_REV);
+  // hw_rev = GET_REV(HARDWARE_REV);
   SPI_MasterInit();
-
-  // Initialize SPI
-  if(HW_REV0 == hw_rev) {
-    SPI_SlaveInit(PWR_CS);
-  }
+  SPI_SlaveInit(PWR_CS);
 }
 
 void inline nrk_set_gpio() {
