@@ -8,7 +8,7 @@ var WS 			= require('./websockets');
 db.connect();
 
 // Setup initial data in database (for dev purposes)
-require('./initial_data').init();
+// require('./initial_data').init();
 
 // Get serial port from command line args
 var port = null;

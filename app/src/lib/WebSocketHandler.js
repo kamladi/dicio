@@ -1,5 +1,5 @@
 import EventEmitter from 'EventEmitter';
-import {WEBSOCKET_URL} from './Constants';
+import {WEBSOCKET_URL, onNetworkRequestError} from './Constants';
 
 export class WebSocketHandler extends EventEmitter {
 	constructor() {
@@ -35,7 +35,8 @@ export class WebSocketHandler extends EventEmitter {
 	}
 
 	onError(err) {
-		console.error(err);
+		//console.error(err);
+		onNetworkRequestError(err);
 	}
 
 	onClose(event) {

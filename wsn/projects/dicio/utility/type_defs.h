@@ -63,7 +63,7 @@
 #define TX_CMD_FLAG 1
 #define NODE_TX_DATA_FLAG 20
 #define GATE_TX_DATA_FLAG 10
-#define MAX_RESET_SENDS 5
+#define MAX_RESET_SENDS 2
 #define MAX_HOPS 3
 
 // tables/pools

@@ -14,7 +14,7 @@ import React, {
   SegmentedControlIOS
 } from 'react-native';
 
-import { LineChart } from 'react-native-ios-charts';
+import { BarChart } from 'react-native-ios-charts';
 import moment from 'moment';
 
 import {EditableTextField} from './EditableTextField';
@@ -137,7 +137,7 @@ class OutletChart extends Component {
             this.fetchData(value.toLowerCase());
           }}
         />
-        <LineChart config={config} style={styles.chart}/>
+        <BarChart config={config} style={styles.chart}/>
       </View>
     );
   }

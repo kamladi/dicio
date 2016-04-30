@@ -1,5 +1,5 @@
 import alt from '../alt';
-import {API_EVENTS_URL} from '../lib/Constants';
+import {API_EVENTS_URL, onNetworkRequestError} from '../lib/Constants';
 
 class EventActions {
   eventsChanged(events) {
@@ -24,7 +24,7 @@ class EventActions {
       .then((responseData) => {
         this.eventsChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
       .done();
     return [];
   }
@@ -35,7 +35,7 @@ class EventActions {
       .then((responseData) => {
         this.eventChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
       .done();
     return {};
   }
@@ -72,7 +72,7 @@ class EventActions {
       .then((responseData) => {
         this.eventRemoved(responseData);
       })
-      .catch(console.error);
+      .catch(this.onError);
   }
 
   createEvent(params) {
@@ -89,7 +89,11 @@ class EventActions {
       .then((responseData) => {
         this.eventCreated(responseData);
       })
-      .catch(console.error);
+      .catch(this.onError);
+  }
+
+  onError(err) {
+    onNetworkRequestError(err);
   }
 
 }

@@ -1,5 +1,5 @@
 import alt from '../alt';
-import {API_OUTLETS_URL} from '../lib/Constants';
+import {API_OUTLETS_URL, onNetworkRequestError} from '../lib/Constants';
 
 class OutletActions {
   outletsChanged(outlets) {
@@ -16,7 +16,7 @@ class OutletActions {
       .then((responseData) => {
         this.outletsChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
   }
 
   fetchOutlet(outlet_id) {
@@ -25,7 +25,7 @@ class OutletActions {
       .then((responseData) => {
         this.outletChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
   }
 
   updateOutletName(outlet_id, name) {
@@ -41,7 +41,11 @@ class OutletActions {
       .then((responseData) => {
         this.outletChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
+  }
+
+  onError(err) {
+    onNetworkRequestError(err);
   }
 }
 

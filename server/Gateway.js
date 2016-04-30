@@ -22,9 +22,15 @@ const HANDSHAKE_MESSAGE     = 8;
 const HANDSHAKE_ACK_MESSAGE = 9;
 const HEARTBEAT_MESSAGE		= 10;
 
+// Intermediate States
+CREATING_NEW_OUTLET     = 1;
+DEACTIVATING_OUTLET 		= 2;
+REACTIVATING_OUTLET     = 3
+
 // Globals
 var gSerialPort = null;
 var gWatchdogTimer = null;
+var gCache = {};
 
 /*
  * Returns True if we have made a successful connection to the gateway,
@@ -178,10 +184,18 @@ function handleHandshakeAckMessage(macAddress, payload) {
 	    		console.log(`Received HAND-ACK message for already active outlet ${newMacAddress}`);
 	    		return existingOutlet;
 	    	} else {
+	    		if (gCache[newMacAddress] && gCache[newMacAddress] === REACTIVATING_OUTLET) {
+			    	console.log(`Received HAND-ACK for outlet ${newMacAddress}, but already marking outlet as active, disregard`);
+			    	return existingOutlet;
+			    }
+
+			    gCache[newMacAddress] = REACTIVATING_OUTLET;
 	    		// Outlet exists, but is inactive: mark outlet as active again.
 	    		existingOutlet.active = true;
 		    	return existingOutlet.save()
 		    		.then( outlet => {
+		    			// clear intermediate cache
+		    			gCache[newMacAddress] = null;
 					    // Send socket mesage to app announcing outlet has become
 					    // active again.
 					    return WS.sendActiveNodeMessage(outlet._id, outlet.name);
@@ -190,15 +204,24 @@ function handleHandshakeAckMessage(macAddress, payload) {
 
 	    }
 
+	    if (gCache[newMacAddress] && gCache[newMacAddress] === CREATING_NEW_OUTLET) {
+	    	console.log(`Received HAND-ACK for outlet ${newMacAddress}, but already creating outlet, disregard`);
+	    	return null;
+	    }
+
+	    gCache[newMacAddress] = CREATING_NEW_OUTLET;
+
       // Create new outlet object
 	    var outlet = new Outlet({
-	    	name: 'NEW OUTLET' + newMacAddress,
+	    	name: 'NEW OUTLET ' + newMacAddress,
 	    	mac_address: newMacAddress,
 	    	hardware_version: hardwareVersion
 	    });
 
 	    return outlet.save()
 	    	.then( outlet => {
+	    		// clear intermediate cache for this outlet.
+			    gCache[newMacAddress] = null;
 			    // Send socket mesage to app announcing new outlet
 			    return WS.sendNewNodeMessage(outlet._id, outlet.name);
 			  });
@@ -235,10 +258,20 @@ function handleLostNodeMessage(macAddress, payload) {
 	    	console.log(`Received LOST NODE message for already inactive outlet ${lostMacAddress}`);
 	    	return outlet;
 	    } else {
+	    	if (gCache[lostMacAddress] && gCache[lostMacAddress] === DEACTIVATING_OUTLET) {
+		    	console.log(`Received LOST msg for outlet ${lostMacAddress}, but already marking outlet as lost, disregard`);
+		    	return outlet;
+		    }
+
+		    gCache[lostMacAddress] = DEACTIVATING_OUTLET;
+
 	    	// Mark outlet as inactive in database.
 	    	outlet.active = false;
 	    	return outlet.save()
 	    		.then( outlet => {
+	    			// clear intermediate cache
+	    			gCache[lostMacAddress] = null;
+
 				  	// Send socket mesage to app announcing new node.
 				  	console.log(`Received LOST NODE message for outlet ${lostMacAddress}`);
 				    return WS.sendLostNodeMessage(outlet._id, outlet.name);
@@ -282,7 +315,7 @@ function handleData(data) {
 		case ACTION_ACK_MESSAGE:
 			return handleActionAckMessage(macAddress, payload);
 		case HANDSHAKE_ACK_MESSAGE:
-    	    return handleHandshakeAckMessage(macAddress, payload);
+    	return handleHandshakeAckMessage(macAddress, payload);
     case HEARTBEAT_MESSAGE:
 	    return handleHeartbeatMessage(macAddress, payload);
     case LOST_NODE_MESSAGE:
