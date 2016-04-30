@@ -1,5 +1,5 @@
 import alt from '../alt';
-import {API_GROUPS_URL} from '../lib/Constants';
+import {API_GROUPS_URL, onNetworkRequestError} from '../lib/Constants';
 
 class GroupActions {
   groupsChanged(groups) {
@@ -24,7 +24,7 @@ class GroupActions {
       .then((responseData) => {
         this.groupsChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
       .done();
     return [];
   }
@@ -35,7 +35,7 @@ class GroupActions {
       .then((responseData) => {
         this.groupChanged(responseData);
       })
-      .catch(console.error)
+      .catch(this.onError)
       .done();
     return {};
   }
@@ -89,7 +89,11 @@ class GroupActions {
       .then((responseData) => {
         this.groupCreated(responseData);
       })
-      .catch(console.error);
+      .catch(this.onError);
+  }
+
+  onError(err) {
+    onNetworkRequestError(err);
   }
 
 }

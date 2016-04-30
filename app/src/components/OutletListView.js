@@ -14,6 +14,8 @@ import OutletStore from '../stores/OutletStore';
 import OutletActions from '../actions/OutletActions';
 import {OutletDetailView} from './OutletDetailView';
 
+const REFRESH_INTERVAL = 1000;
+
 export class OutletListView extends Component {
   constructor(props) {
     super(props);
@@ -31,10 +33,16 @@ export class OutletListView extends Component {
   componentDidMount() {
     OutletStore.listen(this.onChange);
     OutletActions.fetchOutlets();
+
+    // Regularly ping the server for the latest outlet data.
+    this.updateIntervalId = setInterval(() => {
+      OutletActions.fetchOutlets();
+    }, REFRESH_INTERVAL);
   }
 
   componentWillUnmount() {
     OutletStore.unlisten(this.onChange);
+    clearInterval(this.updateIntervalId);
   }
 
   onChange(state) {
