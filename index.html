@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Dicio by kamladi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Dicio</h1>
+      <h2 class="project-tagline">A smart outlet mesh network</h2>
+      <a href="https://github.com/kamladi/dicio" class="btn">View on GitHub</a>
+      <a href="https://github.com/kamladi/dicio/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/kamladi/dicio/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="dicio" class="anchor" href="#dicio" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Dicio</h1>
+
+<p>The Wireless Sensor Wizards (<a href="https://github.com/kamladi" class="user-mention">@kamladi</a>, <a href="https://github.com/dansantorojr" class="user-mention">@dansantorojr</a>, and <a href="https://github.com/adamselevan" class="user-mention">@adamselevan</a>) designed and implemented a power outlet wireless network called Dicio (latin for ‘to control’). Users are able to remotely access information about the current and past power consumption and environmental data in their home from anywhere there is an internet connection. Based on this information, users are able to make decisions about the current state of their home and control the power to individual outlets.</p>
+
+<h2>
+<a id="features" class="anchor" href="#features" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Features</h2>
+
+<p>Dicio consists of two types of nodes communicating on an ad-hoc distributed network of sensing and control modules. Each node uses the CMU developed FireFly platform for radio hardware and communication, and custom hardware peripheral hardware was developed to sense power consumption, sample environmental data, and actuate the user’s requests. The gateway node is the the method by which the network control modules receive commands and pass information back to the web server. </p>
+
+<p>The user interfaces with this web server via a mobile application to view data and control individual outlets. The mobile applications gives the user the opportunity to view the current sensor readings and control the power to any individual outlet immediately or with scheduled events. This gives the user the ability to turn off a lamp that was left on after a busy morning or randomize the lighting pattern in their home during a week of vacation.</p>
+
+<h2>
+<a id="tech-stack" class="anchor" href="#tech-stack" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Tech Stack</h2>
+
+<ul>
+<li>Hardware: <a href="https://www.ece.cmu.edu/firefly/">FireFly wireless sensor nodes</a>, along with a custom sensor and actuation board</li>
+<li>RTOS: <a href="http://www.nano-rk.org/projects/nanork/wiki">Nano-RK</a>
+</li>
+<li>Server: <a href="https://nodejs.org/en/">Node.js</a>, <a href="https://www.mongodb.org/">MongoDB</a>
+</li>
+<li>App: <a href="https://facebook.github.io/react-native/">React Native</a>
+</li>
+</ul>
+
+<h2>
+<a id="use-cases" class="anchor" href="#use-cases" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Use Cases</h2>
+
+<h3>
+<a id="simple-use" class="anchor" href="#simple-use" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Simple Use</h3>
+
+<p>At the most simple level, users can use a Dicio outlet to extend their outlet existing outlets with the added feature of remote actuation. Usuers can use the app, view the current status of their outlets, and toggle their status from anywhere.</p>
+
+<h3>
+<a id="monitoring-your-home" class="anchor" href="#monitoring-your-home" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Monitoring Your Home</h3>
+
+<p>One of extra benefits of the Dicio smart outlets is the power and ambient monitoring of users homes. Dicio gives you insight into the power use, temperature, and light in wherever there is a Dicio outlet. From the app, users can view current and past data, allowing them to view trends and make intelligent decisions about their power use.</p>
+
+<h3>
+<a id="creating-events" class="anchor" href="#creating-events" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Creating Events</h3>
+
+<p>Dicio smart outlets allow users to combine the sensing and actuation abilities of their outlet by creating and scheduling events. Events can be triggered based calendar time or any of the sensors that Dicio supports. Users can turn on their lamp in the morning as an alarm or turn on a fan when a room gets warm.</p>
+
+<h3>
+<a id="group-sensing--actuation" class="anchor" href="#group-sensing--actuation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Group Sensing / Actuation</h3>
+
+<p>An added feature of Dicio smart outlets allows users to create events for groups of outlets for actuation. That is, turn on all of the lights if any of the outlets detect dusk approaching.</p>
+
+<h3>
+<a id="future-uses" class="anchor" href="#future-uses" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Future Uses</h3>
+
+<p>In the future, Dicio will support vacation mode, where events are created randomly over the course of your leave from home. In this way, the lights in users’ homes can be randomly turned on and off, made to look like real activity. In this way, users’ homes can be more secure than ever.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/kamladi/dicio">Dicio</a> is maintained by <a href="https://github.com/kamladi">kamladi</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
